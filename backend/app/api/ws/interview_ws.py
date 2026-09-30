@@ -1,4 +1,5 @@
 import json
+import asyncio
 import logging
 import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
@@ -31,10 +32,14 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
     
     # Track questions
     questions = list(session.questions)
-    current_q_idx = 0
+    # Patch B: Resume from last persisted question cursor (survives disconnects)
+    current_q_idx = getattr(session, "current_question_no", 0) or 0
     evaluations_collected = []
 
-    logger.info(f"WebSocket connected for session {session_id}, mode={mode}, total_questions={len(questions)}")
+    # Patch C: Hard server-side time limit
+    time_limit_sec = float((session.time_limit_min or 30) * 60)
+
+    logger.info(f"WebSocket connected for session {session_id}, mode={mode}, total_questions={len(questions)}, resume_from={current_q_idx}")
 
     async def send_current_question():
         nonlocal current_q_idx
@@ -87,10 +92,11 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
         })
         vad.reset()
 
-    # Send initial question immediately upon connection
+    # Send initial (or resumed) question immediately upon connection
     await send_current_question()
 
-    try:
+    async def _ws_receive_loop():
+        nonlocal current_q_idx
         while True:
             raw_msg = await websocket.receive_text()
             data = json.loads(raw_msg)
@@ -167,9 +173,9 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                         "speech": speech
                     })
                 else:
-                    # Move to next question
+                    # Advance cursor and persist it (Patch B: survives reconnects)
                     current_q_idx += 1
-                    # Give short pause before next question
+                    session_service.persist_question_cursor(db, session_id, current_q_idx)
                     await send_current_question()
 
             # 3. Voice Control: Repeat Current Question
@@ -193,6 +199,7 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
             # 4. Voice Control: Skip Question
             elif msg_type == "skip_question":
                 current_q_idx += 1
+                session_service.persist_question_cursor(db, session_id, current_q_idx)
                 await send_current_question()
 
             # 5. Voice Control: Student Doubt (School Mode)
@@ -210,12 +217,27 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
 
             # 6. End Session Early
             elif msg_type == "end_session":
-                current_q_idx = len(questions) # Force trigger report
+                current_q_idx = len(questions)  # Force trigger report
                 await send_current_question()
 
+    try:
+        # Patch C: Hard server-side time limit — session auto-terminates when time is up
+        await asyncio.wait_for(_ws_receive_loop(), timeout=time_limit_sec)
+    except asyncio.TimeoutError:
+        logger.info(f"Session {session_id} reached time limit ({session.time_limit_min} min). Auto-completing.")
+        try:
+            await websocket.send_json({
+                "type": "session_timeout",
+                "message": f"Time limit of {session.time_limit_min} minutes reached. Compiling your report..."
+            })
+            current_q_idx = len(questions)
+            await send_current_question()
+        except Exception:
+            pass
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for session {session_id}")
     except Exception as e:
         logger.error(f"WebSocket error in session {session_id}: {e}", exc_info=True)
     finally:
         db.close()
+

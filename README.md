@@ -19,7 +19,9 @@
   - Interruption & Barge-in support (speaking interrupts AI question playback).
   - Fallback **Manual Type / Edit** mode for noisy environments or browsers without microphone support.
 - **🛡️ Strict Privacy by Design**:
-  - Audio is processed strictly in memory and **never saved to disk**.
+  - **VIVORA servers never receive or store audio.** Audio is processed strictly in RAM and never written to disk.
+  - ⚠️ **Browser STT Note:** With the default `STT_PROVIDER=browser`, the browser's Web Speech API may send audio to the browser vendor (e.g. Google) for recognition. Audio leaves the student's device but never reaches VIVORA servers. For school students who are minors, switch to `STT_PROVIDER=deepgram` or a self-hosted Whisper instance before going live.
+  - ⚠️ **Browser Compatibility:** Voice input requires Chrome or Edge. Firefox does not support the Web Speech API.
   - Only transcripts, question texts, duration, and rubric evaluations are stored in the database.
 - **📊 Comprehensive Performance Scorecard**:
   - Real-time scoring on **Correctness**, **Depth**, and **Speech Clarity**.
@@ -123,11 +125,15 @@ VIVORA/
 │   └── tsconfig.json
 ├── infra/
 │   └── docker-compose.yml
+├── backend/
+│   └── Dockerfile                      # Backend container image
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                      # CI pipeline for tests & build
 └── README.md
 ```
+
+> **Note:** `frontend/Dockerfile`, Alembic migrations, and a background `workers/` ingestion service are not yet implemented. The database schema is auto-created on startup (`Base.metadata.create_all`), and document ingestion runs inline.
 
 ---
 
@@ -182,6 +188,11 @@ python -m venv .venv
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Copy environment template and configure
+copy .env.example .env
+# Edit .env and add your GEMINI_API_KEY (or GROQ_API_KEY) for real AI scoring.
+# Without a key, the server uses a rule-based mock that proves plumbing but not quality.
 
 # Start FastAPI server on port 8000
 python -m uvicorn app.main:app --port 8000 --host 127.0.0.1 --reload
@@ -249,9 +260,10 @@ DATABASE_URL=sqlite:///./vivora.db
 
 ## 🛡️ Privacy & Security Highlights
 
-1. **In-Memory Audio Processing**: Audio stream frames and mic inputs are processed strictly in RAM and are never persisted to disk or cloud object stores.
+1. **In-Memory Audio Processing**: **VIVORA servers never receive or store audio.** Audio is processed strictly in RAM and never written to disk or any cloud object store.
+   - ⚠️ **Browser STT caveat:** When using `STT_PROVIDER=browser` (the default), the browser's Web Speech API may transmit audio to the browser vendor (e.g. Google) for recognition. Audio leaves the student's device but is never handled by VIVORA servers. For deployments targeting school students who are minors, plan to migrate to `STT_PROVIDER=deepgram` or a self-hosted Whisper instance before going live with real users.
 2. **Tenant-Isolated Vector Store**: Ingestion chunks are partitioned by document/tenant IDs, preventing any data cross-contamination between users.
-3. **Guardrails**: Prompt injection defenses and input sanitization protect the agents from adversarial inputs embedded in uploaded documents.
+3. **Guardrails**: Prompt injection defenses and input sanitization protect the agents from adversarial inputs embedded in uploaded documents and spoken answers.
 
 ---
 

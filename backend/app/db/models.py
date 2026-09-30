@@ -58,6 +58,7 @@ class Session(Base):
     question_source = Column(String, default="fixed")  # fixed | generated
     time_limit_min = Column(Integer, default=15)
     time_used_sec = Column(Integer, default=0)
+    current_question_no = Column(Integer, default=0)  # Cursor for session resume after disconnect
     status = Column(String, default="created")  # created | live | completed | abandoned
     started_at = Column(DateTime, nullable=True)
     ended_at = Column(DateTime, nullable=True)

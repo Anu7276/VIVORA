@@ -173,4 +173,12 @@ class SessionService:
         db.commit()
         return report
 
+    @staticmethod
+    def persist_question_cursor(db: DBSession, session_id: str, question_no: int) -> None:
+        """Persist the current question index so the session can resume after a disconnect."""
+        session = db.query(Session).filter(Session.id == session_id).first()
+        if session:
+            session.current_question_no = question_no
+            db.commit()
+
 session_service = SessionService()

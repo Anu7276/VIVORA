@@ -2,6 +2,7 @@ import re
 from typing import Dict, Any, List
 from app.agents.base import BaseAgent
 from app.llm.prompts import INTAKE_SYSTEM_PROMPT
+from app.llm.guardrails import Guardrails
 from app.rag.chunker import Chunker
 from app.rag.embedder import embedder
 from app.rag.vector_store import vector_store
@@ -18,9 +19,10 @@ class IntakeAgent(BaseAgent):
         """
         chunks = self.chunker.chunk_text(text, default_topic=title)
         
-        # Ingest into Vector DB
+        # Ingest into Vector DB (sanitize each chunk against prompt injection first)
         chunk_records = []
         for c in chunks:
+            c["content"] = Guardrails.sanitize_input(c["content"])
             emb = embedder.get_embedding(c["content"])
             v_id = vector_store.insert(
                 tenant_id=tenant_id,
