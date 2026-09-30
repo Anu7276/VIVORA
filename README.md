@@ -121,6 +121,11 @@ VIVORA/
 │   ├── package.json
 │   ├── tailwind.config.js
 │   └── tsconfig.json
+├── infra/
+│   └── docker-compose.yml
+├── .github/
+│   └── workflows/
+│       └── ci.yml                      # CI pipeline for tests & build
 └── README.md
 ```
 
@@ -209,6 +214,8 @@ npm run dev
 ```bash
 cd backend
 .\.venv\Scripts\activate
+# Run headless test harness
+pytest tests/test_text_session_harness.py
 # Test the complete end-to-end vertical slice
 python tests/test_school_fixed_slice.py
 # Test PDF parser
