@@ -128,6 +128,37 @@ VIVORA/
 
 ## ⚡ Quick Start
 
+```mermaid
+flowchart TD
+    START([🚀 Start Setup]) --> PRE["Prerequisites Check<br/>Python 3.11+ & Node.js 18+"]
+    
+    subgraph BACKEND["1️⃣ Backend Setup (Port 8000)"]
+        BE1["cd backend"] --> BE2["python -m venv .venv"]
+        BE2 --> BE3[".\\.venv\\Scripts\\activate"]
+        BE3 --> BE4["pip install -r requirements.txt"]
+        BE4 --> BE5["python -m uvicorn app.main:app --port 8000 --reload"]
+        BE5 --> BEDONE["✅ Backend Running at http://127.0.0.1:8000<br/>API Docs at /docs"]
+    end
+
+    subgraph FRONTEND["2️⃣ Frontend Setup (Port 3000)"]
+        FE1["cd frontend"] --> FE2["npm install"]
+        FE2 --> FE3["npm run dev"]
+        FE3 --> FEDONE["✅ Web App Running at http://localhost:3000"]
+    end
+
+    subgraph RUNTIME["3️⃣ Live Viva Session Execution"]
+        FEDONE --> UPLOAD["Upload PDF / Paste Questions"]
+        UPLOAD --> LIVE["Enter Live Viva Room (WebSocket)"]
+        LIVE --> VOICE["Speak Answers via Mic & Realtime Rubric Evaluation"]
+        VOICE --> REPORT["View Performance Scorecard & Revision Plan"]
+    end
+
+    PRE --> BACKEND
+    PRE --> FRONTEND
+    BACKEND -.-> RUNTIME
+    FRONTEND -.-> RUNTIME
+```
+
 ### 1. Prerequisites
 - **Python 3.11+**
 - **Node.js 18+** & **npm**
