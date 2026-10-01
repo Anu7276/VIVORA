@@ -7,9 +7,9 @@
 ## 🚀 Key Features
 
 - **3 Tailored Viva Modes**:
-  - 🏫 **School Viva (Fixed)**: Friendly pace, reads uploaded questions in order, supports student voice doubts, and allows generous thinking pauses.
-  - 🎓 **College Viva**: Deep probing on "why" and "how" with follow-up questions to test conceptual understanding.
-  - 💼 **Interview Prep**: Adaptive difficulty, strict pacing, and communication scoring (clarity, pace, and filler tracking).
+  - 🏫 **School Viva (Fixed)** ✅ *Working*: Friendly pace, reads uploaded questions in order, supports student voice doubts, and allows generous thinking pauses.
+  - 🎓 **College Viva** ⚠️ *Partial*: Deep probing on "why" and "how" with follow-up questions to test conceptual understanding. Follow-up TTS is wired but untested in UI.
+  - 💼 **Interview Prep** 🔧 *Stub*: Mode config and fixed-list path exist; filler-word penalty, adaptive difficulty, and comm-score computation not yet implemented.
 - **📄 PDF & Material Ingestion (RAG)**:
   - Drag-and-drop PDF upload or paste text/questions.
   - Automatically parses pages, extracts structured questions/topics, and embeds chunks into a **tenant-isolated in-memory Vector DB**.
@@ -19,10 +19,9 @@
   - Interruption & Barge-in support (speaking interrupts AI question playback).
   - Fallback **Manual Type / Edit** mode for noisy environments or browsers without microphone support.
 - **🛡️ Strict Privacy by Design**:
-  - **VIVORA servers never receive or store audio.** With `STT_PROVIDER=browser`, recognition happens entirely in Chrome/Edge — audio never leaves the browser engine. With `STT_PROVIDER=deepgram` or a self-hosted Whisper instance, audio streams through server **RAM only** and is never written to disk or any object store.
-  - ⚠️ **Browser STT caveat:** The browser's Web Speech API sends audio to the browser vendor (e.g. Google) for recognition. Audio leaves the student's device but never reaches VIVORA servers. For school students who are minors, use `STT_PROVIDER=deepgram` or Whisper before going live.
+  - **VIVORA servers never receive or store audio.** Audio handling depends on the STT provider (see Privacy table below).
+  - ⚠️ **Browser STT caveat:** The browser's Web Speech API may send audio to the browser vendor (e.g. Google) for recognition; audio never reaches VIVORA servers. Chrome/Edge only — Firefox is not supported.
   - ⚠️ **Transcript data:** Student transcripts are sent to the configured LLM provider (Gemini, Groq, or OpenAI) for evaluation. Choose a provider whose data-processing terms are acceptable for your jurisdiction and student age group.
-  - ⚠️ **Browser Compatibility:** Voice input requires Chrome or Edge. Firefox does not support the Web Speech API.
   - Only transcripts, question texts, duration, and rubric evaluations are stored in the VIVORA database. Audio is never stored anywhere.
 - **📊 Comprehensive Performance Scorecard**:
   - Real-time scoring on **Correctness**, **Depth**, and **Speech Clarity**.
@@ -134,7 +133,7 @@ VIVORA/
 │   └── Dockerfile                      # Backend container image
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                      # CI pipeline for tests & build
+│       └── ci.yml
 └── README.md
 ```
 
@@ -144,11 +143,11 @@ VIVORA/
 
 ## 📊 Mode Status
 
-| Mode | Status | What works | What's a stub |
+| Mode | Status | What works | What's missing |
 |---|---|---|---|
-| 🏫 **School (Fixed)** | ✅ Working | Fixed question list, voice VAD, per-answer rubric, session resume cursor, doubt answering, time-limit enforcement | Parental consent gate, auth |
-| 🎓 **College (Deep)** | ⚠️ Partial | Evaluation + follow-up question generation works end-to-end | Follow-up TTS speech is wired but untested in UI; adaptive difficulty not yet implemented |
-| 💼 **Interview Prep** | 🔧 Stub | Mode config exists, question fixed-list path runs | Filler-word penalty, adaptive difficulty, comm-score field is stored but always 0 |
+| 🏫 **School (Fixed)** | ✅ Working | Fixed question list, voice VAD, per-answer rubric, session cursor resume, doubt answering, time-limit enforcement | Auth + parental consent gate (a `423 Locked` is now returned until implemented); session resume across server restarts |
+| 🎓 **College (Deep)** | ⚠️ Partial | Evaluation + follow-up question generation works end-to-end | Follow-up TTS speech wired but untested in UI; adaptive difficulty not implemented |
+| 💼 **Interview Prep** | 🔧 Stub | Mode config exists, fixed-list path runs | Filler-word penalty, adaptive difficulty, comm-score always 0 (field hidden from report until implemented) |
 
 ---
 
@@ -291,17 +290,47 @@ DATABASE_URL=sqlite:///./vivora.db
 
 ---
 
-## 🛡️ Privacy & Security Highlights
+## 🛡️ Privacy & Security
 
-| Layer | What happens | Stored? |
-|---|---|---|
-| **Browser STT** (`STT_PROVIDER=browser`) | Audio recognized inside Chrome/Edge engine | ❌ Never reaches VIVORA servers |
-| **Server STT** (`STT_PROVIDER=deepgram` / Whisper) | Audio streams through server RAM for recognition | ❌ Written to RAM only, never disk |
-| **LLM evaluation** | Student transcripts are sent to Gemini/Groq/OpenAI for scoring | ✅ Transcript stored in VIVORA DB; audio never stored |
-| **Vector store** | Document chunks embedded in-memory, partitioned by tenant | ❌ Never on disk |
-| **Database** | Transcripts, scores, feedback, revision plan | ✅ Stored; audio never stored |
+### Data in transit & at rest
+
+| Layer | What happens | Who sees audio? | Stored in VIVORA DB? |
+|---|---|---|---|
+| **Browser STT** (`STT_PROVIDER=browser`) | Browser's Web Speech API recognises speech | Browser vendor (e.g. Google) — not VIVORA | ❌ Audio never reaches VIVORA servers |
+| **Deepgram STT** (`STT_PROVIDER=deepgram`) ⚠️ *Stub* | Audio streams through VIVORA server RAM → Deepgram cloud | Deepgram cloud API | ❌ Written to RAM only, never disk |
+| **Whisper STT** (`STT_PROVIDER=whisper`) 🔧 *Planned* | Audio stays fully inside VIVORA infrastructure (self-hosted model) | Nobody outside your server | ❌ Written to RAM only, never disk |
+| **LLM evaluation** | Student transcript sent to Gemini/Groq/OpenAI for scoring | Configured LLM provider | ✅ Transcript stored in VIVORA DB; audio never stored |
+| **Vector store** | Document chunks embedded in-memory, partitioned by tenant | Nobody external | ❌ Never on disk |
+| **Database** | Transcripts, scores, feedback, revision plan | VIVORA DB only | ✅ Stored; audio never stored |
 
 > ⚠️ **For school deployments (minors):** Review the data-processing terms of your configured LLM provider. Student transcripts are sent to that provider for evaluation. Consider self-hosting or using a provider with a compliant DPA.
+
+### Session resume — what works and what doesn’t
+
+- **Within a server process (implemented ✅):** `current_question_no` is persisted to the database after every answer. If the WebSocket drops and the student reconnects to the same running server, the session resumes from the last answered question.
+- **Across server restarts (not implemented ❌):** The in-memory vector store is lost on restart. Re-ingestion of the document would be required before resuming. This is why Alembic migrations and a persistent vector store are on the backlog.
+
+### Data retention & deletion
+
+| Data type | Proposed default retention | Audio stored? |
+|---|---|---|
+| Session (questions, transcripts, evaluations) | 90 days | ❌ Never |
+| Reports & topic scores | 90 days (cascade with session) | ❌ Never |
+| LLM usage logs | 30 days | ❌ Never |
+| Document chunks (vector store) | In-memory only; lost on restart | ❌ Never |
+| Audio | Never stored | — |
+
+**Delete-my-data endpoint (implemented ✅):**
+```
+DELETE /api/report/{session_id}/data
+```
+Permanently deletes the session, all questions, transcripts, evaluations, report, and LLM usage logs. Returns `{"deleted": true}`. Document chunks (in the vector store) are ephemeral and lost on server restart.
+
+**Delete uploaded document (not yet implemented):**
+```
+DELETE /api/upload/{document_id}      # planned
+```
+Automatic time-based purge (e.g. cron after 90 days) is not yet implemented.
 
 ---
 

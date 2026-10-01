@@ -14,10 +14,33 @@ class CreateSessionRequest(BaseModel):
     content_text: str = ""
     question_source: Optional[str] = None
     time_limit_min: Optional[int] = None
+    is_minor: Optional[bool] = None  # Frontend must pass False for verified adults
+
+
+MINOR_CONSENT_ERROR = (
+    "School-mode sessions for minors require verified parental consent and authentication, "
+    "which are not yet implemented. "
+    "To bypass this gate during development only, pass is_minor=false in the request body. "
+    "Do NOT do this in production with real students."
+)
 
 @router.post("/start")
 async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(get_db)):
     """Initializes a new viva session and prepares questions."""
+
+    # ── Parental consent gate (item 7) ────────────────────────────────────────
+    # School mode is designed for minors. Until auth + parental consent are
+    # implemented, block creation unless the caller explicitly opts out of the
+    # minor flag. This prevents accidentally exposing the system to real students
+    # before the required compliance flow is in place.
+    if req.mode == "school":
+        # is_minor=None means "not specified" — treat as True (safe default)
+        if req.is_minor is None or req.is_minor is True:
+            raise HTTPException(
+                status_code=423,  # 423 Locked — appropriate for a policy gate
+                detail=MINOR_CONSENT_ERROR,
+            )
+
     session = session_service.create_session(
         db=db,
         mode=req.mode,

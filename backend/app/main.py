@@ -38,9 +38,14 @@ def root():
         "status": "online",
         "service": settings.PROJECT_NAME,
         "docs": "/docs",
-        "llm_provider": settings.LLM_PROVIDER,
+        "llm_routing": {
+            "question_generation": settings.QUESTION_GEN_PROVIDER,
+            "live_turn": settings.LIVE_PROVIDER,
+            "evaluation": settings.EVALUATION_PROVIDER,
+            "report": settings.REPORT_PROVIDER,
+        },
         "stt_provider": settings.STT_PROVIDER,
-        "tts_provider": settings.TTS_PROVIDER
+        "tts_provider": settings.TTS_PROVIDER,
     }
 
 @app.get("/health")
