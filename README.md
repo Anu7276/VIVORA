@@ -27,8 +27,11 @@
   - Real-time scoring on **Correctness**, **Depth**, and **Speech Clarity**.
   - Summary scorecard with overall grade, key strengths, and prioritized **Revision Plan**.
   - Question-by-question breakdown comparing student transcripts against RAG model answers.
-- **🔌 Pluggable Provider Architecture**:
-  - Swap LLM (`Gemini`, `Groq`, `OpenAI`, or zero-cost smart fallback), STT (`Browser`, `Deepgram`, `Whisper`), and TTS (`Browser`, `ElevenLabs`, `EdgeTTS`) without modifying agent logic.
+- **🔌 Per-Task LLM Routing**:
+  - Each pipeline stage uses the best-fit provider — **question generation** (Gemini, runs once at session start), **live turn** follow-ups & doubts (Groq, real-time), **evaluation** rubric scoring (Groq, per-answer), and **final report** (Gemini, richer output).
+  - Every provider is overridable by a single env var (`QUESTION_GEN_PROVIDER`, `LIVE_PROVIDER`, `EVALUATION_PROVIDER`, `REPORT_PROVIDER`) — no code changes needed.
+  - Automatic fallback chain: primary → other configured provider → built-in mock. Rate-limit (429) errors back off and retry once before falling back.
+  - STT: `Browser` (Web Speech API) or `Deepgram`. TTS: `Browser` or `ElevenLabs`. All swappable by env var without touching agent logic.
 
 ---
 
