@@ -24,18 +24,36 @@ class ReportAgent(BaseAgent):
 
         evals_summary = []
         scores = []
+        mock_scored_count = 0
         for e in evaluations:
             overall = e.get("overall_score", 0.0)
             scores.append(overall)
+            if e.get("_is_mock", False):
+                mock_scored_count += 1
             evals_summary.append({
                 "question": e.get("question_text"),
                 "topic": e.get("topic", "General"),
                 "score": overall,
                 "feedback": e.get("feedback"),
-                "missing": e.get("missing_concepts")
+                "missing": e.get("missing_concepts"),
+                "ai_scored": not e.get("_is_mock", False),
             })
 
         avg_score = round(sum(scores) / len(scores), 1) if scores else 0.0
+
+        # Build a scoring quality note for the report
+        if mock_scored_count == 0:
+            scoring_note = "All evaluations AI-scored."
+        elif mock_scored_count == len(evaluations):
+            scoring_note = (
+                "⚠️ Scores are rule-based estimates only (AI providers were unavailable). "
+                "Treat scores as approximate indicators, not certified grades."
+            )
+        else:
+            scoring_note = (
+                f"⚠️ {mock_scored_count} of {len(evaluations)} evaluation(s) used "
+                f"rule-based scoring (AI provider was unavailable for those turns)."
+            )
 
         prompt = REPORT_PROMPT.format(
             mode=mode,
@@ -49,9 +67,12 @@ class ReportAgent(BaseAgent):
                 system_prompt="You are an analytical educational report generator.",
                 as_json=True,
             )
-            # Ensure overall score aligns with calculated average
+            report_data.pop("_provider", None)
+            report_data.pop("_is_mock", None)
             if "overall_score" not in report_data or report_data["overall_score"] == 0:
                 report_data["overall_score"] = avg_score
+            report_data["mock_scored_count"] = mock_scored_count
+            report_data["scoring_note"] = scoring_note
             return report_data
         except Exception:
             return {
@@ -69,9 +90,15 @@ class ReportAgent(BaseAgent):
                     "Take another 15-minute quick viva test to reinforce memory"
                 ],
                 "topic_scores": [
-                    {"topic": e.get("topic", "General"), "score": e.get("overall_score", avg_score), "level": "strong" if e.get("overall_score", 7) >= 7.5 else "average"}
+                    {
+                        "topic": e.get("topic", "General"),
+                        "score": e.get("overall_score", avg_score),
+                        "level": "strong" if e.get("overall_score", 7) >= 7.5 else "average"
+                    }
                     for e in evaluations
-                ]
+                ],
+                "mock_scored_count": mock_scored_count,
+                "scoring_note": scoring_note,
             }
 
 report_agent = ReportAgent()

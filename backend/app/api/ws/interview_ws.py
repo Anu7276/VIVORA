@@ -61,7 +61,9 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
             await websocket.send_json({
                 "type": "session_completed",
                 "report_id": report_record.id,
-                "report": report_data
+                "report": report_data,
+                "scoring_note": report_data.get("scoring_note", ""),
+                "mock_scored_count": report_data.get("mock_scored_count", 0),
             })
             return
 
@@ -136,6 +138,21 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                 eval_data["question_text"] = current_q.question_text
                 eval_data["topic"] = current_q.topic
                 evaluations_collected.append(eval_data)
+
+                # Notify frontend if this evaluation fell back to mock scoring
+                if eval_data.get("_is_mock", False):
+                    await websocket.send_json({
+                        "type": "degraded_mode",
+                        "message": (
+                            "AI scoring is temporarily unavailable. This answer has been "
+                            "scored using a rule-based fallback. Scores may be less accurate."
+                        ),
+                        "affected_question": current_q_idx + 1,
+                    })
+                    logger.warning(
+                        f"[WS] Session {session_id} Q{current_q_idx+1}: "
+                        f"evaluation fell back to mock (degraded_mode sent)"
+                    )
 
                 # Save transcript and evaluation (No audio is stored)
                 session_service.record_answer_and_eval(

@@ -19,10 +19,11 @@
   - Interruption & Barge-in support (speaking interrupts AI question playback).
   - Fallback **Manual Type / Edit** mode for noisy environments or browsers without microphone support.
 - **🛡️ Strict Privacy by Design**:
-  - **VIVORA servers never receive or store audio.** Audio is processed strictly in RAM and never written to disk.
-  - ⚠️ **Browser STT Note:** With the default `STT_PROVIDER=browser`, the browser's Web Speech API may send audio to the browser vendor (e.g. Google) for recognition. Audio leaves the student's device but never reaches VIVORA servers. For school students who are minors, switch to `STT_PROVIDER=deepgram` or a self-hosted Whisper instance before going live.
+  - **VIVORA servers never receive or store audio.** With `STT_PROVIDER=browser`, recognition happens entirely in Chrome/Edge — audio never leaves the browser engine. With `STT_PROVIDER=deepgram` or a self-hosted Whisper instance, audio streams through server **RAM only** and is never written to disk or any object store.
+  - ⚠️ **Browser STT caveat:** The browser's Web Speech API sends audio to the browser vendor (e.g. Google) for recognition. Audio leaves the student's device but never reaches VIVORA servers. For school students who are minors, use `STT_PROVIDER=deepgram` or Whisper before going live.
+  - ⚠️ **Transcript data:** Student transcripts are sent to the configured LLM provider (Gemini, Groq, or OpenAI) for evaluation. Choose a provider whose data-processing terms are acceptable for your jurisdiction and student age group.
   - ⚠️ **Browser Compatibility:** Voice input requires Chrome or Edge. Firefox does not support the Web Speech API.
-  - Only transcripts, question texts, duration, and rubric evaluations are stored in the database.
+  - Only transcripts, question texts, duration, and rubric evaluations are stored in the VIVORA database. Audio is never stored anywhere.
 - **📊 Comprehensive Performance Scorecard**:
   - Real-time scoring on **Correctness**, **Depth**, and **Speech Clarity**.
   - Summary scorecard with overall grade, key strengths, and prioritized **Revision Plan**.
@@ -31,6 +32,7 @@
   - Each pipeline stage uses the best-fit provider — **question generation** (Gemini, runs once at session start), **live turn** follow-ups & doubts (Groq, real-time), **evaluation** rubric scoring (Groq, per-answer), and **final report** (Gemini, richer output).
   - Every provider is overridable by a single env var (`QUESTION_GEN_PROVIDER`, `LIVE_PROVIDER`, `EVALUATION_PROVIDER`, `REPORT_PROVIDER`) — no code changes needed.
   - Automatic fallback chain: primary → other configured provider → built-in mock. Rate-limit (429) errors back off and retry once before falling back.
+  - When the router falls back to the **built-in mock**, the frontend receives a `degraded_mode` WebSocket event (banner), the evaluation is flagged `_is_mock=true`, and the final report includes a `scoring_note` labelling those scores as **rule-based estimates, not AI-scored**.
   - STT: `Browser` (Web Speech API) or `Deepgram`. TTS: `Browser` or `ElevenLabs`. All swappable by env var without touching agent logic.
 
 ---
@@ -136,7 +138,17 @@ VIVORA/
 └── README.md
 ```
 
-> **Note:** `frontend/Dockerfile`, Alembic migrations, and a background `workers/` ingestion service are not yet implemented. The database schema is auto-created on startup (`Base.metadata.create_all`), and document ingestion runs inline.
+> **Not yet implemented:** `frontend/Dockerfile`, Alembic migrations, background `workers/` ingestion service, auth / parental-consent flow (required before minors can create sessions), and session resume across server restarts. The database schema is auto-created on startup (`Base.metadata.create_all`), and document ingestion runs inline.
+
+---
+
+## 📊 Mode Status
+
+| Mode | Status | What works | What's a stub |
+|---|---|---|---|
+| 🏫 **School (Fixed)** | ✅ Working | Fixed question list, voice VAD, per-answer rubric, session resume cursor, doubt answering, time-limit enforcement | Parental consent gate, auth |
+| 🎓 **College (Deep)** | ⚠️ Partial | Evaluation + follow-up question generation works end-to-end | Follow-up TTS speech is wired but untested in UI; adaptive difficulty not yet implemented |
+| 💼 **Interview Prep** | 🔧 Stub | Mode config exists, question fixed-list path runs | Filler-word penalty, adaptive difficulty, comm-score field is stored but always 0 |
 
 ---
 
@@ -236,6 +248,8 @@ python tests/test_school_fixed_slice.py
 python tests/test_pdf_upload.py
 # Test per-task LLM routing and fallback behaviour
 pytest tests/test_task_routing.py -v
+# Test degraded-mode flagging (mock fallback → _is_mock, scoring_note)
+pytest tests/test_degraded_mode.py -v
 ```
 
 ---
@@ -279,10 +293,15 @@ DATABASE_URL=sqlite:///./vivora.db
 
 ## 🛡️ Privacy & Security Highlights
 
-1. **In-Memory Audio Processing**: **VIVORA servers never receive or store audio.** Audio is processed strictly in RAM and never written to disk or any cloud object store.
-   - ⚠️ **Browser STT caveat:** When using `STT_PROVIDER=browser` (the default), the browser's Web Speech API may transmit audio to the browser vendor (e.g. Google) for recognition. Audio leaves the student's device but is never handled by VIVORA servers. For deployments targeting school students who are minors, plan to migrate to `STT_PROVIDER=deepgram` or a self-hosted Whisper instance before going live with real users.
-2. **Tenant-Isolated Vector Store**: Ingestion chunks are partitioned by document/tenant IDs, preventing any data cross-contamination between users.
-3. **Guardrails**: Prompt injection defenses and input sanitization protect the agents from adversarial inputs embedded in uploaded documents and spoken answers.
+| Layer | What happens | Stored? |
+|---|---|---|
+| **Browser STT** (`STT_PROVIDER=browser`) | Audio recognized inside Chrome/Edge engine | ❌ Never reaches VIVORA servers |
+| **Server STT** (`STT_PROVIDER=deepgram` / Whisper) | Audio streams through server RAM for recognition | ❌ Written to RAM only, never disk |
+| **LLM evaluation** | Student transcripts are sent to Gemini/Groq/OpenAI for scoring | ✅ Transcript stored in VIVORA DB; audio never stored |
+| **Vector store** | Document chunks embedded in-memory, partitioned by tenant | ❌ Never on disk |
+| **Database** | Transcripts, scores, feedback, revision plan | ✅ Stored; audio never stored |
+
+> ⚠️ **For school deployments (minors):** Review the data-processing terms of your configured LLM provider. Student transcripts are sent to that provider for evaluation. Consider self-hosting or using a provider with a compliant DPA.
 
 ---
 

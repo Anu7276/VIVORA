@@ -37,6 +37,8 @@ class EvaluatorAgent(BaseAgent):
                 system_prompt="You are an expert, encouraging viva examination evaluator.",
                 as_json=True,
             )
+            is_mock = eval_res.pop("_is_mock", False)
+            provider = eval_res.pop("_provider", "unknown")
             return {
                 "correctness_score": float(eval_res.get("correctness_score", 7.0)),
                 "depth_score": float(eval_res.get("depth_score", 7.0)),
@@ -44,7 +46,9 @@ class EvaluatorAgent(BaseAgent):
                 "overall_score": float(eval_res.get("overall_score", 7.2)),
                 "feedback": eval_res.get("feedback", "Good effort!"),
                 "missing_concepts": eval_res.get("missing_concepts", ""),
-                "model_answer": eval_res.get("model_answer", effective_reference)
+                "model_answer": eval_res.get("model_answer", effective_reference),
+                "_provider": provider,
+                "_is_mock": is_mock,
             }
         except Exception as e:
             return {
@@ -54,7 +58,9 @@ class EvaluatorAgent(BaseAgent):
                 "overall_score": 7.0,
                 "feedback": "Answer recorded successfully. Good conceptual understanding.",
                 "missing_concepts": "Detailed technical terms",
-                "model_answer": effective_reference
+                "model_answer": effective_reference,
+                "_provider": "mock",
+                "_is_mock": True,
             }
 
 evaluator_agent = EvaluatorAgent()

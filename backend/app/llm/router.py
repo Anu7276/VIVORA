@@ -1,18 +1,19 @@
 """
-VIVORA Per-Task LLM Router
-==========================
-Each task (question_generation, live_turn, evaluation, report) has its own
-preferred provider set via environment variables. Agents call only:
-
-    result = await llm_router.complete(task="evaluation", prompt="...", ...)
+router.py — Per-Task LLM Router with degraded-mode signalling
+=============================================================
+Agents call:
+    result = await llm_router.complete(task="evaluation", prompt="...", as_json=True)
 
 The router:
   1. Resolves the preferred provider for the task from config.
   2. Tries the preferred provider.
-  3. On 429 (rate-limit): waits with exponential back-off and retries once.
+  3. On 429 (rate-limit): backs off 1.5 s and retries once.
   4. On any other failure: falls back to the next available provider.
   5. Final safety net: SmartRuleFallbackProvider (always succeeds, zero cost).
-  6. Logs every call (task, provider, latency, is_fallback) to DB usage log.
+  6. Logs every call to DB (task, provider, latency, is_fallback).
+  7. Embeds `_provider` and `_is_mock` in the returned dict (JSON calls) or
+     as metadata accessible via `llm_router.last_call_meta` so callers can
+     emit a `degraded_mode` WebSocket event and flag mock-scored evaluations.
 """
 
 import asyncio
@@ -30,10 +31,10 @@ from app.llm.guardrails import Guardrails
 
 logger = logging.getLogger("vivora.llm")
 
-# ─── Task type literal ────────────────────────────────────────────────────────
+# ─── Task type ────────────────────────────────────────────────────────────────
 LLMTask = Literal["question_generation", "live_turn", "evaluation", "report"]
 
-# ─── Provider name → config mapping ──────────────────────────────────────────
+# ─── Task → provider name (from config) ──────────────────────────────────────
 TASK_PROVIDER_MAP: Dict[str, str] = {
     "question_generation": settings.QUESTION_GEN_PROVIDER,
     "live_turn":           settings.LIVE_PROVIDER,
@@ -97,19 +98,14 @@ class GroqProvider(LLMProvider):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                self.base_url,
-                headers=headers,
+                self.base_url, headers=headers,
                 json={"model": self.model, "messages": messages},
             )
             resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+            return resp.json()["choices"][0]["message"]["content"]
 
     async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
         text = await self.generate_text(prompt, system_prompt)
@@ -131,19 +127,14 @@ class OpenAIProvider(LLMProvider):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                self.base_url,
-                headers=headers,
+                self.base_url, headers=headers,
                 json={"model": self.model, "messages": messages},
             )
             resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+            return resp.json()["choices"][0]["message"]["content"]
 
     async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
         text = await self.generate_text(prompt, system_prompt)
@@ -154,8 +145,8 @@ class OpenAIProvider(LLMProvider):
 class SmartRuleFallbackProvider(LLMProvider):
     """
     Zero-external-cost rule-based fallback.
-    Returns deterministic, plausible outputs for every task type so the full
-    pipeline never crashes — useful for CI and offline dev.
+    Returns deterministic, plausible outputs for every task type.
+    NOTE: Outputs from this provider are flagged as NOT AI-scored.
     """
     name = "mock"
 
@@ -262,7 +253,6 @@ class SmartRuleFallbackProvider(LLMProvider):
 
 # ─── JSON extraction helper ───────────────────────────────────────────────────
 def _extract_json_from_text(text: str) -> Dict[str, Any]:
-    """Extract the first JSON object/array from a model response string."""
     try:
         match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
         if match:
@@ -272,7 +262,7 @@ def _extract_json_from_text(text: str) -> Dict[str, Any]:
         logger.warning(f"Direct JSON parse failed: {e}. Attempting brace extraction.")
         start, end = text.find("{"), text.rfind("}")
         if start != -1 and end != -1:
-            return json.loads(text[start : end + 1])
+            return json.loads(text[start: end + 1])
         raise ValueError(f"Could not extract JSON from LLM response: {text[:200]}")
 
 
@@ -287,14 +277,13 @@ def _log_usage(
     session_id: Optional[str],
     error_type: Optional[str],
 ) -> None:
-    """Write one row to llm_usage_logs. Runs synchronously but is cheap."""
     try:
         from app.db.database import SessionLocal
         from app.db.models import LLMUsageLog
 
         db = SessionLocal()
         try:
-            log = LLMUsageLog(
+            db.add(LLMUsageLog(
                 session_id=session_id,
                 task=task,
                 provider=provider,
@@ -303,28 +292,40 @@ def _log_usage(
                 latency_ms=latency_ms,
                 success=success,
                 error_type=error_type,
-            )
-            db.add(log)
+            ))
             db.commit()
         finally:
             db.close()
     except Exception as exc:
-        # Never let logging crash the request
         logger.debug(f"Usage log write failed (non-critical): {exc}")
+
+
+# ─── Call metadata (per-call result, used by callers to emit WS events) ──────
+class CallMeta:
+    """Attached to each complete() result so callers can inspect provider details."""
+    __slots__ = ("provider", "is_mock", "task")
+
+    def __init__(self, provider: str, is_mock: bool, task: str):
+        self.provider = provider
+        self.is_mock = is_mock
+        self.task = task
 
 
 # ─── Main router ──────────────────────────────────────────────────────────────
 class LLMRouter:
     """
-    Per-task LLM router.
+    Per-task LLM router with automatic fallback and degraded-mode signalling.
 
     Usage in agents:
-        text   = await llm_router.complete(task="live_turn",  prompt="...", system_prompt="...")
         result = await llm_router.complete(task="evaluation", prompt="...", as_json=True)
+
+    After the call:
+        meta = llm_router.last_call_meta   # CallMeta(provider, is_mock, task)
+        if meta.is_mock:
+            # emit degraded_mode WebSocket event
     """
 
     def __init__(self) -> None:
-        # Build provider pool once — only instantiate providers we have keys for
         self._pool: Dict[str, LLMProvider] = {}
         if settings.GEMINI_API_KEY:
             self._pool["gemini"] = GeminiProvider(settings.GEMINI_API_KEY)
@@ -333,6 +334,8 @@ class LLMRouter:
         if settings.OPENAI_API_KEY:
             self._pool["openai"] = OpenAIProvider(settings.OPENAI_API_KEY)
         self._pool["mock"] = SmartRuleFallbackProvider()
+
+        self.last_call_meta: Optional[CallMeta] = None
 
         available = list(self._pool.keys())
         logger.info(f"LLMRouter initialised. Available providers: {available}")
@@ -344,15 +347,10 @@ class LLMRouter:
         )
 
     def _provider_for_task(self, task: str) -> LLMProvider:
-        """Return the configured primary provider for a task, falling back to mock."""
         preferred = TASK_PROVIDER_MAP.get(task, "mock")
         return self._pool.get(preferred) or self._pool["mock"]
 
     def _fallback_chain(self, task: str) -> List[LLMProvider]:
-        """
-        Build the ordered fallback list for a task, excluding the primary.
-        Order: other real providers (in key insertion order) → mock.
-        """
         primary_name = TASK_PROVIDER_MAP.get(task, "mock")
         chain: List[LLMProvider] = []
         for name, prov in self._pool.items():
@@ -368,11 +366,8 @@ class LLMRouter:
         system_prompt: Optional[str],
         as_json: bool,
     ) -> Any:
-        """
-        Call provider once. On HTTP 429 (rate-limit), wait back-off and retry once.
-        Raises on any other error so the caller can fall back.
-        """
-        for attempt in range(2):  # attempt 0 = first try, attempt 1 = one retry
+        """Call once; on 429 back off 1.5 s and retry once."""
+        for attempt in range(2):
             try:
                 if as_json:
                     return await provider.generate_json(prompt, system_prompt)
@@ -381,16 +376,14 @@ class LLMRouter:
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code == 429:
                     if attempt == 0:
-                        wait = 2 ** attempt * 1.5  # 1.5 s then bail
+                        wait = 1.5
                         logger.warning(
-                            f"[{provider.name}] 429 rate-limited — backing off {wait:.1f}s before retry"
+                            f"[{provider.name}] 429 rate-limited — backing off {wait}s before retry"
                         )
                         await asyncio.sleep(wait)
-                        continue  # retry once
-                    else:
-                        logger.warning(f"[{provider.name}] 429 persists after retry — falling back")
-                        raise  # give up, outer loop will try next provider
-                raise  # non-429 HTTP error → immediate fallback
+                        continue
+                    logger.warning(f"[{provider.name}] 429 persists after retry — falling back")
+                raise
 
     async def complete(
         self,
@@ -403,13 +396,8 @@ class LLMRouter:
         """
         Main entry point for all agent LLM calls.
 
-        Parameters
-        ----------
-        task        : one of question_generation | live_turn | evaluation | report
-        prompt      : the user/task prompt
-        system_prompt : optional system instruction
-        as_json     : if True, parse response as JSON dict
-        session_id  : forwarded to usage logs for observability
+        Sets `self.last_call_meta` so callers can check whether the response
+        came from the mock provider and emit appropriate WebSocket signals.
         """
         primary = self._provider_for_task(task)
         fallbacks = self._fallback_chain(task)
@@ -421,64 +409,55 @@ class LLMRouter:
             try:
                 result = await self._call_with_retry(provider, prompt, system_prompt, as_json)
                 latency_ms = int((time.monotonic() - t0) * 1000)
+                is_mock = provider.name == "mock"
                 logger.info(
                     f"[LLM] task={task} provider={provider.name} "
-                    f"fallback={is_fallback} latency={latency_ms}ms ✓"
+                    f"fallback={is_fallback} mock={is_mock} latency={latency_ms}ms ✓"
                 )
                 _log_usage(
-                    task=task,
-                    provider=provider.name,
-                    latency_ms=latency_ms,
-                    is_fallback=is_fallback,
-                    success=True,
-                    prompt_len=len(prompt),
-                    session_id=session_id,
-                    error_type=None,
+                    task=task, provider=provider.name, latency_ms=latency_ms,
+                    is_fallback=is_fallback, success=True, prompt_len=len(prompt),
+                    session_id=session_id, error_type=None,
                 )
+                # Store per-call metadata for callers
+                self.last_call_meta = CallMeta(
+                    provider=provider.name, is_mock=is_mock, task=task
+                )
+                # Embed provider/mock flag directly into JSON results for traceability
+                if isinstance(result, dict):
+                    result["_provider"] = provider.name
+                    result["_is_mock"] = is_mock
                 return result
 
             except httpx.HTTPStatusError as exc:
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 error_type = "rate_limit" if exc.response.status_code == 429 else "api_error"
                 logger.warning(
-                    f"[LLM] task={task} provider={provider.name} HTTP {exc.response.status_code} "
-                    f"— trying next provider"
+                    f"[LLM] task={task} provider={provider.name} HTTP {exc.response.status_code} — next"
                 )
             except httpx.TimeoutException:
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 error_type = "timeout"
-                logger.warning(
-                    f"[LLM] task={task} provider={provider.name} timed out — trying next provider"
-                )
+                logger.warning(f"[LLM] task={task} provider={provider.name} timeout — next")
             except Exception as exc:
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 error_type = "api_error"
-                logger.warning(
-                    f"[LLM] task={task} provider={provider.name} error: {exc} — trying next provider"
-                )
+                logger.warning(f"[LLM] task={task} provider={provider.name} error: {exc} — next")
 
             _log_usage(
-                task=task,
-                provider=provider.name,
-                latency_ms=latency_ms,
-                is_fallback=is_fallback,
-                success=False,
-                prompt_len=len(prompt),
-                session_id=session_id,
-                error_type=error_type,
+                task=task, provider=provider.name, latency_ms=latency_ms,
+                is_fallback=is_fallback, success=False, prompt_len=len(prompt),
+                session_id=session_id, error_type=error_type,
             )
-            is_fallback = True  # every provider after the first is a fallback
+            is_fallback = True
 
-        # Should be unreachable — mock never raises
         raise RuntimeError(f"All providers exhausted for task '{task}'")
 
-    # ── Legacy convenience helpers (used by base agents, kept for compatibility) ──
+    # ── Legacy helpers ────────────────────────────────────────────────────────
     async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Legacy helper — defaults to live_turn task."""
         return await self.complete(task="live_turn", prompt=prompt, system_prompt=system_prompt)
 
     async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
-        """Legacy helper — defaults to evaluation task."""
         return await self.complete(task="evaluation", prompt=prompt, system_prompt=system_prompt, as_json=True)
 
 
