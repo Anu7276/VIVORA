@@ -44,7 +44,12 @@ class QuestionAgent(BaseAgent):
         )
 
         try:
-            data = await self.llm.generate_json(prompt, system_prompt="You are a viva question generation agent.")
+            data = await self.llm.complete(
+                task="question_generation",
+                prompt=prompt,
+                system_prompt="You are a viva question generation agent.",
+                as_json=True,
+            )
             generated = data.get("questions", [])
             result = []
             for idx, q in enumerate(generated):

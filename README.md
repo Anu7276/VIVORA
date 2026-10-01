@@ -231,22 +231,36 @@ pytest tests/test_text_session_harness.py
 python tests/test_school_fixed_slice.py
 # Test PDF parser
 python tests/test_pdf_upload.py
+# Test per-task LLM routing and fallback behaviour
+pytest tests/test_task_routing.py -v
 ```
 
 ---
 
 ## ⚙️ Configuration (`backend/.env`)
 
-You can create a `.env` file inside the `backend/` directory to configure cloud AI models:
+Copy `.env.example` to `.env` and fill in your API keys. Each task in the live pipeline uses its own LLM provider, chosen for the best speed/quality trade-off:
+
+| Task | Default Provider | Env Var to Override | Why |
+|---|---|---|---|
+| **Question generation** | `gemini` | `QUESTION_GEN_PROVIDER` | Runs **once** at session start; Gemini handles long RAG context well |
+| **Live turn** (follow-ups, doubt answers) | `groq` | `LIVE_PROVIDER` | Real-time; Groq's Llama is the fastest free-tier option |
+| **Evaluation** (rubric scoring per answer) | `groq` | `EVALUATION_PROVIDER` | Called after every answer; low latency matters |
+| **Report** (final scorecard) | `gemini` | `REPORT_PROVIDER` | Richer, multi-section summary; called once at end |
 
 ```ini
-# LLM Provider: 'mock' (default zero-cost fallback), 'gemini', 'groq', 'openai'
-LLM_PROVIDER=mock
+# API Keys
 GEMINI_API_KEY=your_gemini_api_key
 GROQ_API_KEY=your_groq_api_key
-OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_KEY=your_openai_api_key   # optional third fallback
 
-# Voice Providers: 'browser' (default), 'deepgram', 'elevenlabs'
+# Per-task providers (gemini | groq | openai | mock)
+QUESTION_GEN_PROVIDER=gemini
+LIVE_PROVIDER=groq
+EVALUATION_PROVIDER=groq
+REPORT_PROVIDER=gemini
+
+# Voice providers
 STT_PROVIDER=browser
 TTS_PROVIDER=browser
 DEEPGRAM_API_KEY=your_deepgram_api_key
@@ -255,6 +269,8 @@ ELEVENLABS_API_KEY=your_elevenlabs_api_key
 # Database
 DATABASE_URL=sqlite:///./vivora.db
 ```
+
+> **Fallback order:** If the preferred provider has no API key or returns an error / 429, the router automatically tries the other configured providers in order, then falls back to the built-in rule-based mock. Every call is logged to `llm_usage_logs` with task, provider, latency, and fallback flag.
 
 ---
 

@@ -31,9 +31,11 @@ class EvaluatorAgent(BaseAgent):
         )
 
         try:
-            eval_res = await self.llm.generate_json(
+            eval_res = await self.llm.complete(
+                task="evaluation",
                 prompt=prompt,
-                system_prompt="You are an expert, encouraging viva examination evaluator."
+                system_prompt="You are an expert, encouraging viva examination evaluator.",
+                as_json=True,
             )
             return {
                 "correctness_score": float(eval_res.get("correctness_score", 7.0)),

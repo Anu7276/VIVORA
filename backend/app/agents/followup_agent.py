@@ -26,9 +26,10 @@ class FollowupAgent(BaseAgent):
         )
 
         try:
-            followup_text = await self.llm.generate_text(
+            followup_text = await self.llm.complete(
+                task="live_turn",
                 prompt=prompt,
-                system_prompt="You are a follow-up interviewer probing deeper on technical concepts."
+                system_prompt="You are a follow-up interviewer probing deeper on technical concepts.",
             )
             return {
                 "question_text": followup_text.strip(),

@@ -21,9 +21,10 @@ class DoubtAgent(BaseAgent):
         )
 
         try:
-            explanation = await self.llm.generate_text(
+            explanation = await self.llm.complete(
+                task="live_turn",
                 prompt=prompt,
-                system_prompt="You are an encouraging and knowledgeable teacher helping a student."
+                system_prompt="You are an encouraging and knowledgeable teacher helping a student.",
             )
         except Exception:
             explanation = f"That's a great question about '{doubt_query}'. In short, it relates to the foundational principles in your syllabus."

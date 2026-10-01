@@ -43,9 +43,11 @@ class ReportAgent(BaseAgent):
         )
 
         try:
-            report_data = await self.llm.generate_json(
+            report_data = await self.llm.complete(
+                task="report",
                 prompt=prompt,
-                system_prompt="You are an analytical educational report generator."
+                system_prompt="You are an analytical educational report generator.",
+                as_json=True,
             )
             # Ensure overall score aligns with calculated average
             if "overall_score" not in report_data or report_data["overall_score"] == 0:

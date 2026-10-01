@@ -140,3 +140,19 @@ class TopicScore(Base):
     level = Column(String, default="average")  # strong | average | weak
 
     report = relationship("Report", back_populates="topic_scores")
+
+class LLMUsageLog(Base):
+    """Records every LLM call: task, provider chosen, latency, and fallback status."""
+    __tablename__ = "llm_usage_logs"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    session_id = Column(String, nullable=True)          # Which session triggered this call
+    task = Column(String, nullable=False)               # question_generation | live_turn | evaluation | report
+    provider = Column(String, nullable=False)           # gemini | groq | openai | mock
+    is_fallback = Column(Boolean, default=False)        # True when primary provider failed/timed out
+    prompt_tokens = Column(Integer, default=0)          # Approximate prompt length in chars (not real tokens)
+    latency_ms = Column(Integer, default=0)             # Wall-clock time for the LLM call
+    success = Column(Boolean, default=True)
+    error_type = Column(String, nullable=True)          # "rate_limit" | "timeout" | "api_error" | None
+    created_at = Column(DateTime, default=datetime.utcnow)
+
