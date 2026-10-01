@@ -13,7 +13,8 @@ class SessionService:
         title: str = "Science Viva",
         content_text: str = "",
         question_source: Optional[str] = None,
-        time_limit_min: Optional[int] = None
+        time_limit_min: Optional[int] = None,
+        user_id: Optional[str] = None
     ) -> Session:
         cfg = ModeStrategy.get_config(mode)
         q_source = question_source or cfg.question_source_default
@@ -21,6 +22,7 @@ class SessionService:
 
         # 1. Create Document
         doc = Document(
+            user_id=user_id,
             title=title,
             doc_type="questions" if q_source == "fixed" else "syllabus",
             content=content_text
@@ -34,6 +36,7 @@ class SessionService:
         
         # 3. Create Session
         session = Session(
+            user_id=user_id,
             document_id=doc.id,
             mode=mode,
             question_source=q_source,
@@ -135,7 +138,8 @@ class SessionService:
             overall_score=evaluation_data.get("overall_score", 0.0),
             feedback=evaluation_data.get("feedback", ""),
             missing_concepts=evaluation_data.get("missing_concepts", ""),
-            model_answer=evaluation_data.get("model_answer", "")
+            model_answer=evaluation_data.get("model_answer", ""),
+            provider=evaluation_data.get("_provider", "mock")
         )
         db.add(eval_record)
         db.commit()
@@ -154,7 +158,8 @@ class SessionService:
             strengths="\n".join(report_data.get("strengths", [])) if isinstance(report_data.get("strengths"), list) else str(report_data.get("strengths", "")),
             improvements="\n".join(report_data.get("improvements", [])) if isinstance(report_data.get("improvements"), list) else str(report_data.get("improvements", "")),
             revision_plan="\n".join(report_data.get("revision_plan", [])) if isinstance(report_data.get("revision_plan"), list) else str(report_data.get("revision_plan", "")),
-            communication_feedback=report_data.get("communication_feedback", "")
+            communication_feedback=report_data.get("communication_feedback", ""),
+            scoring_note=report_data.get("scoring_note", "")
         )
         db.add(report)
         db.commit()

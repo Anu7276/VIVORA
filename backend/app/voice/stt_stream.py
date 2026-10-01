@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, Optional, Dict, Any
+from app.core.config import settings
 
 logger = logging.getLogger("vivora.stt")
 
@@ -81,22 +82,43 @@ class DeepgramSTTProvider(BaseSTTProvider):
 
 
 class STTRouter:
-    def __init__(self, provider_type: str = "browser", api_key: Optional[str] = None):
-        if provider_type == "whisper":
-            # 🔧 Planned — not yet implemented
-            raise NotImplementedError(
+    def __init__(
+        self,
+        provider_type: Optional[str] = None,
+        api_key: Optional[str] = None,
+        allow_fallback: Optional[bool] = None
+    ):
+        ptype = (provider_type or settings.STT_PROVIDER).lower()
+        key = api_key if api_key is not None else settings.DEEPGRAM_API_KEY
+        fallback_allowed = allow_fallback if allow_fallback is not None else settings.ALLOW_STT_FALLBACK
+
+        if ptype == "whisper":
+            # 🔧 Planned — fail at startup/init with clear error, not NotImplementedError mid-session
+            raise ValueError(
                 "STT_PROVIDER=whisper is planned but not yet implemented. "
                 "Use STT_PROVIDER=browser (default) or STT_PROVIDER=deepgram."
             )
-        elif provider_type == "deepgram" and api_key:
-            self.provider = DeepgramSTTProvider(api_key)
-        else:
-            if provider_type == "deepgram" and not api_key:
+        elif ptype == "deepgram":
+            if key:
+                self.provider = DeepgramSTTProvider(key)
+            elif fallback_allowed:
                 logger.warning(
                     "STT_PROVIDER=deepgram requested but DEEPGRAM_API_KEY is missing. "
-                    "Falling back to browser STT."
+                    "ALLOW_STT_FALLBACK=True; falling back to browser STT."
                 )
+                self.provider = BrowserSTTProvider()
+            else:
+                raise ValueError(
+                    "STT_PROVIDER is set to 'deepgram' but DEEPGRAM_API_KEY is missing and "
+                    "ALLOW_STT_FALLBACK is False. Set DEEPGRAM_API_KEY or set ALLOW_STT_FALLBACK=true "
+                    "to allow fallback to browser STT."
+                )
+        elif ptype == "browser":
             self.provider = BrowserSTTProvider()
+        else:
+            raise ValueError(
+                f"Unknown STT provider '{ptype}'. Supported providers are: browser, deepgram."
+            )
 
     async def handle_transcript(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         return await self.provider.process_transcript_event(event_data)

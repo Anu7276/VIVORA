@@ -41,18 +41,32 @@ class ReportAgent(BaseAgent):
 
         avg_score = round(sum(scores) / len(scores), 1) if scores else 0.0
 
-        # Build a scoring quality note for the report
+        # Build a scoring quality note for the report (Requirement 4)
+        mock_question_labels = []
+        for idx, e in enumerate(evaluations):
+            if e.get("_is_mock", False):
+                q_num = e.get("order_no", idx + 1)
+                q_txt = e.get("question_text", "")
+                if q_txt:
+                    snippet = (q_txt[:40] + "...") if len(q_txt) > 40 else q_txt
+                    mock_question_labels.append(f"Q{q_num} ('{snippet}')")
+                else:
+                    mock_question_labels.append(f"Q{q_num}")
+
         if mock_scored_count == 0:
             scoring_note = "All evaluations AI-scored."
         elif mock_scored_count == len(evaluations):
+            q_list_str = ", ".join(mock_question_labels)
             scoring_note = (
-                "⚠️ Scores are rule-based estimates only (AI providers were unavailable). "
-                "Treat scores as approximate indicators, not certified grades."
+                f"⚠️ All {len(evaluations)} question(s) ({q_list_str}) were scored using mock LLM fallback. "
+                "These scores are provisional rule-based estimates, not certified AI evaluations."
             )
         else:
+            q_list_str = ", ".join(mock_question_labels)
             scoring_note = (
-                f"⚠️ {mock_scored_count} of {len(evaluations)} evaluation(s) used "
-                f"rule-based scoring (AI provider was unavailable for those turns)."
+                f"⚠️ Question(s) {q_list_str} were scored using mock LLM fallback "
+                f"({mock_scored_count} of {len(evaluations)} turns). "
+                "These scores are provisional rule-based estimates because AI evaluation providers were unavailable."
             )
 
         prompt = REPORT_PROMPT.format(

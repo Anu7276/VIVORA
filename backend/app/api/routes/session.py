@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import Optional, List
+from datetime import datetime
 from app.db.database import get_db
-from app.db.models import Session, Question, Answer, Evaluation
+from app.db.models import Session, Question, Answer, Evaluation, User, ParentConsent
 from app.services.session_service import session_service
 
 router = APIRouter()
@@ -14,32 +15,50 @@ class CreateSessionRequest(BaseModel):
     content_text: str = ""
     question_source: Optional[str] = None
     time_limit_min: Optional[int] = None
-    is_minor: Optional[bool] = None  # Frontend must pass False for verified adults
+    user_id: Optional[str] = None
+    is_minor: Optional[bool] = None  # Client-supplied is_minor is NOT trusted
 
 
-MINOR_CONSENT_ERROR = (
-    "School-mode sessions for minors require verified parental consent and authentication, "
-    "which are not yet implemented. "
-    "To bypass this gate during development only, pass is_minor=false in the request body. "
-    "Do NOT do this in production with real students."
+CONSENT_GATE_ERROR = (
+    "Session creation is temporarily blocked across all modes pending authentication and consent verification. "
+    "Client-supplied is_minor flags are not trusted. To create a session, provide an authenticated user_id "
+    "with a stored date_of_birth showing an adult age (18+) or a verified parent_consents record. "
+    "(Temporary safeguard, not a real safeguard until auth system is implemented)."
 )
 
 @router.post("/start")
 async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(get_db)):
     """Initializes a new viva session and prepares questions."""
 
-    # ── Parental consent gate (item 7) ────────────────────────────────────────
-    # School mode is designed for minors. Until auth + parental consent are
-    # implemented, block creation unless the caller explicitly opts out of the
-    # minor flag. This prevents accidentally exposing the system to real students
-    # before the required compliance flow is in place.
-    if req.mode == "school":
-        # is_minor=None means "not specified" — treat as True (safe default)
-        if req.is_minor is None or req.is_minor is True:
-            raise HTTPException(
-                status_code=423,  # 423 Locked — appropriate for a policy gate
-                detail=MINOR_CONSENT_ERROR,
-            )
+    # ── Consent gate (Requirement 1) ──────────────────────────────────────────
+    # Applied to ALL modes. Client-supplied is_minor flag is NEVER trusted.
+    # Allowed ONLY if:
+    #   1. Authenticated user has stored date_of_birth showing age >= 18 (adult), OR
+    #   2. Authenticated user has a verified parent_consents record.
+    # Label: temporary, not a real safeguard until full auth exists.
+    is_authorized = False
+    if req.user_id:
+        user = db.query(User).filter(User.id == req.user_id).first()
+        if user:
+            if user.date_of_birth:
+                today = datetime.utcnow()
+                dob = user.date_of_birth
+                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                if age >= 18:
+                    is_authorized = True
+            if not is_authorized:
+                consent = db.query(ParentConsent).filter(
+                    ParentConsent.user_id == user.id,
+                    ParentConsent.verified == True
+                ).first()
+                if consent:
+                    is_authorized = True
+
+    if not is_authorized:
+        raise HTTPException(
+            status_code=423,
+            detail=CONSENT_GATE_ERROR,
+        )
 
     session = session_service.create_session(
         db=db,
@@ -47,10 +66,12 @@ async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(g
         title=req.title,
         content_text=req.content_text,
         question_source=req.question_source,
-        time_limit_min=req.time_limit_min
+        time_limit_min=req.time_limit_min,
+        user_id=req.user_id
     )
     return {
         "session_id": session.id,
+        "session_token": session.session_token,
         "mode": session.mode,
         "question_source": session.question_source,
         "time_limit_min": session.time_limit_min,

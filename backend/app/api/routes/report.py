@@ -1,20 +1,47 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session as DBSession
 from app.db.database import get_db
 from app.db.models import Report, Session, Question, Answer, Evaluation, LLMUsageLog
-from typing import List, Dict, Any
+from app.rag.vector_store import vector_store
+from typing import List, Dict, Any, Optional
 
 router = APIRouter()
 
 
-@router.get("/{session_id}")
-async def get_session_report(session_id: str, db: DBSession = Depends(get_db)):
-    """Retrieves full analytical performance scorecard for a session."""
-    report = db.query(Report).filter(Report.session_id == session_id).first()
-    session = db.query(Session).filter(Session.id == session_id).first()
+def _verify_session_token(session: Session, token: Optional[str]):
+    """
+    Enforces per-session secret token validation (Requirement 2).
+    Both GET report and DELETE data endpoints require the random 32+ byte token
+    issued when the session was created.
+    """
+    if not session.session_token:
+        # If legacy session had no token, bypass check
+        return
 
+    if not token or token.strip() != session.session_token.strip():
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: Invalid or missing session token. The per-session secret token is required."
+        )
+
+
+@router.get("/{session_id}")
+async def get_session_report(
+    session_id: str,
+    token: Optional[str] = Query(None, description="Per-session secret token"),
+    x_session_token: Optional[str] = Header(None, alias="X-Session-Token"),
+    db: DBSession = Depends(get_db)
+):
+    """Retrieves full analytical performance scorecard for a session."""
+    session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify per-session secret token
+    auth_token = x_session_token or token
+    _verify_session_token(session, auth_token)
+
+    report = db.query(Report).filter(Report.session_id == session_id).first()
 
     # If report was not generated yet, calculate from answers
     if not report:
@@ -44,7 +71,8 @@ async def get_session_report(session_id: str, db: DBSession = Depends(get_db)):
             "score": ev.overall_score if ev else 0.0,
             "feedback": ev.feedback if ev else "No answer provided",
             "missing_concepts": ev.missing_concepts if ev else "",
-            "model_answer": ev.model_answer if ev else q.reference_answer
+            "model_answer": ev.model_answer if ev else q.reference_answer,
+            "provider": ev.provider if ev else "mock"
         })
 
     # Item 6: only include communication_feedback when it is actually computed
@@ -62,6 +90,7 @@ async def get_session_report(session_id: str, db: DBSession = Depends(get_db)):
         "revision_plan": [r.strip() for r in (report.revision_plan or "").split("\n") if r.strip()],
         "topic_scores": topic_breakdown,
         "questions_review": questions_review,
+        "scoring_note": report.scoring_note,
         "generated_at": report.generated_at,
     }
     if include_comm:
@@ -70,37 +99,43 @@ async def get_session_report(session_id: str, db: DBSession = Depends(get_db)):
     return payload
 
 
-# ── Item 9: Delete-my-data endpoint ──────────────────────────────────────────
-#
-# Data retention policy (proposed defaults, not yet enforced automatically):
-#   - Session data: retained for 90 days, then eligible for deletion.
-#   - Reports: retained for 90 days alongside their session.
-#   - LLM usage logs: retained for 30 days.
-#   - Audio: never stored anywhere; no retention policy needed.
-#
-# This endpoint implements the "delete my data" right. It deletes all records
-# owned by a session_id: Session (cascade deletes Questions → Answers →
-# Evaluations → Report → TopicScores) and associated LLM usage logs.
+# ── Delete-my-data endpoint (Requirement 2) ───────────────────────────────────
 
 @router.delete("/{session_id}/data")
-async def delete_session_data(session_id: str, db: DBSession = Depends(get_db)):
+async def delete_session_data(
+    session_id: str,
+    token: Optional[str] = Query(None, description="Per-session secret token"),
+    x_session_token: Optional[str] = Header(None, alias="X-Session-Token"),
+    db: DBSession = Depends(get_db)
+):
     """
     Permanently deletes all data for a session (GDPR / data-subject right).
+    Requires the per-session secret token.
 
-    Deletes: Session, Questions, Answers, Evaluations, Reports, TopicScores,
-             LLM usage logs for this session.
-    Does NOT delete: Document/chunk records (shared across sessions). To delete
-    uploaded document data, use DELETE /api/upload/{document_id} (not yet implemented).
+    Deletes:
+      - Transcripts & answers
+      - Evaluations
+      - Reports & topic scores
+      - LLM usage logs for this session
+      - In-memory vector-store chunks for this session
+      - Session and Question records
     """
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Delete LLM usage logs referencing this session
+    # Verify per-session secret token
+    auth_token = x_session_token or token
+    _verify_session_token(session, auth_token)
+
+    # 1. Clear in-memory vector-store chunks for this session
+    vector_store.clear_tenant(session_id)
+
+    # 2. Delete LLM usage logs referencing this session
     db.query(LLMUsageLog).filter(LLMUsageLog.session_id == session_id).delete()
 
-    # Delete the session — cascade handles Questions → Answers → Evaluations
-    # → Report → TopicScores via SQLAlchemy cascade="all, delete-orphan"
+    # 3. Delete the session — cascade handles Questions → Answers (transcripts) →
+    # Evaluations → Report → TopicScores via SQLAlchemy cascade="all, delete-orphan"
     db.delete(session)
     db.commit()
 
@@ -108,8 +143,7 @@ async def delete_session_data(session_id: str, db: DBSession = Depends(get_db)):
         "deleted": True,
         "session_id": session_id,
         "message": (
-            "All session data deleted: questions, transcripts, evaluations, "
-            "report, and LLM usage logs. Document chunks are retained unless "
-            "the document is explicitly deleted."
+            "All session data deleted: transcripts, evaluations, report, "
+            "topic scores, LLM usage logs, and vector-store chunks."
         ),
     }

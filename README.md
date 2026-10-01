@@ -282,11 +282,17 @@ TTS_PROVIDER=browser
 DEEPGRAM_API_KEY=your_deepgram_api_key
 ELEVENLABS_API_KEY=your_elevenlabs_api_key
 
+# Provider startup & fallback behavior
+# When false (default), missing keys or unknown providers fail immediately at startup
+ALLOW_STT_FALLBACK=false
+
 # Database
 DATABASE_URL=sqlite:///./vivora.db
 ```
 
-> **Fallback order:** If the preferred provider has no API key or returns an error / 429, the router automatically tries the other configured providers in order, then falls back to the built-in rule-based mock. Every call is logged to `llm_usage_logs` with task, provider, latency, and fallback flag.
+> **Startup validation:** Unimplemented providers (such as `STT_PROVIDER=whisper`, which is planned) and unknown provider names fail immediately at application startup with a clear error rather than crashing mid-session. When `ALLOW_STT_FALLBACK=false`, missing keys (e.g. missing `DEEPGRAM_API_KEY`) halt startup instead of falling back silently.
+>
+> **LLM fallback order:** If the preferred provider returns an error or 429 rate limit, the router retries once with backoff, tries the other configured providers in order, and finally falls back to the built-in rule-based mock. If evaluation falls back to mock, the frontend receives a `degraded_mode` event, and the final report explicitly notes which questions received provisional mock scores.
 
 ---
 
@@ -300,37 +306,42 @@ DATABASE_URL=sqlite:///./vivora.db
 | **Deepgram STT** (`STT_PROVIDER=deepgram`) ⚠️ *Stub* | Audio streams through VIVORA server RAM → Deepgram cloud | Deepgram cloud API | ❌ Written to RAM only, never disk |
 | **Whisper STT** (`STT_PROVIDER=whisper`) 🔧 *Planned* | Audio stays fully inside VIVORA infrastructure (self-hosted model) | Nobody outside your server | ❌ Written to RAM only, never disk |
 | **LLM evaluation** | Student transcript sent to Gemini/Groq/OpenAI for scoring | Configured LLM provider | ✅ Transcript stored in VIVORA DB; audio never stored |
-| **Vector store** | Document chunks embedded in-memory, partitioned by tenant | Nobody external | ❌ Never on disk |
-| **Database** | Transcripts, scores, feedback, revision plan | VIVORA DB only | ✅ Stored; audio never stored |
+| **Vector store** | Document chunks embedded in-memory, partitioned by tenant | Nobody external | ❌ Ephemeral in-memory |
+| **Database** | Transcripts, scores, feedback, revision plan, session token | VIVORA DB only | ✅ Stored; audio never stored |
 
-> ⚠️ **For school deployments (minors):** Review the data-processing terms of your configured LLM provider. Student transcripts are sent to that provider for evaluation. Consider self-hosting or using a provider with a compliant DPA.
+> ⚠️ **Third-Party Provider Deletion Notice (Important):** Data sent to third-party providers (such as browser vendors via Web Speech API, Deepgram for cloud STT, or Gemini/Groq/OpenAI for LLM evaluations) **cannot be deleted, purged, or revoked by VIVORA**. Their retention, logging, and model-training policies are governed entirely by those third parties. The `DELETE /api/report/{session_id}/data` endpoint deletes records stored on VIVORA infrastructure only.
+
+> ⚠️ **Consent Gate (temporary, not a real safeguard):** To protect minors before a full authentication and parental consent system exists, `POST /api/session/start` applies a temporary block (HTTP 423) across **all viva modes**. Session creation is allowed only if the request supplies an authenticated `user_id` with a verified adult `date_of_birth` (age 18+) or a verified `parent_consents` record in the database. Client-supplied `is_minor` flags are explicitly untrusted and ignored.
 
 ### Session resume — what works and what doesn’t
 
 - **Within a server process (implemented ✅):** `current_question_no` is persisted to the database after every answer. If the WebSocket drops and the student reconnects to the same running server, the session resumes from the last answered question.
-- **Across server restarts (not implemented ❌):** The in-memory vector store is lost on restart. Re-ingestion of the document would be required before resuming. This is why Alembic migrations and a persistent vector store are on the backlog.
+- **Across server restarts (not implemented ❌):** The in-memory vector store is lost on restart. Re-ingestion of the document would be required before resuming. Alembic migrations and a persistent vector store are on the backlog.
 
 ### Data retention & deletion
 
-| Data type | Proposed default retention | Audio stored? |
-|---|---|---|
-| Session (questions, transcripts, evaluations) | 90 days | ❌ Never |
-| Reports & topic scores | 90 days (cascade with session) | ❌ Never |
-| LLM usage logs | 30 days | ❌ Never |
-| Document chunks (vector store) | In-memory only; lost on restart | ❌ Never |
-| Audio | Never stored | — |
+| Data type | Proposed default retention | Audio stored? | Purged on DELETE? |
+|---|---|---|---|
+| Session, questions & answers | 90 days | ❌ Never | ✅ Yes |
+| Transcripts & rubric evaluations | 90 days | ❌ Never | ✅ Yes |
+| Reports & topic scores | 90 days (cascade) | ❌ Never | ✅ Yes |
+| LLM usage logs | 30 days | ❌ Never | ✅ Yes |
+| Document chunks (vector store) | In-memory only; tenant-isolated | ❌ Never | ✅ Yes (cleared) |
+| Audio | Never stored | — | — |
+
+**Per-session secret token:** Every session generates a cryptographically random 32-byte (64-character hex) token at creation. This token is required for both report retrieval (`GET /api/report/{session_id}`) and data deletion (`DELETE /api/report/{session_id}/data`) via query parameter `?token=...` or `X-Session-Token` HTTP header. Missing or mismatched tokens are rejected with **403 Forbidden**.
 
 **Delete-my-data endpoint (implemented ✅):**
+```http
+DELETE /api/report/{session_id}/data?token={session_token}
 ```
-DELETE /api/report/{session_id}/data
-```
-Permanently deletes the session, all questions, transcripts, evaluations, report, and LLM usage logs. Returns `{"deleted": true}`. Document chunks (in the vector store) are ephemeral and lost on server restart.
+Permanently deletes the session, all questions, transcripts, evaluations, reports, topic scores, LLM usage logs, and in-memory vector-store chunks for that session. Returns `{"deleted": true, "session_id": "..."}`.
 
 **Delete uploaded document (not yet implemented):**
 ```
 DELETE /api/upload/{document_id}      # planned
 ```
-Automatic time-based purge (e.g. cron after 90 days) is not yet implemented.
+Automatic time-based purge (e.g. background cron after 90 days) is not yet implemented.
 
 ---
 

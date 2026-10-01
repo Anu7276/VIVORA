@@ -1,4 +1,5 @@
 import uuid
+import secrets
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, Float, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
@@ -6,6 +7,10 @@ from app.db.database import Base
 
 def gen_uuid() -> str:
     return str(uuid.uuid4())
+
+def gen_session_token() -> str:
+    """Generate a cryptographically random 32-byte (64-hex-char) session token."""
+    return secrets.token_hex(32)
 
 class User(Base):
     __tablename__ = "users"
@@ -16,10 +21,23 @@ class User(Base):
     role = Column(String, default="school")  # school | college | candidate | admin
     language = Column(String, default="en-IN")
     is_minor = Column(Boolean, default=True)
+    date_of_birth = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    parent_consents = relationship("ParentConsent", back_populates="user", cascade="all, delete-orphan")
+
+class ParentConsent(Base):
+    __tablename__ = "parent_consents"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    parent_email = Column(String, nullable=False)
+    verified = Column(Boolean, default=False)
+    consent_date = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="parent_consents")
 
 class Document(Base):
     __tablename__ = "documents"
@@ -60,6 +78,9 @@ class Session(Base):
     time_used_sec = Column(Integer, default=0)
     current_question_no = Column(Integer, default=0)  # Cursor for session resume after disconnect
     status = Column(String, default="created")  # created | live | completed | abandoned
+    # Per-session secret token — returned at session creation, required on GET report and DELETE data.
+    # This is a temporary access-control measure until proper auth (JWT/OAuth) is implemented.
+    session_token = Column(String, nullable=True, default=gen_session_token)
     started_at = Column(DateTime, nullable=True)
     ended_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -111,6 +132,7 @@ class Evaluation(Base):
     feedback = Column(Text, nullable=True)
     missing_concepts = Column(Text, nullable=True)
     model_answer = Column(Text, nullable=True)
+    provider = Column(String, default="mock")  # gemini | groq | openai | mock
 
     answer = relationship("Answer", back_populates="evaluation")
 
@@ -124,6 +146,7 @@ class Report(Base):
     improvements = Column(Text, nullable=True)
     revision_plan = Column(Text, nullable=True)
     communication_feedback = Column(Text, nullable=True)
+    scoring_note = Column(Text, nullable=True)  # Note on mock fallback / provisional scoring
     pdf_url = Column(String, nullable=True)
     generated_at = Column(DateTime, default=datetime.utcnow)
 

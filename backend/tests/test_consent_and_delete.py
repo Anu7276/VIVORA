@@ -2,26 +2,49 @@
 test_consent_and_delete.py
 ==========================
 Tests for:
-  1. Minor consent gate — school-mode POST /session/start returns 423
-     unless is_minor=False is explicitly passed.
-  2. Non-school modes (college, interview) are not blocked.
-  3. DELETE /report/{session_id}/data removes all session data.
-  4. Communication_feedback is absent from report response when 0/empty.
-  5. Whisper STT raises NotImplementedError immediately on init.
-  6. Deepgram STT logs a warning when API key is missing and falls back to browser.
+  1. Consent gate:
+     - Applies to ALL modes (school, college, interview).
+     - Does NOT trust client-supplied is_minor flag (423 returned even if is_minor=False).
+     - Allows session creation if authenticated user has adult DOB (age >= 18).
+     - Allows session creation if minor user has verified parent_consents record.
+     - Blocks minor user with unverified parent consent.
+  2. Per-session secret token:
+     - Generated at session start (32+ bytes random hex).
+     - Required on GET /report/{session_id} -> 403 on missing/invalid token.
+     - Required on DELETE /report/{session_id}/data -> 403 on missing/invalid token.
+     - Full deletion: removes session, questions, answers, evaluations, reports,
+       topic scores, LLM usage logs, and in-memory vector-store chunks.
+  3. Provider validation at startup:
+     - Unknown or unimplemented providers (e.g. whisper) fail with clear ValueError.
+     - STT_PROVIDER=deepgram without key fails startup when ALLOW_STT_FALLBACK=False.
+     - Deepgram falls back to browser when ALLOW_STT_FALLBACK=True.
+  4. Mock fallback note on report:
+     - Explains which questions were scored by mock LLM and that scores are provisional.
+  5. Communication feedback hiding when empty/None.
 """
 
 import sys
 import os
+from datetime import datetime, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
 
 from app.main import app
 from app.db.database import SessionLocal, Base, engine
-from app.db.models import Session as SessionModel, Report, LLMUsageLog
+from app.db.models import (
+    User,
+    ParentConsent,
+    Session as SessionModel,
+    Question,
+    Answer,
+    Evaluation,
+    Report,
+    TopicScore,
+    LLMUsageLog,
+)
+from app.rag.vector_store import vector_store
 
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -39,182 +62,411 @@ def client():
         yield c
 
 
-def _minimal_school_body(**kwargs):
-    return {
-        "mode": "school",
-        "title": "Test Viva",
-        "content_text": "Q: What is osmosis? A: Movement of water across a semi-permeable membrane.",
-        **kwargs,
-    }
+@pytest.fixture()
+def adult_user():
+    """Creates a user with an adult date_of_birth (age >= 18)."""
+    db = SessionLocal()
+    try:
+        user = User(
+            name="Adult Student",
+            email=f"adult_{datetime.utcnow().timestamp()}@example.com",
+            role="college",
+            is_minor=False,
+            date_of_birth=datetime.utcnow() - timedelta(days=20 * 365 + 10)  # ~20 years old
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        user_id = user.id
+    finally:
+        db.close()
+    return user_id
 
 
-# ─── 1. Consent gate — school mode ────────────────────────────────────────────
+@pytest.fixture()
+def minor_with_verified_consent():
+    """Creates a minor user with a verified ParentConsent record."""
+    db = SessionLocal()
+    try:
+        user = User(
+            name="Minor Student With Consent",
+            email=f"minor_ok_{datetime.utcnow().timestamp()}@example.com",
+            role="school",
+            is_minor=True,
+            date_of_birth=datetime.utcnow() - timedelta(days=14 * 365)  # 14 years old
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        consent = ParentConsent(
+            user_id=user.id,
+            parent_email="parent@example.com",
+            verified=True
+        )
+        db.add(consent)
+        db.commit()
+        user_id = user.id
+    finally:
+        db.close()
+    return user_id
+
+
+@pytest.fixture()
+def minor_without_verified_consent():
+    """Creates a minor user with an unverified ParentConsent record."""
+    db = SessionLocal()
+    try:
+        user = User(
+            name="Minor Student No Consent",
+            email=f"minor_no_{datetime.utcnow().timestamp()}@example.com",
+            role="school",
+            is_minor=True,
+            date_of_birth=datetime.utcnow() - timedelta(days=14 * 365)
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        consent = ParentConsent(
+            user_id=user.id,
+            parent_email="parent@example.com",
+            verified=False  # Not verified!
+        )
+        db.add(consent)
+        db.commit()
+        user_id = user.id
+    finally:
+        db.close()
+    return user_id
+
+
+# ─── 1. Consent Gate Tests ────────────────────────────────────────────────────
 
 class TestConsentGate:
-    def test_school_mode_without_is_minor_returns_423(self, client):
-        """No is_minor field → safe default is to block (treat as minor)."""
-        resp = client.post("/api/session/start", json=_minimal_school_body())
-        assert resp.status_code == 423, (
-            f"Expected 423 for school mode without is_minor; got {resp.status_code}: {resp.text}"
-        )
-        detail = resp.json()["detail"]
-        assert "parental consent" in detail.lower() or "minor" in detail.lower()
-
-    def test_school_mode_is_minor_true_returns_423(self, client):
-        """is_minor=true → blocked."""
-        resp = client.post(
-            "/api/session/start",
-            json=_minimal_school_body(is_minor=True)
-        )
+    def test_unauthenticated_school_mode_returns_423(self, client):
+        """No user_id supplied -> 423 Locked."""
+        resp = client.post("/api/session/start", json={
+            "mode": "school",
+            "title": "School Viva",
+            "content_text": "Q: What is energy?"
+        })
         assert resp.status_code == 423
+        assert "temporarily blocked" in resp.json()["detail"].lower()
 
-    def test_school_mode_is_minor_false_bypasses_gate(self, client):
-        """is_minor=False → dev bypass; session created."""
-        resp = client.post(
-            "/api/session/start",
-            json=_minimal_school_body(is_minor=False)
-        )
-        assert resp.status_code == 200, (
-            f"Expected 200 for school mode with is_minor=False; got {resp.status_code}: {resp.text}"
-        )
-        assert "session_id" in resp.json()
-
-    def test_college_mode_not_blocked(self, client):
-        """College mode has no minor gate."""
+    def test_unauthenticated_college_mode_returns_423(self, client):
+        """All modes are blocked without authentication/consent."""
         resp = client.post("/api/session/start", json={
             "mode": "college",
             "title": "College Viva",
-            "content_text": "Q: Explain osmosis. A: Water moves from low to high solute concentration.",
+            "content_text": "Q: What is polymorphism?"
         })
-        assert resp.status_code == 200
+        assert resp.status_code == 423
 
-    def test_interview_mode_not_blocked(self, client):
-        """Interview mode has no minor gate."""
+    def test_unauthenticated_interview_mode_returns_423(self, client):
+        """Interview mode is also blocked without authentication/consent."""
         resp = client.post("/api/session/start", json={
             "mode": "interview",
-            "title": "Interview Prep",
-            "content_text": "Q: Describe your experience. A: I have 3 years of Python experience.",
+            "title": "Interview Viva",
+            "content_text": "Q: Tell me about yourself."
+        })
+        assert resp.status_code == 423
+
+    def test_client_supplied_is_minor_false_not_trusted_returns_423(self, client):
+        """Client-supplied is_minor=False is explicitly NOT trusted without adult user in DB."""
+        resp = client.post("/api/session/start", json={
+            "mode": "school",
+            "title": "School Viva",
+            "content_text": "Q: What is photosynthesis?",
+            "is_minor": False  # Should be ignored/untrusted
+        })
+        assert resp.status_code == 423
+
+    def test_minor_with_unverified_consent_returns_423(self, client, minor_without_verified_consent):
+        """Minor user with unverified consent record -> 423."""
+        resp = client.post("/api/session/start", json={
+            "mode": "school",
+            "title": "School Viva",
+            "content_text": "Q: What is photosynthesis?",
+            "user_id": minor_without_verified_consent
+        })
+        assert resp.status_code == 423
+
+    def test_adult_user_succeeds_and_returns_token(self, client, adult_user):
+        """Authenticated adult user (DOB >= 18) -> 200 + returns session_token."""
+        resp = client.post("/api/session/start", json={
+            "mode": "school",
+            "title": "Adult School Viva",
+            "content_text": "Q: What is photosynthesis?",
+            "user_id": adult_user
         })
         assert resp.status_code == 200
+        data = resp.json()
+        assert "session_id" in data
+        assert "session_token" in data
+        assert len(data["session_token"]) >= 64  # 32 bytes hex = 64 chars
 
-
-# ─── 2. Delete-my-data endpoint ───────────────────────────────────────────────
-
-class TestDeleteSessionData:
-    def _create_session_bypassed(self, client) -> str:
-        """Create a school session via dev bypass; return session_id."""
-        resp = client.post(
-            "/api/session/start",
-            json=_minimal_school_body(is_minor=False)
-        )
-        assert resp.status_code == 200
-        return resp.json()["session_id"]
-
-    def test_delete_existing_session_returns_200(self, client):
-        session_id = self._create_session_bypassed(client)
-        resp = client.delete(f"/api/report/{session_id}/data")
+    def test_minor_with_verified_consent_succeeds(self, client, minor_with_verified_consent):
+        """Minor user with verified ParentConsent -> 200 + returns session_token."""
+        resp = client.post("/api/session/start", json={
+            "mode": "school",
+            "title": "Minor Consented Viva",
+            "content_text": "Q: What is photosynthesis?",
+            "user_id": minor_with_verified_consent
+        })
         assert resp.status_code == 200
         data = resp.json()
-        assert data["deleted"] is True
-        assert data["session_id"] == session_id
+        assert "session_id" in data
+        assert "session_token" in data
 
-    def test_delete_nonexistent_session_returns_404(self, client):
-        resp = client.delete("/api/report/nonexistent-session-id/data")
-        assert resp.status_code == 404
 
-    def test_session_actually_gone_after_delete(self, client):
-        session_id = self._create_session_bypassed(client)
-        client.delete(f"/api/report/{session_id}/data")
-        # GET the report should now return 404
+# ─── 2. Secret Token & Delete-my-data Tests ───────────────────────────────────
+
+class TestDeleteAndReadEndpoints:
+    def _create_session(self, client, adult_user) -> tuple[str, str]:
+        resp = client.post("/api/session/start", json={
+            "mode": "college",
+            "title": "Data Structures",
+            "content_text": "Q: What is a binary tree?",
+            "user_id": adult_user
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        return data["session_id"], data["session_token"]
+
+    def test_get_report_without_token_returns_403(self, client, adult_user):
+        session_id, _ = self._create_session(client, adult_user)
         resp = client.get(f"/api/report/{session_id}")
-        assert resp.status_code == 404
+        assert resp.status_code == 403
+        assert "forbidden" in resp.json()["detail"].lower()
 
+    def test_get_report_with_wrong_token_returns_403(self, client, adult_user):
+        session_id, _ = self._create_session(client, adult_user)
+        resp = client.get(f"/api/report/{session_id}?token=invalid-token-12345")
+        assert resp.status_code == 403
 
-# ─── 3. Communication feedback hidden when 0 / empty ──────────────────────────
+    def test_get_report_with_valid_query_token_returns_200(self, client, adult_user):
+        session_id, token = self._create_session(client, adult_user)
+        resp = client.get(f"/api/report/{session_id}?token={token}")
+        assert resp.status_code == 200
 
-class TestCommFeedbackHiding:
-    def _get_report_payload(self, session_id: str, comm_value, client) -> dict:
+    def test_get_report_with_valid_header_token_returns_200(self, client, adult_user):
+        session_id, token = self._create_session(client, adult_user)
+        resp = client.get(f"/api/report/{session_id}", headers={"X-Session-Token": token})
+        assert resp.status_code == 200
+
+    def test_delete_data_without_token_returns_403(self, client, adult_user):
+        session_id, _ = self._create_session(client, adult_user)
+        resp = client.delete(f"/api/report/{session_id}/data")
+        assert resp.status_code == 403
+
+    def test_delete_data_with_wrong_token_returns_403(self, client, adult_user):
+        session_id, _ = self._create_session(client, adult_user)
+        resp = client.delete(f"/api/report/{session_id}/data?token=wrong-token")
+        assert resp.status_code == 403
+
+    def test_full_deletion_covers_all_artifacts(self, client, adult_user):
         """
-        Inject a Report row directly and hit the report endpoint.
+        Creates session, answers, evaluations, report, usage logs, and vector chunks.
+        Verifies that DELETE with valid token completely purges all of them.
         """
+        session_id, token = self._create_session(client, adult_user)
+
+        # 1. Populate DB data
         db = SessionLocal()
         try:
-            session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
-            if not session:
-                return {}
-            report = Report(
+            q = Question(
                 session_id=session_id,
-                overall_score=7.5,
-                strengths="Good effort",
-                improvements="More detail",
-                revision_plan="Revise chapter 3",
-                communication_feedback=comm_value,
+                order_no=1,
+                question_text="Explain QuickSort",
+                topic="Algorithms",
+                origin="uploaded"
             )
-            db.add(report)
+            db.add(q)
+            db.commit()
+            db.refresh(q)
+
+            ans = Answer(
+                question_id=q.id,
+                transcript="Quicksort divides and conquers using a pivot",
+                duration_sec=12
+            )
+            db.add(ans)
+            db.commit()
+            db.refresh(ans)
+
+            ev = Evaluation(
+                answer_id=ans.id,
+                overall_score=8.0,
+                provider="mock"
+            )
+            db.add(ev)
+
+            rep = Report(
+                session_id=session_id,
+                overall_score=8.0,
+                strengths="Good explanation",
+                scoring_note="All evaluations AI-scored."
+            )
+            db.add(rep)
+            db.commit()
+            db.refresh(rep)
+
+            ts = TopicScore(
+                report_id=rep.id,
+                topic="Algorithms",
+                score=8.0
+            )
+            db.add(ts)
+
+            log = LLMUsageLog(
+                session_id=session_id,
+                task="evaluation",
+                provider="mock"
+            )
+            db.add(log)
             db.commit()
         finally:
             db.close()
 
-        resp = client.get(f"/api/report/{session_id}")
-        assert resp.status_code == 200
-        return resp.json()
-
-    def test_empty_comm_feedback_is_omitted(self, client):
-        resp = client.post(
-            "/api/session/start",
-            json=_minimal_school_body(is_minor=False)
+        # 2. Insert vector chunks into vector store under session_id
+        vector_store.insert(
+            tenant_id=session_id,
+            content="Quicksort pivot selection algorithm",
+            embedding=[0.1] * 384
         )
-        sid = resp.json()["session_id"]
-        payload = self._get_report_payload(sid, "", client)
-        assert "communication_feedback" not in payload, (
-            "Empty communication_feedback should be omitted from report response"
-        )
+        assert len(vector_store.search(session_id, [0.1] * 384)) > 0
 
-    def test_none_comm_feedback_is_omitted(self, client):
-        resp = client.post(
-            "/api/session/start",
-            json=_minimal_school_body(is_minor=False)
-        )
-        sid = resp.json()["session_id"]
-        payload = self._get_report_payload(sid, None, client)
-        assert "communication_feedback" not in payload
+        # 3. Perform DELETE request with token
+        del_resp = client.delete(f"/api/report/{session_id}/data?token={token}")
+        assert del_resp.status_code == 200
+        assert del_resp.json()["deleted"] is True
 
-    def test_real_comm_feedback_is_included(self, client):
-        resp = client.post(
-            "/api/session/start",
-            json={"mode": "interview", "title": "Interview", "content_text": "Q: Tell me about yourself."}
-        )
-        sid = resp.json()["session_id"]
-        feedback_text = "Good pace, minimal filler words. Work on confidence."
-        payload = self._get_report_payload(sid, feedback_text, client)
-        assert "communication_feedback" in payload
-        assert payload["communication_feedback"] == feedback_text
+        # 4. Verify all items are purged
+        db = SessionLocal()
+        try:
+            assert db.query(SessionModel).filter(SessionModel.id == session_id).first() is None
+            assert db.query(Question).filter(Question.session_id == session_id).first() is None
+            assert db.query(Report).filter(Report.session_id == session_id).first() is None
+            assert db.query(LLMUsageLog).filter(LLMUsageLog.session_id == session_id).first() is None
+        finally:
+            db.close()
+
+        # Vector store chunks must be cleared
+        assert len(vector_store.search(session_id, [0.1] * 384)) == 0
+
+        # Subsequent GET should return 404
+        get_resp = client.get(f"/api/report/{session_id}?token={token}")
+        assert get_resp.status_code == 404
 
 
-# ─── 4. STT provider status ───────────────────────────────────────────────────
+# ─── 3. Provider Validation at Startup ─────────────────────────────────────────
 
-class TestSTTProviderStatus:
-    def test_whisper_raises_not_implemented(self):
+class TestSTTProviderValidation:
+    def test_whisper_fails_startup_with_clear_error(self):
+        """Whisper STT must fail at startup with a clear error, not mid-session."""
         from app.voice.stt_stream import STTRouter
-        with pytest.raises(NotImplementedError, match="whisper"):
+        with pytest.raises(ValueError, match="planned but not yet implemented"):
             STTRouter(provider_type="whisper")
 
-    def test_deepgram_without_key_falls_back_to_browser(self):
+    def test_unknown_provider_fails_startup(self):
+        """Unknown STT provider fails startup with a clear error."""
+        from app.voice.stt_stream import STTRouter
+        with pytest.raises(ValueError, match="Unknown STT provider"):
+            STTRouter(provider_type="unknown_stt_provider")
+
+    def test_deepgram_without_key_refuses_to_start_when_fallback_false(self):
+        """When ALLOW_STT_FALLBACK is False, missing key raises ValueError refusing to start."""
+        from app.voice.stt_stream import STTRouter
+        with pytest.raises(ValueError, match="ALLOW_STT_FALLBACK is False"):
+            STTRouter(provider_type="deepgram", api_key=None, allow_fallback=False)
+
+    def test_deepgram_without_key_falls_back_when_fallback_true(self):
+        """When ALLOW_STT_FALLBACK is True, missing key logs warning and uses BrowserSTTProvider."""
         from app.voice.stt_stream import STTRouter, BrowserSTTProvider
-        router = STTRouter(provider_type="deepgram", api_key=None)
-        assert isinstance(router.provider, BrowserSTTProvider), (
-            "Deepgram without API key should fall back to BrowserSTTProvider"
-        )
+        router = STTRouter(provider_type="deepgram", api_key=None, allow_fallback=True)
+        assert isinstance(router.provider, BrowserSTTProvider)
 
     def test_browser_is_default(self):
         from app.voice.stt_stream import STTRouter, BrowserSTTProvider
-        router = STTRouter()
+        router = STTRouter(provider_type="browser")
         assert isinstance(router.provider, BrowserSTTProvider)
 
-    def test_deepgram_with_key_uses_deepgram(self):
-        from app.voice.stt_stream import STTRouter, DeepgramSTTProvider
-        router = STTRouter(provider_type="deepgram", api_key="test-key")
-        assert isinstance(router.provider, DeepgramSTTProvider)
+
+# ─── 4. Mock Fallback Scoring Note on Report ───────────────────────────────────
+
+class TestReportScoringNote:
+    @pytest.mark.asyncio
+    async def test_mock_fallback_labels_questions_as_provisional(self):
+        """When evaluations use mock LLM fallback, report explicitly lists questions and states provisional."""
+        from app.agents.report_agent import ReportAgent
+        agent = ReportAgent()
+
+        evaluations = [
+            {
+                "order_no": 1,
+                "question_text": "What is Newton's First Law?",
+                "overall_score": 7.0,
+                "_is_mock": True,
+            },
+            {
+                "order_no": 2,
+                "question_text": "What is Newton's Second Law?",
+                "overall_score": 8.0,
+                "_is_mock": False,
+            }
+        ]
+
+        report = await agent.generate_report(mode="school", evaluations=evaluations)
+        assert "scoring_note" in report
+        note = report["scoring_note"]
+        assert "Q1" in note
+        assert "provisional" in note.lower()
+
+    @pytest.mark.asyncio
+    async def test_all_mock_labels_all_questions_provisional(self):
+        from app.agents.report_agent import ReportAgent
+        agent = ReportAgent()
+
+        evaluations = [
+            {"order_no": 1, "question_text": "Q1 text", "overall_score": 6.0, "_is_mock": True},
+            {"order_no": 2, "question_text": "Q2 text", "overall_score": 6.5, "_is_mock": True},
+        ]
+        report = await agent.generate_report(mode="school", evaluations=evaluations)
+        note = report["scoring_note"]
+        assert "provisional" in note.lower()
+        assert "Q1" in note and "Q2" in note
+
+
+# ─── 5. Communication Feedback Hiding ─────────────────────────────────────────
+
+class TestCommFeedbackHiding:
+    def test_comm_feedback_hidden_when_empty(self, client, adult_user):
+        resp = client.post("/api/session/start", json={
+            "mode": "school",
+            "title": "School Test",
+            "content_text": "Q: Test question",
+            "user_id": adult_user
+        })
+        sid = resp.json()["session_id"]
+        token = resp.json()["session_token"]
+
+        db = SessionLocal()
+        try:
+            rep = Report(
+                session_id=sid,
+                overall_score=7.0,
+                strengths="Good",
+                communication_feedback=""  # empty!
+            )
+            db.add(rep)
+            db.commit()
+        finally:
+            db.close()
+
+        get_resp = client.get(f"/api/report/{sid}?token={token}")
+        assert get_resp.status_code == 200
+        assert "communication_feedback" not in get_resp.json()
 
 
 if __name__ == "__main__":

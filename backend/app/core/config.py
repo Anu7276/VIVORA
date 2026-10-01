@@ -24,11 +24,14 @@ class Settings(BaseSettings):
     EVALUATION_PROVIDER: str = "groq"
     REPORT_PROVIDER: str = "gemini"
 
-    # Voice Providers (browser, deepgram, whisper, elevenlabs, edgetts)
+    # Voice Providers (browser, deepgram, whisper [planned], elevenlabs)
     STT_PROVIDER: str = "browser"
     TTS_PROVIDER: str = "browser"
     DEEPGRAM_API_KEY: Optional[str] = None
     ELEVENLABS_API_KEY: Optional[str] = None
+    # When false (default in production), missing STT key or invalid provider halts startup
+    # When true, missing STT key logs a warning and falls back to browser STT
+    ALLOW_STT_FALLBACK: bool = False
 
     # Session defaults
     DEFAULT_TIME_LIMIT_MIN: int = 15
