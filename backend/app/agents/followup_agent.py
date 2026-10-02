@@ -37,12 +37,7 @@ class FollowupAgent(BaseAgent):
                 "origin": "follow_up",
                 "reference_answer": f"Detailed technical follow-up context for {question_text}"
             }
-        except Exception:
-            return {
-                "question_text": f"Why is that the case, and how does it behave in edge cases?",
-                "difficulty": "hard",
-                "origin": "follow_up",
-                "reference_answer": "Deeper mechanism"
-            }
+        except Exception as e:
+            return None
 
 followup_agent = FollowupAgent()

@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import re
+import sys
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Literal, Optional
@@ -160,10 +161,21 @@ class SmartRuleFallbackProvider(LLMProvider):
     async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
         # Evaluation rubric
         if "Evaluator" in (system_prompt or "") or "correctness_score" in prompt:
-            ans_match = re.search(r"Student's Spoken Answer.*?:\s*\"(.*?)\"", prompt, re.DOTALL)
-            ref_match = re.search(r"Reference Answer.*?:\s*\"(.*?)\"", prompt, re.DOTALL)
-            student_ans = (ans_match.group(1) if ans_match else "").lower()
-            ref_ans = (ref_match.group(1) if ref_match else "").lower()
+            if "<student_answer>" in prompt:
+                tag_ans = re.search(r"<student_answer>\s*(.*?)\s*</student_answer>", prompt, re.DOTALL)
+                student_ans = (tag_ans.group(1) if tag_ans else "").lower()
+            else:
+                ans_match = re.search(r"Student's Spoken Answer.*?:\s*\"(.*?)\"", prompt, re.DOTALL)
+                student_ans = (ans_match.group(1) if ans_match else "").lower()
+
+            if "<reference_answer>" in prompt:
+                tag_ref = re.search(r"<reference_answer>\s*(.*?)\s*</reference_answer>", prompt, re.DOTALL)
+                ref_ans = (tag_ref.group(1) if tag_ref else "").lower()
+                clean_ref = (tag_ref.group(1) if tag_ref else "").strip()
+            else:
+                ref_match = re.search(r"Reference Answer.*?:\s*\"(.*?)\"", prompt, re.DOTALL)
+                ref_ans = (ref_match.group(1) if ref_match else "").lower()
+                clean_ref = (ref_match.group(1) if ref_match else "").strip()
 
             stop_words = {
                 "the", "is", "a", "an", "and", "or", "in", "on", "at", "to", "for", "with",
@@ -208,24 +220,31 @@ class SmartRuleFallbackProvider(LLMProvider):
                 concept_match = "Needs Review"
                 feedback = "Answer was too brief. Try to explain the concept in your own words."
                 missing = "Core definitions and explanations were missing."
-            elif ratio >= 0.4 or (is_school and ratio >= 0.3) or word_count >= 12:
-                correctness = min(9.8, 8.5 + ratio * 2.0)
-                depth = min(9.5, 7.5 + (word_count / 25.0) * 2.0)
-                clarity = 9.0
+            elif len(common) == 0:
+                # No overlapping conceptual words at all — nonsense or off-topic answer
+                correctness, depth, clarity = 1.0, 1.0, 2.0
+                is_correct = False
+                concept_match = "Needs Review"
+                feedback = "Your answer did not match the question topic or reference concepts."
+                missing = "Core principles from the reference answer."
+            elif ratio >= 0.4 or (is_school and ratio >= 0.3):
+                correctness = min(9.5, 7.5 + ratio * 2.0)
+                depth = min(9.0, 7.0 + min(1.5, word_count / 30.0))
+                clarity = 8.5
                 is_correct = True
                 concept_match = "Full Match"
-                feedback = "Excellent! You explained the core concept clearly in your own words."
+                feedback = "Good explanation of the core concept."
                 missing = "" if ratio > 0.6 else "Minor details could be expanded."
             elif ratio >= 0.2:
-                correctness = min(7.8, 6.0 + ratio * 3.0)
-                depth, clarity = 6.5, 7.5
+                correctness = min(7.5, 5.5 + ratio * 3.0)
+                depth, clarity = 6.0, 7.0
                 is_correct = True
                 concept_match = "Partial Match"
-                feedback = "Good attempt! You understood the main principle, though some key points from the reference answer can be added."
-                missing = "A few key technical terms from the textbook definition."
+                feedback = "Partial understanding shown; some key points can be added."
+                missing = "Some key technical terms from the definition."
             else:
-                correctness = min(5.0, 3.0 + ratio * 3.0)
-                depth, clarity = 4.5, 6.0
+                correctness = min(4.0, 2.0 + ratio * 3.0)
+                depth, clarity = 3.5, 5.0
                 is_correct = False
                 concept_match = "Needs Review"
                 feedback = "Needs review. Your answer did not convey the core meaning expected for this question."
@@ -233,8 +252,8 @@ class SmartRuleFallbackProvider(LLMProvider):
 
             overall = round(correctness * 0.5 + depth * 0.3 + clarity * 0.2, 1)
             model_ans = (
-                ref_match.group(1)
-                if ref_match and len(ref_match.group(1)) > 5
+                clean_ref
+                if clean_ref and len(clean_ref) > 5
                 else "The complete textbook definition explaining principles, causes, and effects."
             )
             return {
@@ -250,7 +269,7 @@ class SmartRuleFallbackProvider(LLMProvider):
             }
 
         # Report generation
-        if "Report" in (system_prompt or "") or "overall_score" in prompt:
+        if "Report" in (system_prompt or "") or ("overall_score" in prompt and "correctness_score" not in prompt):
             return {
                 "overall_score": 8.2,
                 "strengths": [
@@ -530,9 +549,8 @@ class LLMRouter:
             self._pool["gemini"] = GeminiProvider(settings.GEMINI_API_KEY)
         if settings.GROQ_API_KEY:
             self._pool["groq"] = GroqProvider(settings.GROQ_API_KEY)
-        if settings.OPENAI_API_KEY:
-            self._pool["openai"] = OpenAIProvider(settings.OPENAI_API_KEY)
-        self._pool["mock"] = SmartRuleFallbackProvider()
+        if settings.ENV in ("test", "testing") or "pytest" in sys.modules:
+            self._pool["mock"] = SmartRuleFallbackProvider()
 
         # NOTE: last_call_meta is intentionally per-call (set in complete()),
         # not a shared global — callers must pass it through or read it immediately.
@@ -571,17 +589,25 @@ class LLMRouter:
                     f"requests for this task will fall back to the next available provider."
                 )
 
-    def _provider_for_task(self, task: str) -> LLMProvider:
+    def _provider_for_task(self, task: str) -> Optional[LLMProvider]:
         preferred = TASK_PROVIDER_MAP.get(task, "mock")
-        return self._pool.get(preferred) or self._pool["mock"]
+        if preferred in self._pool:
+            return self._pool[preferred]
+        if "mock" in self._pool:
+            return self._pool["mock"]
+        if self._pool:
+            return next(iter(self._pool.values()))
+        return None
 
     def _fallback_chain(self, task: str) -> List[LLMProvider]:
-        primary_name = TASK_PROVIDER_MAP.get(task, "mock")
+        primary = self._provider_for_task(task)
+        primary_name = getattr(primary, "name", None)
         chain: List[LLMProvider] = []
         for name, prov in self._pool.items():
             if name != primary_name and name != "mock":
                 chain.append(prov)
-        chain.append(self._pool["mock"])
+        if "mock" in self._pool and primary_name != "mock":
+            chain.append(self._pool["mock"])
         return chain
 
     async def _call_with_retry(
@@ -628,7 +654,11 @@ class LLMRouter:
         fallbacks = self._fallback_chain(task)
         is_fallback = False
 
-        for provider in [primary] + fallbacks:
+        candidates = [p for p in ([primary] + fallbacks) if p is not None]
+        if not candidates:
+            raise RuntimeError(f"No LLM provider available for task '{task}'. Check configured API keys.")
+
+        for provider in candidates:
             t0 = time.monotonic()
             error_type: Optional[str] = None
             try:

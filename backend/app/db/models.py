@@ -136,10 +136,11 @@ class Evaluation(Base):
 
     id = Column(String, primary_key=True, default=gen_uuid)
     answer_id = Column(String, ForeignKey("answers.id"))
-    correctness_score = Column(Float, default=0.0)  # 0 to 10
-    depth_score = Column(Float, default=0.0)        # 0 to 10
-    clarity_score = Column(Float, default=0.0)      # 0 to 10
-    overall_score = Column(Float, default=0.0)      # 0 to 10
+    scored = Column(Boolean, default=True)          # True if scored by AI, False if unscored
+    correctness_score = Column(Float, nullable=True)  # 0 to 10
+    depth_score = Column(Float, nullable=True)        # 0 to 10
+    clarity_score = Column(Float, nullable=True)      # 0 to 10
+    overall_score = Column(Float, nullable=True)      # 0 to 10 (None when unscored)
     feedback = Column(Text, nullable=True)
     missing_concepts = Column(Text, nullable=True)
     model_answer = Column(Text, nullable=True)
@@ -153,6 +154,7 @@ class Report(Base):
     id = Column(String, primary_key=True, default=gen_uuid)
     session_id = Column(String, ForeignKey("sessions.id"), unique=True)
     overall_score = Column(Float, default=0.0)
+    status = Column(String, default="complete")  # complete | partial
     strengths = Column(Text, nullable=True)
     improvements = Column(Text, nullable=True)
     revision_plan = Column(Text, nullable=True)

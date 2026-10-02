@@ -52,6 +52,11 @@ class EndSessionMessage(BaseModel):
     type: Literal["end_session"]
 
 
+class RetryEvaluationMessage(BaseModel):
+    type: Literal["retry_evaluation"]
+    question_id: Optional[str] = None
+
+
 ClientMessage = Union[
     AuthMessage,
     SttPartialMessage,
@@ -60,4 +65,5 @@ ClientMessage = Union[
     SkipQuestionMessage,
     AskDoubtMessage,
     EndSessionMessage,
+    RetryEvaluationMessage,
 ]

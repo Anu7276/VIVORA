@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     DEFAULT_TIME_LIMIT_MIN: int = 15
     MAX_TIME_LIMIT_MIN: int = 30
 
+    # ── Scoring Weights ───────────────────────────────────────────────────────
+    SCORE_WEIGHT_CORRECTNESS: float = 0.5
+    SCORE_WEIGHT_DEPTH: float = 0.3
+    SCORE_WEIGHT_CLARITY: float = 0.2
+
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

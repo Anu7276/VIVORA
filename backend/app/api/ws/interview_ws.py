@@ -23,6 +23,7 @@ from app.schemas.ws_messages import (
     SkipQuestionMessage,
     AskDoubtMessage,
     EndSessionMessage,
+    RetryEvaluationMessage,
 )
 
 logger = logging.getLogger("vivora.ws")
@@ -521,6 +522,56 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                     db.commit()
                     await send_current_turn()
                     break
+
+                elif msg_type == "retry_evaluation":
+                    retry_msg = RetryEvaluationMessage(**data)
+                    q_id = retry_msg.question_id
+                    target_ans = None
+                    if q_id:
+                        target_ans = db.query(Answer).filter(Answer.question_id == q_id).order_by(Answer.answered_at.desc()).first()
+                    else:
+                        prev_idx = max(0, current_q_idx - 1) if current_q_idx > 0 else 0
+                        if prev_idx < len(questions):
+                            target_ans = db.query(Answer).filter(Answer.question_id == questions[prev_idx].id).order_by(Answer.answered_at.desc()).first()
+
+                    if target_ans:
+                        q_obj = target_ans.question
+                        turn_result = await orchestrator.evaluate_turn(
+                            tenant_id=session.document_id or session.id,
+                            question_text=q_obj.question_text,
+                            answer_transcript=target_ans.transcript,
+                            reference_answer=q_obj.reference_answer or "",
+                            mode=mode,
+                            planned_followup=None,
+                            planned_followup_answer=None
+                        )
+                        eval_data = turn_result["evaluation"]
+                        eval_data["question_text"] = q_obj.question_text
+                        eval_data["topic"] = q_obj.topic
+                        eval_data["reference_answer"] = q_obj.reference_answer or ""
+
+                        if target_ans.evaluation:
+                            target_ans.evaluation.scored = eval_data.get("scored", True)
+                            target_ans.evaluation.correctness_score = eval_data.get("correctness_score")
+                            target_ans.evaluation.depth_score = eval_data.get("depth_score")
+                            target_ans.evaluation.clarity_score = eval_data.get("clarity_score")
+                            target_ans.evaluation.overall_score = eval_data.get("overall_score")
+                            target_ans.evaluation.feedback = eval_data.get("feedback", "")
+                            target_ans.evaluation.missing_concepts = eval_data.get("missing_concepts", "")
+                            target_ans.evaluation.model_answer = eval_data.get("model_answer", "")
+                            target_ans.evaluation.provider = eval_data.get("_provider", "mock")
+                            db.commit()
+
+                        await websocket.send_json({
+                            "type": "evaluation_result",
+                            "evaluation": eval_data
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "error",
+                            "code": "ANSWER_NOT_FOUND",
+                            "message": "No answer found to re-evaluate."
+                        })
 
                 else:
                     await websocket.send_json({

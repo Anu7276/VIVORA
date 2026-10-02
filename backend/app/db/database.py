@@ -43,6 +43,20 @@ def ensure_schema_migrations():
                 if "account_status" not in u_cols:
                     conn.execute(text("ALTER TABLE users ADD COLUMN account_status TEXT DEFAULT 'active';"))
 
+            # evaluations table
+            res_evals = conn.execute(text("PRAGMA table_info(evaluations);")).fetchall()
+            e_cols = {row[1] for row in res_evals}
+            if e_cols:
+                if "scored" not in e_cols:
+                    conn.execute(text("ALTER TABLE evaluations ADD COLUMN scored BOOLEAN DEFAULT 1;"))
+
+            # reports table
+            res_reps = conn.execute(text("PRAGMA table_info(reports);")).fetchall()
+            r_cols = {row[1] for row in res_reps}
+            if r_cols:
+                if "status" not in r_cols:
+                    conn.execute(text("ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'complete';"))
+
             conn.commit()
     except Exception:
         pass

@@ -1,5 +1,6 @@
 import datetime
 from typing import Dict, Any, List, Optional
+from fastapi import HTTPException
 from sqlalchemy.orm import Session as DBSession
 from app.db.models import Session, Question, Answer, Evaluation, Report, TopicScore, Document
 from app.agents.orchestrator import orchestrator
@@ -99,7 +100,12 @@ class SessionService:
                     questions_data = []
 
             if not questions_data:
-                if mode == "school":
+                if mode in ("college", "interview"):
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Question generation failed: AI provider is unavailable. Please try again."
+                    )
+                elif mode == "school":
                     questions_data = [
                         {
                             "question_text": "What is photosynthesis and where does it occur in plant cells?",
@@ -120,32 +126,11 @@ class SessionService:
                             "reference_answer": "Acids have a pH less than 7 and release H+ ions, while bases have a pH greater than 7 and release OH- ions."
                         }
                     ]
-                elif mode == "interview":
-                    questions_data = orchestrator.question._get_interview_fallback_questions(
-                        job_role=job_role or title,
-                        tech_stack=tech_stack or "React, Node.js, PostgreSQL, Docker",
-                        experience_level=experience_level or "Mid-Level",
-                        count=6
-                    )
                 else:
-                    questions_data = [
-                        {
-                            "question_text": f"Explain the core architectural principles of {title}.",
-                            "topic": title,
-                            "difficulty": "medium",
-                            "reference_answer": f"Core principles and mechanisms of {title}.",
-                            "followup_question": "What is the governing theoretical model?",
-                            "followup_answer": "Mathematical foundation and governing equations."
-                        },
-                        {
-                            "question_text": f"How do you handle edge cases and failure modes in {title}?",
-                            "topic": title,
-                            "difficulty": "hard",
-                            "reference_answer": f"Resilience patterns and recovery strategies for {title}.",
-                            "followup_question": "What is the computational complexity of the recovery?",
-                            "followup_answer": "Bounded execution time."
-                        }
-                    ]
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Question generation failed: AI provider is unavailable."
+                    )
 
         for idx, q in enumerate(questions_data):
             q_model = Question(
@@ -193,10 +178,11 @@ class SessionService:
         # Create Evaluation record
         eval_record = Evaluation(
             answer_id=answer.id,
-            correctness_score=evaluation_data.get("correctness_score", 0.0),
-            depth_score=evaluation_data.get("depth_score", 0.0),
-            clarity_score=evaluation_data.get("clarity_score", 0.0),
-            overall_score=evaluation_data.get("overall_score", 0.0),
+            scored=evaluation_data.get("scored", True),
+            correctness_score=evaluation_data.get("correctness_score"),
+            depth_score=evaluation_data.get("depth_score"),
+            clarity_score=evaluation_data.get("clarity_score"),
+            overall_score=evaluation_data.get("overall_score"),
             feedback=evaluation_data.get("feedback", ""),
             missing_concepts=evaluation_data.get("missing_concepts", ""),
             model_answer=evaluation_data.get("model_answer", ""),
@@ -220,6 +206,7 @@ class SessionService:
                         "question_text": q.question_text,
                         "topic": q.topic or "General",
                         "reference_answer": q.reference_answer or "",
+                        "scored": getattr(ev, "scored", True),
                         "correctness_score": ev.correctness_score,
                         "depth_score": ev.depth_score,
                         "clarity_score": ev.clarity_score,
@@ -245,6 +232,7 @@ class SessionService:
         report = Report(
             session_id=session_id,
             overall_score=report_data.get("overall_score", 0.0),
+            status=report_data.get("status", "complete"),
             strengths="\n".join(report_data.get("strengths", [])) if isinstance(report_data.get("strengths"), list) else str(report_data.get("strengths", "")),
             improvements="\n".join(report_data.get("improvements", [])) if isinstance(report_data.get("improvements"), list) else str(report_data.get("improvements", "")),
             revision_plan="\n".join(report_data.get("revision_plan", [])) if isinstance(report_data.get("revision_plan"), list) else str(report_data.get("revision_plan", "")),

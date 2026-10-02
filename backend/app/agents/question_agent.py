@@ -119,12 +119,14 @@ class QuestionAgent(BaseAgent):
                 })
             if result:
                 return result
-        except Exception:
-            pass
+        except Exception as e:
+            if mode in ("college", "interview"):
+                raise RuntimeError(f"Question generation failed for {mode} mode: {e}") from e
 
-        # Fallback tailored questions
-        if mode == "interview":
-            return self._get_interview_fallback_questions(job_role=role, tech_stack=stack, experience_level=level, count=count)
+        # If generation returned empty questions for college/interview, fail visibly
+        if mode in ("college", "interview"):
+            raise RuntimeError(f"Question generation returned no valid questions for {mode} mode.")
+
         return self._get_college_fallback_questions(topic, count)
 
     def _get_college_fallback_questions(self, topic: str, count: int = 10) -> List[Dict[str, Any]]:
