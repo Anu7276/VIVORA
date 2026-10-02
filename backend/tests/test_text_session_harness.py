@@ -30,13 +30,13 @@ Ans: The SI unit of electric current is the Ampere (A).
     """
 
     # 1. Create Session
-    session = session_service.create_session(
+    session = asyncio.run(session_service.create_session(
         db=db,
         mode="school",
         title="Class 10 Biology & Physics",
         content_text=material,
         question_source="fixed"
-    )
+    ))
     assert session is not None
     assert len(session.questions) == 2
 

@@ -37,14 +37,18 @@ class Orchestrator:
         question_source: str,
         uploaded_questions: List[Dict[str, Any]],
         tenant_id: str,
-        topic: str = "General"
+        topic: str = "General",
+        context_text: str = "",
+        count: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         return await self.question.get_questions(
             mode=mode,
             question_source=question_source,
             uploaded_questions=uploaded_questions,
             tenant_id=tenant_id,
-            topic=topic
+            topic=topic,
+            context_text=context_text,
+            count=count
         )
 
     async def prepare_interviewer_turn(self, question: Dict[str, Any], mode: str) -> Dict[str, Any]:
@@ -56,7 +60,9 @@ class Orchestrator:
         question_text: str,
         answer_transcript: str,
         reference_answer: str,
-        mode: str
+        mode: str,
+        planned_followup: Optional[str] = None,
+        planned_followup_answer: Optional[str] = None
     ) -> Dict[str, Any]:
         cfg = ModeStrategy.get_config(mode)
         
@@ -72,11 +78,19 @@ class Orchestrator:
         follow_up_question = None
         # 2. If College or Interview mode, trigger Follow-up Agent
         if cfg.allow_followups and eval_result.get("overall_score", 0) < 8.5:
-            follow_up_question = await self.followup.generate_followup(
-                question_text=question_text,
-                answer_transcript=answer_transcript,
-                missing_concepts=eval_result.get("missing_concepts", "")
-            )
+            if planned_followup and len(planned_followup.strip()) > 5:
+                follow_up_question = {
+                    "question_text": planned_followup.strip(),
+                    "difficulty": "hard",
+                    "origin": "follow_up",
+                    "reference_answer": planned_followup_answer or f"Follow-up context for {question_text}"
+                }
+            else:
+                follow_up_question = await self.followup.generate_followup(
+                    question_text=question_text,
+                    answer_transcript=answer_transcript,
+                    missing_concepts=eval_result.get("missing_concepts", "")
+                )
 
         return {
             "evaluation": eval_result,

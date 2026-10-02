@@ -7,7 +7,7 @@ from app.services.mode_strategy import ModeStrategy
 
 class SessionService:
     @staticmethod
-    def create_session(
+    async def create_session(
         db: DBSession,
         mode: str = "school",
         title: str = "Science Viva",
@@ -48,45 +48,67 @@ class SessionService:
         db.commit()
         db.refresh(session)
 
-        # Populate questions from uploaded text or default seed
+        # 4. Populate questions:
+        # - School mode: uses uploaded/parsed fixed Q&A pairs
+        # - College mode: calls Gemini (QUESTION_GEN_PROVIDER) to collect TOP 10 viva questions
+        #   with follow-up questions and expected answers
         questions_data = intake_res
-        if not questions_data:
-            if mode == "school":
-                questions_data = [
-                    {
-                        "question_text": "What is photosynthesis and where does it occur in plant cells?",
-                        "topic": "Biology",
-                        "difficulty": "easy",
-                        "reference_answer": "Photosynthesis is the process by which green plants make food using sunlight, water, and CO2, occurring in chloroplasts."
-                    },
-                    {
-                        "question_text": "State Newton's Third Law of Motion and give one real-life example.",
-                        "topic": "Physics",
-                        "difficulty": "easy",
-                        "reference_answer": "For every action, there is an equal and opposite reaction. Example: A rocket propulsion or pushing against a wall."
-                    },
-                    {
-                        "question_text": "What is the difference between an acid and a base in terms of pH?",
-                        "topic": "Chemistry",
-                        "difficulty": "easy",
-                        "reference_answer": "Acids have a pH less than 7 and release H+ ions, while bases have a pH greater than 7 and release OH- ions."
-                    }
-                ]
-            else:
-                questions_data = [
-                    {
-                        "question_text": f"Explain the core architectural principles of {title}.",
-                        "topic": title,
-                        "difficulty": "medium",
-                        "reference_answer": f"Core principles and mechanisms of {title}."
-                    },
-                    {
-                        "question_text": f"How do you handle edge cases and failure modes in {title}?",
-                        "topic": title,
-                        "difficulty": "hard",
-                        "reference_answer": f"Resilience patterns and recovery strategies for {title}."
-                    }
-                ]
+        if not questions_data or (mode == "college" and q_source != "fixed"):
+            if mode == "college":
+                try:
+                    questions_data = await orchestrator.initialize_questions(
+                        mode="college",
+                        question_source="generated",
+                        uploaded_questions=[],
+                        tenant_id=doc.id,
+                        topic=title,
+                        context_text=content_text,
+                        count=10
+                    )
+                except Exception:
+                    questions_data = []
+
+            if not questions_data:
+                if mode == "school":
+                    questions_data = [
+                        {
+                            "question_text": "What is photosynthesis and where does it occur in plant cells?",
+                            "topic": "Biology",
+                            "difficulty": "easy",
+                            "reference_answer": "Photosynthesis is the process by which green plants make food using sunlight, water, and CO2, occurring in chloroplasts."
+                        },
+                        {
+                            "question_text": "State Newton's Third Law of Motion and give one real-life example.",
+                            "topic": "Physics",
+                            "difficulty": "easy",
+                            "reference_answer": "For every action, there is an equal and opposite reaction. Example: A rocket propulsion or pushing against a wall."
+                        },
+                        {
+                            "question_text": "What is the difference between an acid and a base in terms of pH?",
+                            "topic": "Chemistry",
+                            "difficulty": "easy",
+                            "reference_answer": "Acids have a pH less than 7 and release H+ ions, while bases have a pH greater than 7 and release OH- ions."
+                        }
+                    ]
+                else:
+                    questions_data = [
+                        {
+                            "question_text": f"Explain the core architectural principles of {title}.",
+                            "topic": title,
+                            "difficulty": "medium",
+                            "reference_answer": f"Core principles and mechanisms of {title}.",
+                            "followup_question": "What is the governing theoretical model?",
+                            "followup_answer": "Mathematical foundation and governing equations."
+                        },
+                        {
+                            "question_text": f"How do you handle edge cases and failure modes in {title}?",
+                            "topic": title,
+                            "difficulty": "hard",
+                            "reference_answer": f"Resilience patterns and recovery strategies for {title}.",
+                            "followup_question": "What is the computational complexity of the recovery?",
+                            "followup_answer": "Bounded execution time."
+                        }
+                    ]
 
         for idx, q in enumerate(questions_data):
             q_model = Question(
@@ -95,8 +117,10 @@ class SessionService:
                 question_text=q["question_text"],
                 topic=q.get("topic", "General"),
                 difficulty=q.get("difficulty", "medium"),
-                origin=q.get("origin", "uploaded"),
-                reference_answer=q.get("reference_answer", "")
+                origin=q.get("origin", "generated" if mode == "college" else "uploaded"),
+                reference_answer=q.get("reference_answer", ""),
+                followup_question=q.get("followup_question", ""),
+                followup_answer=q.get("followup_answer", "")
             )
             db.add(q_model)
 

@@ -60,7 +60,7 @@ async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(g
             detail=CONSENT_GATE_ERROR,
         )
 
-    session = session_service.create_session(
+    session = await session_service.create_session(
         db=db,
         mode=req.mode,
         title=req.title,

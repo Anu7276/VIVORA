@@ -22,7 +22,10 @@ import {
   Lightbulb, 
   HelpCircle,
   Award,
-  Layers
+  Layers,
+  Cpu,
+  Zap,
+  FlaskConical
 } from "lucide-react";
 
 interface QAPair {
@@ -81,6 +84,45 @@ const PRESET_SCHOOL_SETS: Record<string, { title: string; pairs: QAPair[] }> = {
         answer: "The chemical name is Calcium Sulphate Hemihydrate and its formula is CaSO4·1/2H2O."
       }
     ]
+  }
+};
+
+const PRESET_COLLEGE_SETS: Record<string, { title: string; content: string }> = {
+  os: {
+    title: "Operating Systems: Process Synchronization & Deadlocks",
+    content: `Topics & Practical Lab Experiments:
+1. Critical section problem, Race conditions, and Peterson's algorithm.
+2. Semaphores (Counting vs Binary), Mutex locks, and Condition variables.
+3. Classic Synchronization Problems: Producer-Consumer (Bounded Buffer), Readers-Writers, Dining Philosophers.
+4. Deadlock: 4 Necessary conditions (Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait).
+5. Deadlock Handling: Resource Allocation Graph (RAG), Banker's Algorithm (Safety & Request), Detection & Recovery.`
+  },
+  networks: {
+    title: "Computer Networks: TCP/IP & Protocol Architecture",
+    content: `Topics & Practical Lab Experiments:
+1. OSI 7-Layer model vs TCP/IP 4-Layer architecture functions.
+2. TCP 3-Way Handshake connection establishment and 4-way termination.
+3. TCP Flow Control (Sliding Window) vs Congestion Control (Slow Start, Congestion Avoidance, Fast Retransmit).
+4. Subnetting, CIDR notation, and IP addressing (IPv4 vs IPv6).
+5. DNS resolution mechanism, ARP/RARP, and HTTP/1.1 vs HTTP/2 vs HTTP/3.`
+  },
+  dbms: {
+    title: "Database Management Systems: Transactions & Indexing",
+    content: `Topics & Practical Lab Experiments:
+1. Relational algebra operations and SQL query optimization.
+2. Normalization: 1NF, 2NF, 3NF, and Boyce-Codd Normal Form (BCNF) with functional dependencies.
+3. Transaction Processing & ACID properties (Atomicity, Consistency, Isolation, Durability).
+4. Concurrency Control: Two-Phase Locking (2PL), Strict 2PL, Timestamp Ordering, and Phantom Read anomalies.
+5. Indexing structures: B-Trees vs B+ Trees, Clustered vs Non-clustered indexing.`
+  },
+  practical: {
+    title: "Engineering & Applied Sciences Lab Practical Viva",
+    content: `Lab Practical Experimentation:
+1. Working principle, apparatus setup, circuit diagram, and calibration procedure.
+2. Independent and dependent variables, measurement tolerances, and zero error correction.
+3. Sources of experimental error (systematic vs random errors) and minimization techniques.
+4. Mathematical derivation of the experimental formula and constant validation.
+5. Precautions, safety protocols, and real-world industrial relevance.`
   }
 };
 
@@ -145,11 +187,17 @@ export default function HomePage() {
     setQaPairs(qaPairs.filter((_, idx) => idx !== index));
   };
 
-  const handleSelectPreset = (key: "biology" | "physics" | "chemistry") => {
+  const handleSelectSchoolPreset = (key: "biology" | "physics" | "chemistry") => {
     const preset = PRESET_SCHOOL_SETS[key];
     setTitle(preset.title);
     setQaPairs(preset.pairs);
     setContentText(formatQaPairsToText(preset.pairs));
+  };
+
+  const handleSelectCollegePreset = (key: "os" | "networks" | "dbms" | "practical") => {
+    const preset = PRESET_COLLEGE_SETS[key];
+    setTitle(preset.title);
+    setContentText(preset.content);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +219,7 @@ export default function HomePage() {
       if (data.extracted_text) {
         setContentText(data.extracted_text);
       }
-      if (!title || title.includes("Class 10")) {
+      if (!title || title.includes("Class 10") || title.includes("General Science")) {
         setTitle(file.name.replace(/\.[^/.]+$/, ""));
       }
     } catch (err: any) {
@@ -189,14 +237,9 @@ export default function HomePage() {
       setQaPairs(PRESET_SCHOOL_SETS.biology.pairs);
       setInputTab("qa_builder");
     } else if (type === "college") {
-      setTitle("Operating Systems & Networks Viva");
+      setTitle("Operating Systems: Process Synchronization & Deadlocks");
       setInputTab("text");
-      setContentText(
-`Topics to examine:
-1. Process Synchronization, Mutex vs Semaphore, and Deadlock prevention conditions.
-2. Virtual Memory: Paging, Page Fault Handling, and Thrashing.
-3. TCP 3-Way Handshake vs UDP connectionless delivery.`
-      );
+      setContentText(PRESET_COLLEGE_SETS.os.content);
     } else {
       setTitle("Full Stack Software Engineer Interview");
       setInputTab("text");
@@ -212,7 +255,7 @@ Key Areas:
 
   const handleStartViva = async () => {
     let finalContent = "";
-    if (inputTab === "qa_builder") {
+    if (mode === "school" && inputTab === "qa_builder") {
       const validPairs = qaPairs.filter((p) => p.question.trim().length > 0);
       if (validPairs.length === 0) {
         setError("Please enter at least one question and expected answer.");
@@ -224,7 +267,7 @@ Key Areas:
     }
 
     if (!title.trim() || !finalContent) {
-      setError("Please provide a title and questions or topic material.");
+      setError("Please provide a title and chapter syllabus or practical material.");
       return;
     }
 
@@ -253,29 +296,31 @@ Key Areas:
         <div className="flex items-center gap-2.5 text-xs text-gray-300">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           <span className="font-semibold text-white">Student:</span>
-          <span>{student ? `${student.name} (${student.role === "minor_student" ? "Class 10" : "Candidate"})` : "Aarav Sharma (Class 10)"}</span>
+          <span>{student ? `${student.name}` : "Aarav Sharma"}</span>
           <span className="text-gray-500">•</span>
           <div className="flex items-center gap-1 text-emerald-400 font-medium">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Parent Consent Verified</span>
+            <span>Parent / Student Consent Verified</span>
           </div>
         </div>
-        <div className="text-[11px] text-gray-400">
-          RAM-Only Audio • Zero Server Audio Storage
+        <div className="text-[11px] text-gray-400 flex items-center gap-2">
+          <span>RAM-Only Audio</span>
+          <span>•</span>
+          <span className="text-primary-300">Gemini (Q-Gen) + Groq (Live Spoken)</span>
         </div>
       </div>
 
       {/* Hero Header */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold tracking-wide">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Interactive Spoken Viva Simulator with Semantic Scoring</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-300 text-xs font-semibold tracking-wide">
+          <Sparkles className="w-3.5 h-3.5 text-primary-400" />
+          <span>Real-Time Voice AI Viva & Interview Simulator</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
           Master your Viva with a <span className="bg-gradient-to-r from-emerald-400 via-primary-400 to-accent-cyan bg-clip-text text-transparent">Live Spoken Examiner</span>
         </h1>
         <p className="text-gray-400 text-base sm:text-lg">
-          Add your fixed viva questions and expected answers. Answer aloud in your own words — our AI checks conceptual correctness and awards marks for meaning, not rote memorization!
+          Upload syllabus PDFs or chapter names. Gemini collects the top 10 questions with follow-ups, and Groq asks them aloud in a real-time conversational viva!
         </p>
       </div>
 
@@ -304,11 +349,11 @@ Key Areas:
               <p className="text-xs text-emerald-400/90 font-medium mt-0.5">Semantic Meaning & Marks</p>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Upload your questions with expected answers. The examiner asks them aloud in sequence. Graded on concept correctness, allowing synonyms and colloquial phrasing!
+              Upload fixed questions and expected answers. Examiner grades conceptual understanding, tolerating synonyms and informal phrasing.
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-emerald-400 font-medium">
-            <span>Concept Match • Marks 0-10</span>
+            <span>Fixed Q&A • Marks 0-10</span>
             <ArrowRight className="w-4 h-4" />
           </div>
         </button>
@@ -332,15 +377,15 @@ Key Areas:
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">College Viva</h3>
-              <p className="text-xs text-primary-400/90 font-medium mt-0.5">Adaptive Probing</p>
+              <h3 className="text-lg font-bold text-white">College Viva (Top 10)</h3>
+              <p className="text-xs text-primary-400/90 font-medium mt-0.5">Gemini Q-Gen + Groq Live</p>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Generates probing follow-ups (&quot;why does that happen?&quot;) to test foundational comprehension across syllabus topics.
+              Upload syllabus PDF or chapter/practical name. Gemini extracts the top 10 questions with follow-ups, and Groq asks them aloud in live turns.
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-primary-400 font-medium">
-            <span>Adaptive Follow-ups</span>
+            <span>Top 10 Questions • Follow-ups</span>
             <ArrowRight className="w-4 h-4" />
           </div>
         </button>
@@ -378,7 +423,37 @@ Key Areas:
         </button>
       </div>
 
-      {/* Semantic Scoring Highlight Banner for School Viva */}
+      {/* College Mode AI Architecture Banner */}
+      {mode === "college" && (
+        <div className="p-4 rounded-2xl bg-primary-500/10 border border-primary-500/20 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-primary-300">
+            <Cpu className="w-4 h-4 text-primary-400" />
+            <span>College Viva Architecture: Dual-Provider Workflow</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-300">
+            <div className="p-3 rounded-xl bg-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>1. Gemini API (Question Generation)</span>
+              </div>
+              <p className="text-gray-400 text-[11px] leading-relaxed">
+                Parses your syllabus, chapter, or practical lab manual to generate the <strong>Top 10 essential viva questions</strong> with expected answers and probing follow-up questions.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-accent-cyan">
+                <Zap className="w-3.5 h-3.5" />
+                <span>2. Groq API (Live Spoken Examiner)</span>
+              </div>
+              <p className="text-gray-400 text-[11px] leading-relaxed">
+                Conducts the live spoken examination at ultra-low latency, asks the Gemini questions, listens to your answers, triggers follow-ups, and scores each response.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* School Semantic Scoring Banner */}
       {mode === "school" && (
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
           <Lightbulb className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -393,12 +468,20 @@ Key Areas:
       <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6">
         <div className="flex flex-wrap items-center justify-between border-b border-white/10 pb-4 gap-3">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-emerald-400" />
+            <BookOpen className="w-5 h-5 text-primary-400" />
             <div>
               <h2 className="text-lg font-bold text-white">
-                {mode === "school" ? "School Viva Questions & Reference Answers" : "Viva Content & Topics"}
+                {mode === "school" 
+                  ? "School Viva Questions & Reference Answers" 
+                  : mode === "college" 
+                  ? "Chapter Name, Syllabus, or Practical Lab Manual" 
+                  : "Viva Content & Topics"}
               </h2>
-              <p className="text-xs text-gray-400">Provide the questions you will be asked in your viva</p>
+              <p className="text-xs text-gray-400">
+                {mode === "college" 
+                  ? "Gemini will extract the top 10 questions and follow-ups from this material"
+                  : "Provide the questions you will be asked in your viva"}
+              </p>
             </div>
           </div>
 
@@ -421,22 +504,22 @@ Key Areas:
               onClick={() => setInputTab("text")}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 inputTab === "text"
-                  ? "bg-emerald-600 text-white shadow-sm"
+                  ? "bg-primary-600 text-white shadow-sm"
                   : "text-gray-400 hover:text-white"
               }`}
             >
-              Paste Text / Q&A
+              {mode === "college" ? "Chapter / Syllabus Text" : "Paste Text / Q&A"}
             </button>
             <button
               onClick={() => setInputTab("pdf")}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
                 inputTab === "pdf"
-                  ? "bg-emerald-600 text-white shadow-sm"
+                  ? "bg-primary-600 text-white shadow-sm"
                   : "text-gray-400 hover:text-white"
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Upload PDF</span>
+              <span>{mode === "college" ? "Upload Syllabus / Lab PDF" : "Upload PDF"}</span>
             </button>
           </div>
         </div>
@@ -445,41 +528,81 @@ Key Areas:
           {/* Viva Title */}
           <div>
             <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-              Viva Title / Chapter Name
+              {mode === "college" ? "Subject / Chapter / Practical Name" : "Viva Title / Chapter Name"}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-surfaceLight/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors"
-              placeholder="e.g. CBSE Class 10 Biology: Life Processes"
+              className="w-full bg-surfaceLight/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary-500 transition-colors"
+              placeholder={mode === "college" ? "e.g. Operating Systems: Process Synchronization" : "e.g. CBSE Class 10 Biology: Life Processes"}
             />
           </div>
+
+          {/* College Preset Buttons */}
+          {mode === "college" && (
+            <div className="space-y-2">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                Quick College Subject & Lab Presets:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSelectCollegePreset("os")}
+                  className="px-3 py-1.5 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 text-primary-300 border border-primary-500/20 text-xs font-medium transition-colors"
+                >
+                  💻 OS (Sync & Deadlocks)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCollegePreset("networks")}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 text-xs font-medium transition-colors"
+                >
+                  🌐 Networks (TCP/IP & OSI)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCollegePreset("dbms")}
+                  className="px-3 py-1.5 rounded-lg bg-accent-amber/10 hover:bg-accent-amber/20 text-amber-300 border border-accent-amber/20 text-xs font-medium transition-colors"
+                >
+                  🗄️ DBMS (ACID & Indexing)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectCollegePreset("practical")}
+                  className="px-3 py-1.5 rounded-lg bg-accent-cyan/10 hover:bg-accent-cyan/20 text-cyan-300 border border-accent-cyan/20 text-xs font-medium transition-colors flex items-center gap-1"
+                >
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  <span>🔬 Science/Eng Lab Practical</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* School Preset Buttons */}
           {mode === "school" && inputTab === "qa_builder" && (
             <div className="space-y-2">
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                Quick Subject Presets:
+                Quick School Subject Presets:
               </span>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => handleSelectPreset("biology")}
+                  onClick={() => handleSelectSchoolPreset("biology")}
                   className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 text-xs font-medium transition-colors"
                 >
                   🌱 Class 10 Biology (Life Processes)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSelectPreset("physics")}
+                  onClick={() => handleSelectSchoolPreset("physics")}
                   className="px-3 py-1.5 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 text-primary-300 border border-primary-500/20 text-xs font-medium transition-colors"
                 >
                   ⚡ Class 9 Physics (Laws of Motion)
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSelectPreset("chemistry")}
+                  onClick={() => handleSelectSchoolPreset("chemistry")}
                   className="px-3 py-1.5 rounded-lg bg-accent-amber/10 hover:bg-accent-amber/20 text-amber-300 border border-accent-amber/20 text-xs font-medium transition-colors"
                 >
                   🧪 Class 10 Chemistry (Acids & Bases)
@@ -489,7 +612,7 @@ Key Areas:
           )}
 
           {/* TAB 1: Visual Q&A Builder (For School Students & Teachers) */}
-          {inputTab === "qa_builder" && (
+          {mode === "school" && inputTab === "qa_builder" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-300">
@@ -571,7 +694,7 @@ Key Areas:
           {/* TAB 2: PDF Upload */}
           {inputTab === "pdf" && (
             <div className="space-y-4">
-              <div className="border-2 border-dashed border-white/15 hover:border-emerald-500/50 rounded-2xl p-6 sm:p-8 text-center transition-colors relative bg-surfaceLight/20">
+              <div className="border-2 border-dashed border-white/15 hover:border-primary-500/50 rounded-2xl p-6 sm:p-8 text-center transition-colors relative bg-surfaceLight/20">
                 <input
                   type="file"
                   accept=".pdf,.txt,.md"
@@ -579,7 +702,7 @@ Key Areas:
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
                 <div className="flex flex-col items-center justify-center space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-600/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <div className="w-14 h-14 rounded-2xl bg-primary-600/10 border border-primary-500/20 flex items-center justify-center text-primary-400">
                     <UploadCloud className="w-7 h-7" />
                   </div>
                   <div>
@@ -587,17 +710,19 @@ Key Areas:
                       Click to upload or drag & drop a PDF
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Upload textbook chapters, school viva question bank PDFs, or notes (.pdf)
+                      {mode === "college" 
+                        ? "Upload course syllabus, lab manual experiment PDF, or textbook chapter (.pdf)"
+                        : "Upload textbook chapters, school viva question bank PDFs, or notes (.pdf)"}
                     </p>
                   </div>
                 </div>
               </div>
 
               {pdfParsing && (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-xs text-emerald-200">
-                    Extracting questions, answers & chunking into memory...
+                <div className="p-4 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs text-primary-200">
+                    Extracting syllabus text, lab steps & preparing for Gemini question generation...
                   </span>
                 </div>
               )}
@@ -631,14 +756,14 @@ Key Areas:
                       <span className="text-white font-medium">{pdfMetadata.num_pages} Pages</span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-white/5 col-span-2 sm:col-span-1">
-                      <span className="text-gray-400 block text-[10px] uppercase">Questions Found</span>
-                      <span className="text-emerald-400 font-medium">{pdfMetadata.questions_detected} Questions</span>
+                      <span className="text-gray-400 block text-[10px] uppercase">Detected Topics</span>
+                      <span className="text-emerald-400 font-medium">{pdfMetadata.topics.length || 1} Topics</span>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-400 mb-1.5">
-                      Extracted Text:
+                      Extracted Text / Syllabus:
                     </label>
                     <textarea
                       rows={5}
@@ -657,21 +782,25 @@ Key Areas:
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                  {mode === "school" ? "Question List (Fixed Q&A Format)" : "Syllabus / Topic / Questions"}
+                  {mode === "college" 
+                    ? "Chapter Topics, Lab Manual, or Syllabus Outline" 
+                    : mode === "school" 
+                    ? "Question List (Fixed Q&A Format)" 
+                    : "Syllabus / Topic / Questions"}
                 </label>
-                <span className="text-[11px] text-gray-500">Format: Q1: ... Ans: ...</span>
+                <span className="text-[11px] text-gray-500">
+                  {mode === "college" ? "Gemini will generate 10 questions from this" : "Format: Q1: ... Ans: ..."}
+                </span>
               </div>
               <textarea
                 rows={8}
                 value={contentText}
                 onChange={(e) => setContentText(e.target.value)}
-                className="w-full bg-surfaceLight/50 border border-white/10 rounded-xl p-4 text-xs sm:text-sm text-gray-200 focus:outline-none focus:border-emerald-500 font-mono leading-relaxed transition-colors"
+                className="w-full bg-surfaceLight/50 border border-white/10 rounded-xl p-4 text-xs sm:text-sm text-gray-200 focus:outline-none focus:border-primary-500 font-mono leading-relaxed transition-colors"
                 placeholder={
-`Q1: What is photosynthesis?
-Ans: Process of plants making food with sunlight, CO2, and water.
-
-Q2: State Newton's First Law.
-Ans: An object stays at rest unless an external force acts on it.`
+                  mode === "college"
+                    ? "Enter key topics, algorithms, or lab practical procedures..."
+                    : "Q1: What is photosynthesis?\nAns: Process of plants making food..."
                 }
               />
             </div>
@@ -687,22 +816,28 @@ Ans: An object stays at rest unless an external force acts on it.`
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/5">
             <div className="flex items-center gap-4 text-xs text-gray-400">
               <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-emerald-400" />
-                <span>Relaxed Timing for School</span>
+                <Clock className="w-4 h-4 text-primary-400" />
+                <span>{mode === "college" ? "10 Questions + Follow-ups" : "Fixed Viva Questions"}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Volume2 className="w-4 h-4 text-accent-cyan" />
-                <span>Voice or Typing Supported</span>
+                <span>Live Spoken Examiner (Groq)</span>
               </div>
             </div>
 
             <button
               onClick={handleStartViva}
               disabled={loading}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-primary-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 group transition-all disabled:opacity-50"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-primary-600 via-indigo-600 to-emerald-600 hover:from-primary-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2 group transition-all disabled:opacity-50"
             >
               <Mic className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>{loading ? "Setting Up Viva Room..." : "Enter School Viva Room"}</span>
+              <span>
+                {loading 
+                  ? "Generating Questions with Gemini..." 
+                  : mode === "college" 
+                  ? "Generate Top 10 Questions & Start Live Viva" 
+                  : "Enter Live Viva Room"}
+              </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>

@@ -384,11 +384,18 @@ export default function SessionRoomPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                {currentQuestion?.order_no?.toString().includes("Follow-up") && (
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-accent-amber/20 text-amber-300 border border-accent-amber/30 animate-pulse">
+                    🔍 Deep Follow-up
+                  </span>
+                )}
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10">
-                  {currentQuestion?.topic || "Science"}
+                  {currentQuestion?.topic || "Engineering / Science"}
                 </span>
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Q{questionIndex + 1}
+                  {typeof currentQuestion?.order_no === 'string' && currentQuestion?.order_no.includes("Follow-up") 
+                    ? currentQuestion.order_no 
+                    : `Q${questionIndex + 1}`}
                 </span>
               </div>
             </div>

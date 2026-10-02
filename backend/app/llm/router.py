@@ -272,7 +272,96 @@ class SmartRuleFallbackProvider(LLMProvider):
             }
 
         # Question generation
-        if "Question" in (system_prompt or ""):
+        if "Question" in (system_prompt or "") or "college" in prompt.lower() or "viva" in prompt.lower():
+            is_college = "college" in prompt.lower() or "practical" in prompt.lower() or "university" in (system_prompt or "").lower()
+            if is_college:
+                # Extract topic from prompt if possible
+                topic_match = re.search(r'Title / Topic:\s*"([^"]+)"', prompt)
+                topic_val = topic_match.group(1) if topic_match else "College Subject"
+                return {
+                    "questions": [
+                        {
+                            "question_text": f"What is the fundamental working principle and primary objective of {topic_val}?",
+                            "topic": f"{topic_val} - Core Principles",
+                            "difficulty": "easy",
+                            "reference_answer": f"{topic_val} provides the core mechanism to resolve system constraints efficiently.",
+                            "followup_question": "What is the governing mathematical or theoretical law supporting this?",
+                            "followup_answer": "The core governing equations and foundational theoretical formulation."
+                        },
+                        {
+                            "question_text": f"How is {topic_val} initialized and what are its key parameters?",
+                            "topic": f"{topic_val} - Initialization",
+                            "difficulty": "easy",
+                            "reference_answer": "Initialization sets up memory structures, environment flags, and boundary variables.",
+                            "followup_question": "What happens if boundary parameters are improperly configured?",
+                            "followup_answer": "Throws configuration exception or causes unstable state convergence."
+                        },
+                        {
+                            "question_text": f"Explain the step-by-step procedure or algorithm executed in {topic_val}.",
+                            "topic": f"{topic_val} - Procedure",
+                            "difficulty": "medium",
+                            "reference_answer": "The execution flows from validation, step-wise state transformation, to terminal verification.",
+                            "followup_question": "What is the computational complexity of this procedure?",
+                            "followup_answer": "Optimal polynomial time with bounded space overhead."
+                        },
+                        {
+                            "question_text": f"What are the critical components or sub-modules involved in {topic_val} and how do they interact?",
+                            "topic": f"{topic_val} - Architecture",
+                            "difficulty": "medium",
+                            "reference_answer": "Sub-modules communicate over defined interfaces passing validated state structures.",
+                            "followup_question": "How is synchronization maintained between asynchronous sub-modules?",
+                            "followup_answer": "Using semaphores, mutex locks, or event loops."
+                        },
+                        {
+                            "question_text": f"Compare {topic_val} with an alternative approach or previous standard.",
+                            "topic": f"{topic_val} - Comparative Analysis",
+                            "difficulty": "medium",
+                            "reference_answer": "It provides superior throughput and reliability compared to older synchronous architectures.",
+                            "followup_question": "Under what constraint would you choose the simpler legacy method?",
+                            "followup_answer": "When minimal hardware footprint or extreme simplicity is strictly demanded."
+                        },
+                        {
+                            "question_text": f"How do you calibrate or measure accuracy, error, and performance in {topic_val}?",
+                            "topic": f"{topic_val} - Measurement",
+                            "difficulty": "medium",
+                            "reference_answer": "Quantified through latency percentiles, error rates, and standard benchmark suites.",
+                            "followup_question": "What are the common sources of experimental or runtime error?",
+                            "followup_answer": "Drift, noise, packet loss, or unhandled race conditions."
+                        },
+                        {
+                            "question_text": f"How does {topic_val} handle edge cases and abnormal exception states?",
+                            "topic": f"{topic_val} - Exception Handling",
+                            "difficulty": "hard",
+                            "reference_answer": "Defensive guards and transactional rollbacks maintain state integrity.",
+                            "followup_question": "How do you recover if a catastrophic cascade occurs?",
+                            "followup_answer": "Circuit breakers isolate the failure and trigger self-healing failovers."
+                        },
+                        {
+                            "question_text": f"What are the major trade-offs between performance, scalability, and complexity in {topic_val}?",
+                            "topic": f"{topic_val} - Trade-offs",
+                            "difficulty": "hard",
+                            "reference_answer": "Scaling throughput increases concurrency complexity and memory footprint.",
+                            "followup_question": "How do you isolate a memory leak or bottleneck in production?",
+                            "followup_answer": "Through profiling graphs, heap dumps, and distributed tracing."
+                        },
+                        {
+                            "question_text": f"Describe a real-world industrial or engineering application where {topic_val} is deployed.",
+                            "topic": f"{topic_val} - Practical Application",
+                            "difficulty": "hard",
+                            "reference_answer": "Widely deployed in distributed cloud systems, real-time operating kernels, and financial networks.",
+                            "followup_question": "What modifications are needed when scaling from prototype to production?",
+                            "followup_answer": "Load balancing, fault tolerant replicas, and telemetry logging."
+                        },
+                        {
+                            "question_text": f"What are the recent modern advancements or future research directions in {topic_val}?",
+                            "topic": f"{topic_val} - Modern Trends",
+                            "difficulty": "hard",
+                            "reference_answer": "Current trends incorporate hardware acceleration, AI optimization, and formal verification.",
+                            "followup_question": "What is the key open challenge currently under investigation?",
+                            "followup_answer": "Low-latency consensus and verifiable security across decentralized topologies."
+                        }
+                    ]
+                }
             return {
                 "questions": [
                     {

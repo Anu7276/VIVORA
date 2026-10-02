@@ -21,13 +21,13 @@ Ans: An object remains at rest or in uniform motion unless acted upon by an exte
         """
 
         print("[1/5] Ingesting material & creating session...")
-        session = session_service.create_session(
+        session = asyncio.run(session_service.create_session(
             db=db,
             mode="school",
             title="Class 10 Physics & Biology Viva",
             content_text=sample_questions_text,
             question_source="fixed"
-        )
+        ))
         assert session.id is not None
         assert len(session.questions) == 2
         print(f"  [OK] Session created: {session.id} with {len(session.questions)} fixed questions")

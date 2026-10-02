@@ -131,7 +131,9 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                     question_text=current_q.question_text,
                     answer_transcript=transcript,
                     reference_answer=current_q.reference_answer or "",
-                    mode=mode
+                    mode=mode,
+                    planned_followup=getattr(current_q, "followup_question", None),
+                    planned_followup_answer=getattr(current_q, "followup_answer", None)
                 )
 
                 eval_data = turn_result["evaluation"]

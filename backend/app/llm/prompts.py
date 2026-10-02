@@ -13,6 +13,40 @@ Difficulty: {difficulty}
 Generate {count} concise, conversational viva questions. Each question must be short, direct, and easily spoken aloud.
 Return JSON with key 'questions' containing list of objects with 'question_text', 'topic', 'difficulty', 'reference_answer'."""
 
+COLLEGE_QUESTION_GENERATION_PROMPT = """You are a distinguished University Professor and College Viva Examiner.
+The student has provided the following Chapter, Subject, Syllabus, or Lab Practical details:
+Title / Topic: "{topic}"
+Syllabus / Lab Context:
+\"\"\"{context}\"\"\"
+
+Generate the TOP {count} essential viva questions for this chapter, subject, or lab practical.
+Structure the questions progressively:
+- Questions 1 to 3: Core definitions, primary laws/principles, and fundamental objectives.
+- Questions 4 to 7: Implementation mechanisms, algorithms, circuit/experimental procedures, and component roles.
+- Questions 8 to 10: Deep edge-cases, error analysis, trade-offs, failure modes, or practical optimizations.
+
+For EACH question, you MUST provide:
+1. 'question_text': A crisp, direct viva question that sounds natural when spoken aloud by the examiner.
+2. 'topic': Specific sub-topic, law, or experiment step.
+3. 'difficulty': "easy" | "medium" | "hard"
+4. 'reference_answer': A precise, technically sound model answer explaining key principles, formulas, or mechanism.
+5. 'followup_question': A probing follow-up question (e.g., "Why did you choose that approach?", "What happens if this component fails?", "How does time complexity scale?").
+6. 'followup_answer': The expected answer to the follow-up question.
+
+Output format strictly JSON with key 'questions' containing an array of {count} objects:
+{{
+  "questions": [
+    {{
+      "question_text": "...",
+      "topic": "...",
+      "difficulty": "easy" | "medium" | "hard",
+      "reference_answer": "...",
+      "followup_question": "...",
+      "followup_answer": "..."
+    }}
+  ]
+}}"""
+
 INTERVIEWER_PROMPT = """You are a friendly, encouraging AI Viva Examiner for school students.
 You are asking the student question #{order_no}: "{question_text}".
 Make it conversational and speakable in a single natural sentence."""
