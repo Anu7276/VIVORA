@@ -6,6 +6,7 @@ from app.core.auth import get_active_user, secure_compare
 from app.db.database import get_db
 from app.db.models import Report, Session, Question, Answer, Evaluation, LLMUsageLog, User
 from app.rag.vector_store import vector_store
+from app.rag.retriever import rag_retriever
 from typing import List, Dict, Any, Optional
 
 router = APIRouter()
@@ -150,8 +151,10 @@ async def delete_session_data(
     auth_token = x_session_token or token
     _verify_session_token(session, auth_token)
 
-    # 1. Clear in-memory vector-store chunks for this session
+    # 1. Clear in-memory vector-store chunks & retriever cache for this session
     vector_store.clear_tenant(session_id)
+    if session.document_id:
+        rag_retriever.invalidate_cache(session.document_id)
 
     # 2. Delete LLM usage logs referencing this session
     db.query(LLMUsageLog).filter(LLMUsageLog.session_id == session_id).delete()

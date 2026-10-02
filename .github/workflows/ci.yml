@@ -19,11 +19,10 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
-      - name: Run Backend Integration & Vertical Slice Tests
+      - name: Run Backend Pytest Suite
         run: |
           cd backend
-          python tests/test_school_fixed_slice.py
-          python tests/test_pdf_upload.py
+          pytest tests -q
 
   frontend-build:
     runs-on: ubuntu-latest

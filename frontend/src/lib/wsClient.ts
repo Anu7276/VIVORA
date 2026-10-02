@@ -1,69 +1,139 @@
-// WebSocket Realtime Client for Vivora Voice Sessions
+// Managed WebSocket client with exponential backoff reconnection and environment configuration
 
-export type MessageHandler = (data: any) => void;
+export function getWebSocketBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_WS_URL) {
+    return process.env.NEXT_PUBLIC_WS_URL.replace(/\/$/, "");
+  }
+  if (typeof window !== "undefined") {
+    const isSecure = window.location.protocol === "https:";
+    const host = window.location.hostname || "127.0.0.1";
+    // If running frontend on localhost:3000, default backend ws is on 8000
+    const port = window.location.port === "3000" ? "8000" : (window.location.port || (isSecure ? "443" : "80"));
+    return `${isSecure ? "wss" : "ws"}://${host}:${port}`;
+  }
+  return "ws://127.0.0.1:8000";
+}
 
-export class VivaWebSocketClient {
-  private ws: WebSocket | null = null;
+export function getSessionWebSocketUrl(sessionId: string): string {
+  const base = getWebSocketBaseUrl();
+  return `${base}/ws/session/${sessionId}`;
+}
+
+export interface ManagedWebSocketOptions {
+  onOpen?: (event: Event) => void;
+  onMessage?: (data: any, rawEvent: MessageEvent) => void;
+  onError?: (event: Event) => void;
+  onClose?: (event: CloseEvent) => void;
+  maxRetries?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+}
+
+export class ManagedWebSocket {
   private url: string;
-  private handlers: Set<MessageHandler> = new Set();
+  private options: ManagedWebSocketOptions;
+  private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private reconnectTimer: any = null;
+  private isExplicitlyClosed = false;
 
-  constructor(sessionId: string, baseUrl?: string) {
-    const defaultWsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://127.0.0.1:8000";
-    this.url = `${baseUrl || defaultWsUrl}/ws/session/${sessionId}`;
+  constructor(url: string, options: ManagedWebSocketOptions = {}) {
+    this.url = url;
+    this.options = {
+      maxRetries: options.maxRetries ?? 5,
+      initialDelayMs: options.initialDelayMs ?? 1000,
+      maxDelayMs: options.maxDelayMs ?? 16000,
+      ...options,
+    };
+    this.connect();
   }
 
-  public connect(): void {
+  private connect(): void {
+    if (typeof window === "undefined" || this.isExplicitlyClosed) return;
+
     try {
       this.ws = new WebSocket(this.url);
 
-      this.ws.onopen = () => {
-        console.log("WebSocket connection established to Vivora Gateway");
+      this.ws.onopen = (event: Event) => {
         this.reconnectAttempts = 0;
-      };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.handlers.forEach((handler) => handler(data));
-        } catch (e) {
-          console.error("Failed to parse incoming WebSocket message:", e);
+        if (this.options.onOpen) {
+          this.options.onOpen(event);
         }
       };
 
-      this.ws.onerror = (err) => {
-        console.error("WebSocket error:", err);
+      this.ws.onmessage = (event: MessageEvent) => {
+        if (this.options.onMessage) {
+          try {
+            const parsed = JSON.parse(event.data);
+            this.options.onMessage(parsed, event);
+          } catch (e) {
+            this.options.onMessage(event.data, event);
+          }
+        }
       };
 
-      this.ws.onclose = () => {
-        console.log("WebSocket connection closed");
+      this.ws.onerror = (event: Event) => {
+        if (this.options.onError) {
+          this.options.onError(event);
+        }
       };
-    } catch (e) {
-      console.error("WebSocket connection failure:", e);
+
+      this.ws.onclose = (event: CloseEvent) => {
+        if (this.options.onClose) {
+          this.options.onClose(event);
+        }
+        if (!this.isExplicitlyClosed && this.reconnectAttempts < (this.options.maxRetries || 5)) {
+          this.scheduleReconnect();
+        }
+      };
+    } catch (err) {
+      console.warn("WebSocket connection initialization failed:", err);
+      this.scheduleReconnect();
     }
   }
 
-  public send(type: string, payload: Record<string, any> = {}): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type, ...payload }));
-    } else {
-      console.warn("WebSocket is not connected. Cannot send:", type);
+  private scheduleReconnect(): void {
+    if (this.isExplicitlyClosed) return;
+
+    const delay = Math.min(
+      (this.options.initialDelayMs || 1000) * Math.pow(2, this.reconnectAttempts),
+      this.options.maxDelayMs || 16000
+    );
+    this.reconnectAttempts++;
+
+    this.reconnectTimer = setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  public send(data: string | object): boolean {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return false;
     }
+    const payload = typeof data === "string" ? data : JSON.stringify(data);
+    this.ws.send(payload);
+    return true;
   }
 
-  public onMessage(handler: MessageHandler): () => void {
-    this.handlers.add(handler);
-    return () => {
-      this.handlers.delete(handler);
-    };
+  public get readyState(): number {
+    return this.ws ? this.ws.readyState : WebSocket.CLOSED;
   }
 
-  public disconnect(): void {
+  public get rawSocket(): WebSocket | null {
+    return this.ws;
+  }
+
+  public close(): void {
+    this.isExplicitlyClosed = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws) {
-      this.ws.close();
+      try {
+        this.ws.close();
+      } catch (e) {}
       this.ws = null;
     }
-    this.handlers.clear();
   }
 }

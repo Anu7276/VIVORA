@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getSession, SessionData } from "@/lib/api";
 import { BrowserVoiceClient } from "@/lib/voice";
+import { getSessionWebSocketUrl } from "@/lib/wsClient";
 import AudioWave from "@/components/AudioWave";
 import {
   Mic,
@@ -86,7 +87,7 @@ export default function SessionRoomPage() {
     if (!sessionId) return;
 
     voiceClientRef.current = new BrowserVoiceClient();
-    const wsUrl = `ws://127.0.0.1:8000/ws/session/${sessionId}`;
+    const wsUrl = getSessionWebSocketUrl(sessionId);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
