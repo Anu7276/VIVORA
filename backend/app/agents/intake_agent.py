@@ -13,26 +13,60 @@ class IntakeAgent(BaseAgent):
         super().__init__("IntakeAgent")
         self.chunker = Chunker()
 
-    async def process_document(self, tenant_id: str, title: str, text: str, doc_type: str = "questions") -> Dict[str, Any]:
+    async def process_document(
+        self,
+        tenant_id: str,
+        title: str,
+        text: str,
+        doc_type: str = "questions",
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
         """
-        Parses uploaded text, generates chunks, embeds them into Vector DB,
-        and extracts topics / fixed question lists.
+        Parses uploaded text, generates chunks, persists them to DocumentChunk table,
+        indexes them in restart-safe BM25 / Vector DB, and extracts topics / fixed question lists.
         """
+        from app.db.database import SessionLocal
+        from app.db.models import DocumentChunk
+        from app.rag.retriever import rag_retriever
+
         chunks = self.chunker.chunk_text(text, default_topic=title)
-        
-        # Ingest into Vector DB (sanitize each chunk against prompt injection first)
+
+        # Ingest into DB and Vector DB
         chunk_records = []
-        for c in chunks:
-            c["content"] = Guardrails.sanitize_input(c["content"])
-            emb = embedder.get_embedding(c["content"])
-            v_id = vector_store.insert(
-                tenant_id=tenant_id,
-                content=c["content"],
-                embedding=emb,
-                metadata={"topic_tag": c["topic_tag"], "title": title}
-            )
-            c["vector_id"] = v_id
-            chunk_records.append(c)
+        should_close_db = False
+        active_db = db
+        if active_db is None:
+            active_db = SessionLocal()
+            should_close_db = True
+
+        try:
+            for c in chunks:
+                sanitized = Guardrails.sanitize_input(c["content"])
+                c["content"] = sanitized
+                db_chunk = DocumentChunk(
+                    document_id=tenant_id,
+                    chunk_index=c["chunk_index"],
+                    content=sanitized,
+                    topic_tag=c["topic_tag"]
+                )
+                active_db.add(db_chunk)
+
+                emb = embedder.get_embedding(sanitized)
+                v_id = vector_store.insert(
+                    tenant_id=tenant_id,
+                    content=sanitized,
+                    embedding=emb,
+                    metadata={"topic_tag": c["topic_tag"], "title": title}
+                )
+                c["vector_id"] = v_id
+                chunk_records.append(c)
+
+            active_db.commit()
+            # Invalidate any cached index for this tenant to force reload with fresh DB chunks
+            rag_retriever.clear_cache(tenant_id)
+        finally:
+            if should_close_db:
+                active_db.close()
 
         # Parse fixed questions or topics
         fixed_questions = self._extract_explicit_questions(text)

@@ -34,6 +34,7 @@ class CreateSessionRequest(BaseModel):
     mode: str = "school"
     title: str = "Science Viva Practice"
     content_text: str = ""
+    document_id: Optional[str] = None
     question_source: Optional[str] = None
     time_limit_min: Optional[int] = None
     # job_role/tech_stack/experience_level only relevant for interview mode
@@ -79,6 +80,7 @@ async def start_new_session(
         mode=req.mode,
         title=req.title,
         content_text=req.content_text,
+        document_id=req.document_id,
         question_source=req.question_source,
         time_limit_min=req.time_limit_min,
         user_id=current_user.id,

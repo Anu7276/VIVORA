@@ -188,6 +188,7 @@ export default function HomePage() {
 
   // PDF upload states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedDocumentId, setUploadedDocumentId] = useState<string | null>(null);
   const [pdfParsing, setPdfParsing] = useState(false);
   const [pdfMetadata, setPdfMetadata] = useState<{
     filename: string;
@@ -255,6 +256,7 @@ export default function HomePage() {
 
     try {
       const data = await uploadFileMaterial(file, title, mode === "school" ? "questions" : "syllabus");
+      setUploadedDocumentId(data.document_id);
       setPdfMetadata({
         filename: data.filename || file.name,
         num_pages: data.num_pages || 1,
@@ -270,6 +272,7 @@ export default function HomePage() {
     } catch (err: any) {
       setError(err.message || "Failed to process PDF file.");
       setSelectedFile(null);
+      setUploadedDocumentId(null);
     } finally {
       setPdfParsing(false);
     }
@@ -335,8 +338,9 @@ export default function HomePage() {
     }
 
     const currentTitle = mode === "interview" ? (title.trim() || `${jobRole} Technical Interview`) : title.trim();
+    const docIdToUse = (inputTab === "pdf" && uploadedDocumentId) ? uploadedDocumentId : undefined;
 
-    if (!currentTitle || !finalContent) {
+    if (!currentTitle || (!finalContent && !docIdToUse)) {
       setError(mode === "interview" ? "Please provide your Job Role and Tech Stack." : "Please provide a title and chapter syllabus or practical material.");
       return;
     }
@@ -349,6 +353,7 @@ export default function HomePage() {
         mode,
         title: currentTitle,
         content_text: finalContent,
+        document_id: docIdToUse,
         question_source: mode === "school" ? "fixed" : "generated",
         user_id: student?.user_id,
         job_role: mode === "interview" ? jobRole : undefined,

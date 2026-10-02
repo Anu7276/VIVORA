@@ -13,6 +13,7 @@ class SessionService:
         mode: str = "school",
         title: str = "Science Viva",
         content_text: str = "",
+        document_id: Optional[str] = None,
         question_source: Optional[str] = None,
         time_limit_min: Optional[int] = None,
         user_id: Optional[str] = None,
@@ -24,6 +25,17 @@ class SessionService:
         q_source = question_source or cfg.question_source_default
         time_limit = time_limit_min or cfg.time_limit_min
 
+        # 1. Resolve Document
+        doc: Optional[Document] = None
+        if document_id:
+            doc = db.query(Document).filter(Document.id == document_id).first()
+            if not doc or (user_id and doc.user_id and doc.user_id != user_id):
+                raise HTTPException(status_code=404, detail="Document not found")
+            if not content_text and doc.content:
+                content_text = doc.content
+            if title in ("Science Viva", "Science Viva Practice") and doc.title:
+                title = doc.title
+
         # If job role provided for interview mode, personalize title and content
         if mode == "interview" and job_role:
             if not title or title in ("Science Viva", "Science Viva Practice", "Full Stack Software Engineer Interview"):
@@ -34,18 +46,29 @@ class SessionService:
             else:
                 content_text = profile_context
 
-        # 1. Create Document
-        doc = Document(
-            user_id=user_id,
-            title=title,
-            doc_type="questions" if q_source == "fixed" else "syllabus",
-            content=content_text
-        )
-        db.add(doc)
-        db.commit()
-        db.refresh(doc)
+        if not doc:
+            doc = Document(
+                user_id=user_id,
+                title=title,
+                doc_type="questions" if q_source == "fixed" else "syllabus",
+                content=content_text
+            )
+            db.add(doc)
+            db.commit()
+            db.refresh(doc)
 
-        # 2. Ingest into RAG via Orchestrator Intake Agent
+        # 2. Ingest into RAG and ensure chunks are persisted to DB if not already indexed
+        from app.db.models import DocumentChunk
+        chunk_count = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).count()
+        if chunk_count == 0 and content_text:
+            await orchestrator.ingest_material(
+                tenant_id=doc.id,
+                title=doc.title,
+                text=content_text,
+                doc_type=doc.doc_type,
+                db=db
+            )
+
         intake_res = orchestrator.intake._extract_explicit_questions(content_text)
         
         # 3. Create Session

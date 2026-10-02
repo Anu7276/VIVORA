@@ -23,12 +23,20 @@ class Orchestrator:
         self.followup = followup_agent
         self.report = report_agent
 
-    async def ingest_material(self, tenant_id: str, title: str, text: str, doc_type: str = "questions") -> Dict[str, Any]:
+    async def ingest_material(
+        self,
+        tenant_id: str,
+        title: str,
+        text: str,
+        doc_type: str = "questions",
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
         return await self.intake.process_document(
             tenant_id=tenant_id,
             title=title,
             text=text,
-            doc_type=doc_type
+            doc_type=doc_type,
+            db=db
         )
 
     async def initialize_questions(

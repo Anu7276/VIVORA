@@ -3,7 +3,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/a
 export interface CreateSessionParams {
   mode: "school" | "college" | "interview";
   title: string;
-  content_text: string;
+  content_text?: string;
+  document_id?: string;
   question_source?: "fixed" | "generated";
   time_limit_min?: number;
   user_id?: string;

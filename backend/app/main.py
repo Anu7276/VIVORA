@@ -125,5 +125,6 @@ if _is_dev:
         }
 
 @app.get("/health")
+@app.get(f"{settings.API_V1_STR}/health")
 def health():
     return {"status": "healthy"}

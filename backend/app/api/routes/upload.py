@@ -19,11 +19,13 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DBSession
 
+from starlette.concurrency import run_in_threadpool
 from app.core.auth import get_active_user
 from app.db.database import get_db
-from app.db.models import Document, User
+from app.db.models import Document, DocumentChunk, User
 from app.agents.orchestrator import orchestrator
 from app.rag.parser import document_parser
+from app.rag.retriever import rag_retriever
 
 logger = logging.getLogger("vivora.upload")
 
@@ -103,6 +105,7 @@ async def upload_text_material(
             title=req.title,
             text=req.content,
             doc_type=req.doc_type,
+            db=db
         )
         doc.ingest_status = "done"
         db.commit()
@@ -152,9 +155,9 @@ async def upload_file_material(
 
     doc_title = title or filename
 
-    # 3. Parse content
+    # 3. Parse content (run in threadpool for non-blocking execution)
     if filename.lower().endswith(".pdf") or content_type == "application/pdf":
-        parse_result = document_parser.parse_pdf_bytes(content_bytes)
+        parse_result = await run_in_threadpool(document_parser.parse_pdf_bytes, content_bytes)
         if not parse_result["success"] or not parse_result["text"]:
             raise HTTPException(
                 status_code=400,
@@ -195,6 +198,7 @@ async def upload_file_material(
         title=doc_title,
         text=content_text,
         doc_type=doc_type,
+        db=db
     )
     doc.ingest_status = "done"
     db.commit()
@@ -210,3 +214,43 @@ async def upload_file_material(
         "explicit_questions": res.get("explicit_questions", []),
         "chunks_count": len(res.get("chunks", [])),
     }
+
+
+@router.get("/{document_id}/status")
+async def get_upload_status(
+    document_id: str,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(get_active_user),
+):
+    """Poll ingestion status for an uploaded document."""
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc or doc.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    chunks_count = db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).count()
+    return {
+        "document_id": doc.id,
+        "title": doc.title,
+        "status": doc.ingest_status,
+        "chunks_count": chunks_count,
+    }
+
+
+@router.delete("/{document_id}")
+async def delete_upload_document(
+    document_id: str,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(get_active_user),
+):
+    """Deletes an uploaded document and all associated chunks."""
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc or doc.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Clear retriever cache
+    rag_retriever.clear_cache(doc.id)
+
+    db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
+    db.delete(doc)
+    db.commit()
+    return {"deleted": True, "document_id": document_id}
