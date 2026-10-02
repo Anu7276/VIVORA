@@ -102,6 +102,8 @@ class Question(Base):
     difficulty = Column(String, default="medium")  # easy | medium | hard
     origin = Column(String, default="uploaded")    # uploaded | generated | follow_up
     reference_answer = Column(Text, nullable=True)
+    followup_question = Column(Text, nullable=True)
+    followup_answer = Column(Text, nullable=True)
 
     session = relationship("Session", back_populates="questions")
     answers = relationship("Answer", back_populates="question", cascade="all, delete-orphan")

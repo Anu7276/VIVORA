@@ -6,6 +6,15 @@ export interface CreateSessionParams {
   content_text: string;
   question_source?: "fixed" | "generated";
   time_limit_min?: number;
+  user_id?: string;
+}
+
+export interface StudentProfile {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+  consent_verified: boolean;
 }
 
 export interface SessionData {
@@ -21,6 +30,7 @@ export interface SessionData {
     topic: string;
     difficulty: string;
     origin: string;
+    reference_answer?: string;
     answer?: {
       id: string;
       transcript: string;
@@ -28,6 +38,8 @@ export interface SessionData {
       evaluation?: {
         overall_score: number;
         correctness_score: number;
+        is_correct?: boolean;
+        concept_match?: string;
         feedback: string;
         model_answer: string;
       };
@@ -44,6 +56,7 @@ export interface ReportData {
   improvements: string[];
   revision_plan: string[];
   communication_feedback?: string;
+  scoring_note?: string;
   topic_scores: Array<{
     topic: string;
     score: number;
@@ -55,21 +68,88 @@ export interface ReportData {
     topic: string;
     student_transcript: string;
     score: number;
+    is_correct?: boolean;
+    concept_match?: string;
     feedback: string;
     missing_concepts?: string;
+    reference_answer?: string;
     model_answer: string;
+    provider?: string;
   }>;
   generated_at: string;
 }
 
-export async function createSession(params: CreateSessionParams): Promise<{ session_id: string }> {
+export async function getDemoStudent(): Promise<StudentProfile> {
+  const res = await fetch(`${API_BASE_URL}/session/demo-student`);
+  if (!res.ok) throw new Error("Failed to load demo student profile");
+  const data = await res.json();
+  if (typeof window !== "undefined") {
+    localStorage.setItem("vivora_user_id", data.user_id);
+    localStorage.setItem("vivora_student_name", data.name);
+  }
+  return data;
+}
+
+export async function registerStudent(params: {
+  name: string;
+  grade?: string;
+  parent_email: string;
+  confirm_consent?: boolean;
+}): Promise<StudentProfile> {
+  const res = await fetch(`${API_BASE_URL}/session/register-student`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: params.name,
+      grade: params.grade || "Class 10",
+      parent_email: params.parent_email,
+      confirm_consent: params.confirm_consent ?? true,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to register student profile");
+  const data = await res.json();
+  if (typeof window !== "undefined") {
+    localStorage.setItem("vivora_user_id", data.user_id);
+    localStorage.setItem("vivora_student_name", data.name);
+  }
+  return data;
+}
+
+export async function createSession(params: CreateSessionParams): Promise<{ session_id: string; session_token?: string }> {
+  let userId = params.user_id;
+  if (!userId && typeof window !== "undefined") {
+    userId = localStorage.getItem("vivora_user_id") || undefined;
+  }
+  if (!userId) {
+    try {
+      const demo = await getDemoStudent();
+      userId = demo.user_id;
+    } catch (e) {
+      console.warn("Could not auto-fetch demo student profile:", e);
+    }
+  }
+
+  const payload = {
+    ...params,
+    user_id: userId,
+  };
+
   const res = await fetch(`${API_BASE_URL}/session/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
+    body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error("Failed to create viva session");
-  return res.json();
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to create viva session");
+  }
+
+  const data = await res.json();
+  if (typeof window !== "undefined" && data.session_token) {
+    localStorage.setItem(`vivora_token_${data.session_id}`, data.session_token);
+  }
+  return data;
 }
 
 export async function getSession(sessionId: string): Promise<SessionData> {
@@ -78,9 +158,26 @@ export async function getSession(sessionId: string): Promise<SessionData> {
   return res.json();
 }
 
-export async function getReport(sessionId: string): Promise<ReportData> {
-  const res = await fetch(`${API_BASE_URL}/report/${sessionId}`);
-  if (!res.ok) throw new Error("Failed to fetch report");
+export async function getReport(sessionId: string, explicitToken?: string): Promise<ReportData> {
+  let token = explicitToken;
+  if (!token && typeof window !== "undefined") {
+    token = localStorage.getItem(`vivora_token_${sessionId}`) || undefined;
+  }
+
+  const url = token
+    ? `${API_BASE_URL}/report/${sessionId}?token=${encodeURIComponent(token)}`
+    : `${API_BASE_URL}/report/${sessionId}`;
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["X-Session-Token"] = token;
+  }
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Failed to fetch report");
+  }
   return res.json();
 }
 

@@ -137,6 +137,7 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                 eval_data = turn_result["evaluation"]
                 eval_data["question_text"] = current_q.question_text
                 eval_data["topic"] = current_q.topic
+                eval_data["reference_answer"] = current_q.reference_answer or ""
                 evaluations_collected.append(eval_data)
 
                 # Notify frontend if this evaluation fell back to mock scoring

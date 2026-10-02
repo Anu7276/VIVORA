@@ -18,6 +18,12 @@ import {
   Sparkles,
   ArrowRight,
   LogOut,
+  Award,
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  School,
+  AlertTriangle
 } from "lucide-react";
 
 export default function SessionRoomPage() {
@@ -37,6 +43,9 @@ export default function SessionRoomPage() {
   const [audioLevel, setAudioLevel] = useState(0.2);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [latestEval, setLatestEval] = useState<any>(null);
+  const [evalHistory, setEvalHistory] = useState<any[]>([]);
+  const [showReferenceAnswer, setShowReferenceAnswer] = useState(false);
+  const [degradedWarning, setDegradedWarning] = useState<string | null>(null);
   const [doubtExplanation, setDoubtExplanation] = useState<string | null>(null);
   const [timerSeconds, setTimerSeconds] = useState(0);
 
@@ -90,9 +99,9 @@ export default function SessionRoomPage() {
           setQuestionIndex(data.question_index);
           setTotalQuestions(data.total_questions || totalQuestions);
           setTranscript("");
-          setLatestEval(null);
           setIsEvaluating(false);
           setDoubtExplanation(null);
+          setShowReferenceAnswer(false);
 
           // AI TTS speaks the question
           if (data.speech?.speakable_text) {
@@ -122,6 +131,9 @@ export default function SessionRoomPage() {
         } else if (data.type === "evaluation_result") {
           setIsEvaluating(false);
           setLatestEval(data.evaluation);
+          setEvalHistory((prev) => [...prev, data.evaluation]);
+        } else if (data.type === "degraded_mode") {
+          setDegradedWarning(data.message);
         } else if (data.type === "followup_question") {
           setCurrentQuestion({
             ...data.question,
@@ -175,7 +187,6 @@ export default function SessionRoomPage() {
     if (!voiceClientRef.current) return;
     setIsMicActive(true);
     setMicNotice(null);
-    // If AI is speaking, interrupt it (Barge-in)
     BrowserVoiceClient.stopSpeaking();
     setIsAISpeaking(false);
 
@@ -201,7 +212,7 @@ export default function SessionRoomPage() {
       },
       onError: (err) => {
         console.warn("STT warning:", err);
-        setMicNotice("Microphone notice: " + (typeof err === 'string' ? err : 'Please allow mic access or use text input'));
+        setMicNotice("Microphone notice: " + (typeof err === "string" ? err : "Please allow mic access or use text input"));
       },
     });
   };
@@ -229,7 +240,7 @@ export default function SessionRoomPage() {
     wsRef.current.send(
       JSON.stringify({
         type: "submit_answer",
-        transcript: spokenText || "I answered the question with the core definition.",
+        transcript: spokenText || "I answered the question with the core concept definition.",
         duration_sec: 10,
         filler_count: 0,
       })
@@ -271,17 +282,43 @@ export default function SessionRoomPage() {
     return `${min.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
   };
 
+  // Cumulative marks calculation
+  const totalMarksAwarded = evalHistory.reduce((sum, e) => sum + (e.overall_score || 0), 0);
+  const maxPossibleMarks = evalHistory.length * 10;
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 py-2">
+      {/* Degraded mode warning banner */}
+      {degradedWarning && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>{degradedWarning}</span>
+          </div>
+          <button
+            onClick={() => setDegradedWarning(null)}
+            className="text-gray-400 hover:text-white text-[11px]"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Top Status Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 glass-panel px-6 py-3.5 rounded-2xl">
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
           <div>
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Mode: {session?.mode?.toUpperCase() || "SCHOOL VIVA"}
-            </span>
-            <div className="text-sm font-bold text-white">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                <School className="w-3.5 h-3.5" />
+                <span>{session?.mode?.toUpperCase() || "SCHOOL VIVA"}</span>
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                Semantic Meaning Scored
+              </span>
+            </div>
+            <div className="text-sm font-bold text-white mt-0.5">
               Question {questionIndex + 1} of {totalQuestions}
             </div>
           </div>
@@ -292,11 +329,11 @@ export default function SessionRoomPage() {
           {Array.from({ length: totalQuestions }).map((_, idx) => (
             <div
               key={idx}
-              className={`h-2 rounded-full transition-all ${
+              className={`h-2.5 rounded-full transition-all ${
                 idx === questionIndex
-                  ? "w-8 bg-primary-500"
+                  ? "w-8 bg-emerald-400 shadow-sm shadow-emerald-400/50"
                   : idx < questionIndex
-                  ? "w-4 bg-emerald-500"
+                  ? "w-4 bg-emerald-600"
                   : "w-4 bg-white/10"
               }`}
             />
@@ -304,8 +341,16 @@ export default function SessionRoomPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Cumulative Viva Marks badge */}
+          {evalHistory.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+              <Award className="w-4 h-4 text-emerald-400" />
+              <span>Marks: {totalMarksAwarded.toFixed(1)} / {maxPossibleMarks}</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 text-xs font-mono text-gray-300 bg-surfaceLight/60 px-3 py-1.5 rounded-lg border border-white/5">
-            <TimerIcon className="w-4 h-4 text-primary-400" />
+            <TimerIcon className="w-4 h-4 text-emerald-400" />
             <span>{formatTimer(timerSeconds)}</span>
           </div>
 
@@ -327,13 +372,13 @@ export default function SessionRoomPage() {
           <div className="glass-panel-glow p-6 sm:p-8 rounded-3xl space-y-6 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-600/20 border border-primary-500/30 flex items-center justify-center text-primary-400">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                   <Volume2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">AI Examiner</h3>
+                  <h3 className="text-sm font-semibold text-white">AI Spoken Examiner</h3>
                   <p className="text-xs text-gray-400">
-                    {isAISpeaking ? "Speaking question aloud..." : "Listening to your answer"}
+                    {isAISpeaking ? "Asking question aloud..." : "Listening to your spoken answer..."}
                   </p>
                 </div>
               </div>
@@ -342,19 +387,19 @@ export default function SessionRoomPage() {
                 <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10">
                   {currentQuestion?.topic || "Science"}
                 </span>
-                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary-500/20 text-primary-300 border border-primary-500/30 capitalize">
-                  {currentQuestion?.difficulty || "Medium"}
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Q{questionIndex + 1}
                 </span>
               </div>
             </div>
 
             {/* Spoken Question Text */}
-            <div className="min-h-[100px] flex items-center justify-center text-center px-4">
+            <div className="min-h-[110px] flex items-center justify-center text-center px-4">
               <p className="text-xl sm:text-2xl font-semibold text-white leading-relaxed">
                 {currentQuestion ? (
                   `"${currentQuestion.question_text}"`
                 ) : (
-                  <span className="text-gray-500 animate-pulse">Initializing viva questions...</span>
+                  <span className="text-gray-500 animate-pulse">Setting up viva questions...</span>
                 )}
               </p>
             </div>
@@ -372,20 +417,22 @@ export default function SessionRoomPage() {
                 <Mic className={`w-4 h-4 ${isMicActive ? "text-emerald-400 animate-pulse" : "text-gray-500"}`} />
                 <span>Your Spoken Answer (Live Transcript)</span>
               </div>
-              <span className="text-[11px] text-gray-500">
-                {isMicActive ? "Microphone Active" : "Microphone Paused"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-emerald-400/90 font-medium">
+                  {isMicActive ? "● Recording Speech" : "○ Microphone Inactive"}
+                </span>
+              </div>
             </div>
 
             {/* Spoken Transcript / Text Area */}
-            <div className="bg-surfaceLight/30 border border-white/5 rounded-2xl p-4 min-h-[120px] flex flex-col justify-between">
+            <div className="bg-surfaceLight/30 border border-white/5 rounded-2xl p-4 min-h-[130px] flex flex-col justify-between">
               {manualInput ? (
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
-                  placeholder="Type your answer here or speak using the mic..."
-                  className="w-full bg-surfaceLight/60 border border-white/10 rounded-xl p-3 text-sm text-gray-100 focus:outline-none focus:border-primary-500 font-normal leading-relaxed"
+                  placeholder="Type your viva answer here in your own words. It will be graded on conceptual correctness..."
+                  className="w-full bg-surfaceLight/60 border border-white/10 rounded-xl p-3 text-sm text-gray-100 focus:outline-none focus:border-emerald-500 font-normal leading-relaxed"
                 />
               ) : (
                 <p className="text-sm sm:text-base text-gray-200 leading-relaxed italic">
@@ -393,7 +440,7 @@ export default function SessionRoomPage() {
                     `"${transcript}"`
                   ) : (
                     <span className="text-gray-500 not-italic">
-                      {isMicActive ? "Listening... speak your answer clearly aloud..." : "Click Start Mic or Type Answer to respond."}
+                      {isMicActive ? "Listening... speak your answer aloud in your own words..." : "Click 'Start Mic' or 'Type Answer' to respond."}
                     </span>
                   )}
                 </p>
@@ -459,37 +506,35 @@ export default function SessionRoomPage() {
                   <span>Skip</span>
                 </button>
 
-                {session?.mode === "school" && (
-                  <button
-                    onClick={handleAskDoubt}
-                    className="px-3.5 py-2.5 rounded-xl bg-primary-500/10 hover:bg-primary-500/20 text-primary-300 text-xs flex items-center gap-1.5 border border-primary-500/20 transition-colors"
-                  >
-                    <HelpCircle className="w-3.5 h-3.5" />
-                    <span>Ask Doubt</span>
-                  </button>
-                )}
+                <button
+                  onClick={handleAskDoubt}
+                  className="px-3.5 py-2.5 rounded-xl bg-primary-500/10 hover:bg-primary-500/20 text-primary-300 text-xs flex items-center gap-1.5 border border-primary-500/20 transition-colors"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  <span>Ask Doubt</span>
+                </button>
               </div>
 
               <button
                 onClick={handleSubmitSpokenAnswer}
                 disabled={isEvaluating}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50 transition-all"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-semibold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50 transition-all"
               >
-                <span>{isEvaluating ? "Evaluating Concept..." : "Submit Answer & Next"}</span>
+                <span>{isEvaluating ? "Grading Meaning & Concepts..." : "Submit Answer & Next"}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar: Real-time Evaluation & Agent Feedback */}
+        {/* Right Sidebar: Real-time Evaluation & Concept Matching */}
         <div className="space-y-6">
           {/* Doubt Resolution Card (if asked) */}
           {doubtExplanation && (
             <div className="glass-panel p-5 rounded-3xl border border-accent-cyan/30 space-y-2 bg-accent-cyan/5">
               <div className="flex items-center gap-2 text-xs font-semibold text-accent-cyan">
                 <Sparkles className="w-4 h-4" />
-                <span>Doubt Agent Response</span>
+                <span>Examiner Clarification</span>
               </div>
               <p className="text-xs text-gray-200 leading-relaxed">{doubtExplanation}</p>
             </div>
@@ -499,61 +544,116 @@ export default function SessionRoomPage() {
           <div className="glass-panel p-6 rounded-3xl space-y-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary-400" />
-                <h3 className="text-sm font-bold text-white">Live Evaluator Agent</h3>
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">Live Semantic Evaluator</h3>
               </div>
-              <span className="text-[10px] uppercase font-bold text-gray-400">RAG Rubric</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                Meaning Match
+              </span>
             </div>
 
             {isEvaluating ? (
-              <div className="py-8 text-center space-y-2">
-                <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs text-gray-400">Comparing with RAG reference answers...</p>
+              <div className="py-8 text-center space-y-3">
+                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-emerald-300 font-medium">Checking concepts against reference answer...</p>
+                <p className="text-[11px] text-gray-400">Awarding marks based on meaning, not word-for-word repetition.</p>
               </div>
             ) : latestEval ? (
               <div className="space-y-4 animate-fadeIn">
-                {/* Score badge */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-surfaceLight/60 border border-white/5">
-                  <span className="text-xs text-gray-300">Answer Score</span>
-                  <span className="text-lg font-extrabold text-emerald-400">
-                    {latestEval.overall_score} <span className="text-xs text-gray-500">/ 10</span>
-                  </span>
+                {/* Score & Concept Match Badge */}
+                <div className="p-4 rounded-2xl bg-surfaceLight/70 border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">Marks Awarded</span>
+                    <span className="text-2xl font-black text-emerald-400">
+                      ⭐ {latestEval.overall_score} <span className="text-xs text-gray-500 font-normal">/ 10</span>
+                    </span>
+                  </div>
+
+                  {/* Concept match badge */}
+                  <div className="pt-1">
+                    {latestEval.concept_match === "Full Match" || latestEval.overall_score >= 8.0 ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Full Concept Match (Same Meaning)</span>
+                      </div>
+                    ) : latestEval.concept_match === "Partial Match" || latestEval.overall_score >= 5.0 ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-amber/20 text-amber-300 border border-accent-amber/30 text-xs font-semibold">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Partial Concept Match</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Needs Revision</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Rubric Breakdown */}
-                <div className="space-y-2 text-xs">
+                <div className="space-y-2 text-xs p-3 rounded-xl bg-white/5">
                   <div className="flex justify-between text-gray-400">
-                    <span>Correctness:</span>
+                    <span>Conceptual Correctness:</span>
                     <span className="font-semibold text-white">{latestEval.correctness_score}/10</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
-                    <span>Depth & Mechanism:</span>
+                    <span>Explanation Depth:</span>
                     <span className="font-semibold text-white">{latestEval.depth_score}/10</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
-                    <span>Clarity of Speech:</span>
+                    <span>Clarity & Expression:</span>
                     <span className="font-semibold text-white">{latestEval.clarity_score}/10</span>
                   </div>
                 </div>
 
-                {/* Feedback */}
-                <div className="p-3 rounded-xl bg-white/5 text-xs text-gray-300 space-y-1">
-                  <div className="font-semibold text-primary-300">Feedback:</div>
+                {/* Teacher Feedback */}
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-gray-200 space-y-1">
+                  <div className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Examiner Feedback:</span>
+                  </div>
                   <p className="leading-relaxed">{latestEval.feedback}</p>
                 </div>
 
-                {/* Missing Concept */}
+                {/* Concept to Strengthen (if any) */}
                 {latestEval.missing_concepts && (
                   <div className="p-3 rounded-xl bg-accent-amber/10 border border-accent-amber/20 text-xs text-amber-300 space-y-1">
-                    <div className="font-semibold">Concept to strengthen:</div>
+                    <div className="font-semibold">Key points to remember:</div>
                     <p className="leading-relaxed">{latestEval.missing_concepts}</p>
+                  </div>
+                )}
+
+                {/* Toggle Expected Reference Answer */}
+                {(latestEval.reference_answer || latestEval.model_answer) && (
+                  <div className="space-y-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowReferenceAnswer(!showReferenceAnswer)}
+                      className="w-full flex items-center justify-between text-xs text-gray-400 hover:text-white px-3 py-2 rounded-xl bg-white/5 transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Compare with Reference Answer</span>
+                      </span>
+                      {showReferenceAnswer ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+
+                    {showReferenceAnswer && (
+                      <div className="p-3 rounded-xl bg-surfaceLight/80 border border-white/10 text-xs text-gray-300 space-y-1.5 animate-fadeIn">
+                        <div className="font-semibold text-emerald-400 text-[11px] uppercase">Expected Answer:</div>
+                        <p className="leading-relaxed text-gray-200 italic">
+                          {latestEval.reference_answer || latestEval.model_answer}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             ) : (
               <div className="py-8 text-center text-xs text-gray-500 space-y-2">
                 <CheckCircle2 className="w-8 h-8 mx-auto text-gray-600" />
-                <p>Answer questions aloud. Evaluations and scores will appear here in real time.</p>
+                <p>Answer questions aloud in your own words.</p>
+                <p className="text-[11px] text-gray-500">Marks and semantic equivalence analysis will appear here in real time.</p>
               </div>
             )}
           </div>

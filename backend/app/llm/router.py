@@ -162,26 +162,73 @@ class SmartRuleFallbackProvider(LLMProvider):
             ref_match = re.search(r"Reference Answer.*?:\s*\"(.*?)\"", prompt, re.DOTALL)
             student_ans = (ans_match.group(1) if ans_match else "").lower()
             ref_ans = (ref_match.group(1) if ref_match else "").lower()
-            words_ans = set(re.findall(r"\b\w{3,}\b", student_ans))
-            words_ref = set(re.findall(r"\b\w{3,}\b", ref_ans))
+
+            stop_words = {
+                "the", "is", "a", "an", "and", "or", "in", "on", "at", "to", "for", "with",
+                "by", "from", "of", "it", "that", "this", "these", "those", "are", "was",
+                "were", "be", "been", "being", "have", "has", "had", "do", "does", "did",
+                "can", "could", "will", "would", "should", "you", "your", "they", "their",
+                "we", "our", "as", "into"
+            }
+            synonyms = {
+                "make": "produce", "makes": "produce", "making": "produce", "prepare": "produce", "prepares": "produce",
+                "synthesize": "produce", "synthesizes": "produce", "create": "produce", "creates": "produce",
+                "sun": "sunlight", "solar": "sunlight",
+                "co2": "carbon", "dioxide": "carbon",
+                "water": "water", "h2o": "water",
+                "food": "glucose", "sugar": "glucose",
+                "chlorophyll": "chloroplast", "chloroplasts": "chloroplast",
+                "speed": "velocity", "rate": "velocity",
+                "reaction": "action", "force": "action", "push": "action", "pull": "action",
+                "opposite": "reverse", "equal": "same", "identical": "same",
+                "acid": "acidic", "acids": "acidic", "base": "basic", "bases": "basic", "alkali": "basic",
+                "plant": "plants", "cell": "cells",
+            }
+
+            def canonicalize(text: str) -> set:
+                raw = re.findall(r"\b[a-z]{3,}\b", text)
+                clean = set()
+                for w in raw:
+                    if w not in stop_words:
+                        clean.add(synonyms.get(w, w))
+                return clean
+
+            words_ans = canonicalize(student_ans)
+            words_ref = canonicalize(ref_ans)
             common = words_ans & words_ref
             ratio = len(common) / max(len(words_ref), 1) if words_ref else 0.5
             word_count = len(student_ans.split())
+            is_school = "school" in prompt.lower() or "school" in (system_prompt or "").lower()
+
             if word_count < 3:
                 correctness, depth, clarity = 2.0, 2.0, 4.0
-                feedback = "Answer was too brief. Try to explain the concept in full sentences."
-                missing = "Key definitions and explanations were missing."
-            elif ratio > 0.4 or word_count > 15:
-                correctness = min(9.5, 7.5 + ratio * 2.5)
-                depth = min(9.0, 7.0 + (word_count / 30.0) * 2.0)
-                clarity = 8.5
-                feedback = "Well explained! You captured the main core concept accurately."
-                missing = "Minor details on specific terms could be expanded."
+                is_correct = False
+                concept_match = "Needs Review"
+                feedback = "Answer was too brief. Try to explain the concept in your own words."
+                missing = "Core definitions and explanations were missing."
+            elif ratio >= 0.4 or (is_school and ratio >= 0.3) or word_count >= 12:
+                correctness = min(9.8, 8.5 + ratio * 2.0)
+                depth = min(9.5, 7.5 + (word_count / 25.0) * 2.0)
+                clarity = 9.0
+                is_correct = True
+                concept_match = "Full Match"
+                feedback = "Excellent! You explained the core concept clearly in your own words."
+                missing = "" if ratio > 0.6 else "Minor details could be expanded."
+            elif ratio >= 0.2:
+                correctness = min(7.8, 6.0 + ratio * 3.0)
+                depth, clarity = 6.5, 7.5
+                is_correct = True
+                concept_match = "Partial Match"
+                feedback = "Good attempt! You understood the main principle, though some key points from the reference answer can be added."
+                missing = "A few key technical terms from the textbook definition."
             else:
-                correctness = min(7.0, 4.5 + ratio * 3.0)
-                depth, clarity = 5.5, 7.0
-                feedback = "Fair attempt, but needed more key technical terms and thoroughness."
-                missing = "Expected specific keywords matching the textbook definition."
+                correctness = min(5.0, 3.0 + ratio * 3.0)
+                depth, clarity = 4.5, 6.0
+                is_correct = False
+                concept_match = "Needs Review"
+                feedback = "Needs review. Your answer did not convey the core meaning expected for this question."
+                missing = "Core scientific concepts from the reference answer."
+
             overall = round(correctness * 0.5 + depth * 0.3 + clarity * 0.2, 1)
             model_ans = (
                 ref_match.group(1)
@@ -189,6 +236,8 @@ class SmartRuleFallbackProvider(LLMProvider):
                 else "The complete textbook definition explaining principles, causes, and effects."
             )
             return {
+                "is_correct": is_correct,
+                "concept_match": concept_match,
                 "correctness_score": round(correctness, 1),
                 "depth_score": round(depth, 1),
                 "clarity_score": round(clarity, 1),

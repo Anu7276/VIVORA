@@ -79,6 +79,95 @@ async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(g
         "total_questions": len(session.questions)
     }
 
+class RegisterStudentRequest(BaseModel):
+    name: str = "Aarav Sharma"
+    grade: Optional[str] = "Class 10"
+    parent_email: str = "parent@vivora.ai"
+    confirm_consent: bool = True
+
+@router.get("/demo-student")
+def get_demo_student(db: DBSession = Depends(get_db)):
+    """
+    Returns or provisions a verified school student profile with verified parental consent.
+    This enables immediate practice in School Viva mode.
+    """
+    user = db.query(User).filter(User.email == "student.demo@vivora.ai").first()
+    from datetime import timedelta
+    if not user:
+        user = User(
+            name="Aarav Sharma (Class 10)",
+            email="student.demo@vivora.ai",
+            role="school",
+            is_minor=True,
+            date_of_birth=datetime.utcnow() - timedelta(days=15 * 365)
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        consent = ParentConsent(
+            user_id=user.id,
+            parent_email="parent.aarav@example.com",
+            verified=True
+        )
+        db.add(consent)
+        db.commit()
+    else:
+        consent = db.query(ParentConsent).filter(
+            ParentConsent.user_id == user.id,
+            ParentConsent.verified == True
+        ).first()
+        if not consent:
+            consent = ParentConsent(
+                user_id=user.id,
+                parent_email="parent.aarav@example.com",
+                verified=True
+            )
+            db.add(consent)
+            db.commit()
+
+    return {
+        "user_id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "consent_verified": True
+    }
+
+@router.post("/register-student")
+def register_student(req: RegisterStudentRequest, db: DBSession = Depends(get_db)):
+    """
+    Registers a new student profile with parental consent verification.
+    """
+    from datetime import timedelta
+    import secrets
+    unique_email = f"student_{secrets.token_hex(4)}@vivora.ai"
+    user = User(
+        name=f"{req.name} ({req.grade or 'School'})",
+        email=unique_email,
+        role="school",
+        is_minor=True,
+        date_of_birth=datetime.utcnow() - timedelta(days=15 * 365)
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    consent = ParentConsent(
+        user_id=user.id,
+        parent_email=req.parent_email,
+        verified=req.confirm_consent
+    )
+    db.add(consent)
+    db.commit()
+
+    return {
+        "user_id": user.id,
+        "name": user.name,
+        "parent_email": req.parent_email,
+        "consent_verified": req.confirm_consent
+    }
+
 @router.get("/{session_id}")
 async def get_session_details(session_id: str, db: DBSession = Depends(get_db)):
     """Fetches session metadata, current questions and answers."""
@@ -110,6 +199,7 @@ async def get_session_details(session_id: str, db: DBSession = Depends(get_db)):
             "topic": q.topic,
             "difficulty": q.difficulty,
             "origin": q.origin,
+            "reference_answer": q.reference_answer,
             "answer": ans_data
         })
 

@@ -71,7 +71,9 @@ async def get_session_report(
             "score": ev.overall_score if ev else 0.0,
             "feedback": ev.feedback if ev else "No answer provided",
             "missing_concepts": ev.missing_concepts if ev else "",
-            "model_answer": ev.model_answer if ev else q.reference_answer,
+            "reference_answer": q.reference_answer or "",
+            "model_answer": ev.model_answer if (ev and ev.model_answer) else (q.reference_answer or ""),
+            "concept_match": "Full Match" if (ev and ev.overall_score >= 8.0) else "Partial Match" if (ev and ev.overall_score >= 5.0) else "Needs Review",
             "provider": ev.provider if ev else "mock"
         })
 

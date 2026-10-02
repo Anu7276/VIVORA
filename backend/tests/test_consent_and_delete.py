@@ -25,6 +25,7 @@ Tests for:
 
 import sys
 import os
+import asyncio
 from datetime import datetime, timedelta
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -396,8 +397,7 @@ class TestSTTProviderValidation:
 # ─── 4. Mock Fallback Scoring Note on Report ───────────────────────────────────
 
 class TestReportScoringNote:
-    @pytest.mark.asyncio
-    async def test_mock_fallback_labels_questions_as_provisional(self):
+    def test_mock_fallback_labels_questions_as_provisional(self):
         """When evaluations use mock LLM fallback, report explicitly lists questions and states provisional."""
         from app.agents.report_agent import ReportAgent
         agent = ReportAgent()
@@ -417,14 +417,13 @@ class TestReportScoringNote:
             }
         ]
 
-        report = await agent.generate_report(mode="school", evaluations=evaluations)
+        report = asyncio.run(agent.generate_report(mode="school", evaluations=evaluations))
         assert "scoring_note" in report
         note = report["scoring_note"]
         assert "Q1" in note
         assert "provisional" in note.lower()
 
-    @pytest.mark.asyncio
-    async def test_all_mock_labels_all_questions_provisional(self):
+    def test_all_mock_labels_all_questions_provisional(self):
         from app.agents.report_agent import ReportAgent
         agent = ReportAgent()
 
@@ -432,7 +431,7 @@ class TestReportScoringNote:
             {"order_no": 1, "question_text": "Q1 text", "overall_score": 6.0, "_is_mock": True},
             {"order_no": 2, "question_text": "Q2 text", "overall_score": 6.5, "_is_mock": True},
         ]
-        report = await agent.generate_report(mode="school", evaluations=evaluations)
+        report = asyncio.run(agent.generate_report(mode="school", evaluations=evaluations))
         note = report["scoring_note"]
         assert "provisional" in note.lower()
         assert "Q1" in note and "Q2" in note
