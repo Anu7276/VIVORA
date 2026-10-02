@@ -1,29 +1,97 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy.orm import Session as DBSession
+"""
+app/api/routes/upload.py
+========================
+File and text ingestion endpoints.
+
+Security changes (Phase 1):
+  - Both endpoints now require a valid JWT Bearer token (get_active_user).
+  - File upload enforces:
+      * Max 10 MB (was 15 MB; reduced to a safer default).
+      * Only pdf, txt, and md extensions + corresponding MIME types.
+      * PDF page count ≤ 100 (prevents memory exhaustion via huge PDFs).
+  - user_id is taken from the JWT, not from the request body.
+"""
+
+import logging
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel
+from sqlalchemy.orm import Session as DBSession
+
+from app.core.auth import get_active_user
 from app.db.database import get_db
-from app.db.models import Document
+from app.db.models import Document, User
 from app.agents.orchestrator import orchestrator
 from app.rag.parser import document_parser
-from pydantic import BaseModel
+
+logger = logging.getLogger("vivora.upload")
 
 router = APIRouter()
+
+_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024   # 10 MB hard limit
+_MAX_TEXT_LENGTH_CHARS = 500_000
+_MAX_PDF_PAGES = 100
+
+# Allowed file extensions and their corresponding MIME types.
+_ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md"}
+_ALLOWED_MIME_TYPES = {
+    "application/pdf",
+    "text/plain",
+    "text/markdown",
+    "text/x-markdown",
+    # Some browsers report these for .txt/.md
+    "application/octet-stream",  # only allowed if extension is .txt or .md
+}
+
+
+def _check_file_type_allowed(filename: str, content_type: str) -> None:
+    """
+    Reject disallowed file types with 415 Unsupported Media Type.
+    Checks both extension and MIME type (don't trust either alone).
+    """
+    ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in _ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"File type '{ext}' is not supported. "
+                f"Only {', '.join(sorted(_ALLOWED_EXTENSIONS))} files are accepted."
+            ),
+        )
+    # If MIME is octet-stream, only allow for txt/md extensions (not pdf)
+    if content_type == "application/octet-stream" and ext == ".pdf":
+        raise HTTPException(
+            status_code=415,
+            detail="Cannot accept application/octet-stream for PDF files. Please upload a valid PDF.",
+        )
+
 
 class TextUploadRequest(BaseModel):
     title: str
     doc_type: str = "questions"  # syllabus | topic | questions | textbook | resume
     content: str
-    user_id: Optional[str] = None
+
 
 @router.post("/text")
-async def upload_text_material(req: TextUploadRequest, db: DBSession = Depends(get_db)):
+async def upload_text_material(
+    req: TextUploadRequest,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(get_active_user),   # JWT required
+):
     """Ingests raw text (syllabus, chapter, question list) into RAG Vector DB and database."""
+    if len(req.content) > _MAX_TEXT_LENGTH_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Content too large. Maximum supported text length is {_MAX_TEXT_LENGTH_CHARS} characters.",
+        )
+
     doc = Document(
         title=req.title,
         doc_type=req.doc_type,
         content=req.content,
-        user_id=req.user_id,
-        ingest_status="processing"
+        user_id=current_user.id,
+        ingest_status="processing",
     )
     db.add(doc)
     db.commit()
@@ -34,7 +102,7 @@ async def upload_text_material(req: TextUploadRequest, db: DBSession = Depends(g
             tenant_id=doc.id,
             title=req.title,
             text=req.content,
-            doc_type=req.doc_type
+            doc_type=req.doc_type,
         )
         doc.ingest_status = "done"
         db.commit()
@@ -44,47 +112,79 @@ async def upload_text_material(req: TextUploadRequest, db: DBSession = Depends(g
             "topics": res.get("topics", []),
             "questions_detected": len(res.get("explicit_questions", [])),
             "explicit_questions": res.get("explicit_questions", []),
-            "chunks_count": len(res.get("chunks", []))
+            "chunks_count": len(res.get("chunks", [])),
         }
     except Exception as e:
         doc.ingest_status = "failed"
         db.commit()
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
 
+
 @router.post("/file")
 async def upload_file_material(
     file: UploadFile = File(...),
     title: Optional[str] = Form(None),
     doc_type: str = Form("questions"),
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(get_active_user),   # JWT required
 ):
     """
     Parses PDF, Markdown, or text files and extracts text & questions into RAG Vector DB.
+
+    Limits enforced:
+      - Max 10 MB file size (returns 413).
+      - Only pdf, txt, md files (returns 415 for others).
+      - Max 100 PDF pages (returns 413).
     """
-    content_bytes = await file.read()
     filename = file.filename or "Uploaded Document"
+    content_type = file.content_type or "application/octet-stream"
+
+    # 1. Validate file type before reading content
+    _check_file_type_allowed(filename, content_type)
+
+    # 2. Read up to limit + 1 byte to detect oversize
+    content_bytes = await file.read(_MAX_FILE_SIZE_BYTES + 1)
+    if len(content_bytes) > _MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds maximum allowed size of {_MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB.",
+        )
+
     doc_title = title or filename
 
-    # Check if PDF
-    if filename.lower().endswith(".pdf") or file.content_type == "application/pdf":
+    # 3. Parse content
+    if filename.lower().endswith(".pdf") or content_type == "application/pdf":
         parse_result = document_parser.parse_pdf_bytes(content_bytes)
         if not parse_result["success"] or not parse_result["text"]:
-            raise HTTPException(status_code=400, detail=f"Could not extract text from PDF: {parse_result.get('error', 'Empty or unreadable PDF')}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not extract text from PDF: {parse_result.get('error', 'Empty or unreadable PDF')}",
+            )
         content_text = parse_result["text"]
         num_pages = parse_result["num_pages"]
+
+        # 4. Reject PDFs exceeding max page count
+        if num_pages > _MAX_PDF_PAGES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"PDF has {num_pages} pages, which exceeds the maximum of {_MAX_PDF_PAGES} pages. "
+                    "Please split the document or upload a shorter excerpt."
+                ),
+            )
     else:
-        # Fallback text decoding
         try:
             content_text = content_bytes.decode("utf-8", errors="ignore")
         except Exception:
-            raise HTTPException(status_code=400, detail="Could not decode file text")
+            raise HTTPException(status_code=400, detail="Could not decode file text.")
         num_pages = 1
 
     doc = Document(
         title=doc_title,
         doc_type=doc_type,
         content=content_text,
-        ingest_status="processing"
+        user_id=current_user.id,
+        ingest_status="processing",
     )
     db.add(doc)
     db.commit()
@@ -94,7 +194,7 @@ async def upload_file_material(
         tenant_id=doc.id,
         title=doc_title,
         text=content_text,
-        doc_type=doc_type
+        doc_type=doc_type,
     )
     doc.ingest_status = "done"
     db.commit()
@@ -104,9 +204,9 @@ async def upload_file_material(
         "title": doc.title,
         "filename": filename,
         "num_pages": num_pages,
-        "extracted_text": content_text[:3000],  # preview of extracted text
+        "extracted_text": content_text[:3000],
         "topics": res.get("topics", []),
         "questions_detected": len(res.get("explicit_questions", [])),
         "explicit_questions": res.get("explicit_questions", []),
-        "chunks_count": len(res.get("chunks", []))
+        "chunks_count": len(res.get("chunks", [])),
     }

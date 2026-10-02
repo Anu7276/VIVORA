@@ -62,18 +62,20 @@ class GeminiProvider(LLMProvider):
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.model = "gemini-1.5-flash"
+        self.model = settings.GEMINI_MODEL
+        # Key goes in the request header, NEVER in the URL query string.
         self.base_url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
+            f"{self.model}:generateContent"
         )
 
     async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         prompt = Guardrails.sanitize_input(prompt)
         full_text = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
         payload = {"contents": [{"parts": [{"text": full_text}]}]}
+        headers = {"x-goog-api-key": self.api_key, "Content-Type": "application/json"}
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(self.base_url, json=payload)
+            resp = await client.post(self.base_url, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
             return data["candidates"][0]["content"]["parts"][0]["text"]
@@ -90,7 +92,7 @@ class GroqProvider(LLMProvider):
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.groq.com/openai/v1/chat/completions"
-        self.model = "llama-3.1-8b-instant"
+        self.model = settings.GROQ_MODEL
 
     async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         prompt = Guardrails.sanitize_input(prompt)
@@ -119,7 +121,7 @@ class OpenAIProvider(LLMProvider):
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.openai.com/v1/chat/completions"
-        self.model = "gpt-4o-mini"
+        self.model = settings.OPENAI_MODEL
 
     async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         prompt = Guardrails.sanitize_input(prompt)
@@ -532,6 +534,8 @@ class LLMRouter:
             self._pool["openai"] = OpenAIProvider(settings.OPENAI_API_KEY)
         self._pool["mock"] = SmartRuleFallbackProvider()
 
+        # NOTE: last_call_meta is intentionally per-call (set in complete()),
+        # not a shared global — callers must pass it through or read it immediately.
         self.last_call_meta: Optional[CallMeta] = None
 
         available = list(self._pool.keys())
@@ -542,6 +546,30 @@ class LLMRouter:
             f"evaluation:{settings.EVALUATION_PROVIDER} | "
             f"report:{settings.REPORT_PROVIDER}"
         )
+
+        # Emit a clear WARNING for each task whose preferred provider has no key.
+        # This surfaces misconfigured deployments at startup rather than at runtime.
+        key_map = {
+            "gemini": settings.GEMINI_API_KEY,
+            "groq": settings.GROQ_API_KEY,
+            "openai": settings.OPENAI_API_KEY,
+            "mock": "__always_available__",
+        }
+        for task_name, provider_name in [
+            ("question_generation", settings.QUESTION_GEN_PROVIDER),
+            ("live_turn", settings.LIVE_PROVIDER),
+            ("evaluation", settings.EVALUATION_PROVIDER),
+            ("report", settings.REPORT_PROVIDER),
+        ]:
+            pname = (provider_name or "").lower()
+            if pname not in key_map:
+                continue
+            if pname != "mock" and not key_map.get(pname):
+                logger.warning(
+                    f"[LLMRouter] Task '{task_name}' prefers provider '{pname}' "
+                    f"but {pname.upper()}_API_KEY is not set — "
+                    f"requests for this task will fall back to the next available provider."
+                )
 
     def _provider_for_task(self, task: str) -> LLMProvider:
         preferred = TASK_PROVIDER_MAP.get(task, "mock")

@@ -1,68 +1,79 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session as DBSession
-from pydantic import BaseModel
-from typing import Optional, List
+"""
+app/api/routes/session.py
+=========================
+Session management routes.
+
+Security changes (Phase 1):
+  - All routes require a valid JWT Bearer token (via get_active_user dependency).
+  - demo-student and register-student endpoints are DELETED.
+  - GET /{session_id}: scoped to the authenticated user (404 for cross-user access).
+  - GET /{session_id}: reference_answer is OMITTED for unanswered questions.
+  - mode validated as one of: school | college | interview.
+  - time_limit_min validated as 1..MAX_TIME_LIMIT_MIN (from settings).
+"""
+
 from datetime import datetime
+from typing import Optional, Literal
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, field_validator, model_validator
+from sqlalchemy.orm import Session as DBSession
+
+from app.core.auth import get_active_user
+from app.core.config import settings
 from app.db.database import get_db
-from app.db.models import Session, Question, Answer, Evaluation, User, ParentConsent
+from app.db.models import Session, Question, Answer, Evaluation, User
 from app.services.session_service import session_service
 
 router = APIRouter()
 
+_VALID_MODES = {"school", "college", "interview"}
+
+
 class CreateSessionRequest(BaseModel):
-    mode: str = "school"  # school | college | interview
+    mode: str = "school"
     title: str = "Science Viva Practice"
     content_text: str = ""
     question_source: Optional[str] = None
     time_limit_min: Optional[int] = None
-    user_id: Optional[str] = None
-    is_minor: Optional[bool] = None  # Client-supplied is_minor is NOT trusted
+    # job_role/tech_stack/experience_level only relevant for interview mode
     job_role: Optional[str] = None
     tech_stack: Optional[str] = None
     experience_level: Optional[str] = None
 
+    @field_validator("mode")
+    @classmethod
+    def _validate_mode(cls, v: str) -> str:
+        if v not in _VALID_MODES:
+            raise ValueError(
+                f"mode must be one of: {', '.join(sorted(_VALID_MODES))}. Got: '{v}'."
+            )
+        return v
 
-CONSENT_GATE_ERROR = (
-    "Session creation is temporarily blocked across all modes pending authentication and consent verification. "
-    "Client-supplied is_minor flags are not trusted. To create a session, provide an authenticated user_id "
-    "with a stored date_of_birth showing an adult age (18+) or a verified parent_consents record. "
-    "(Temporary safeguard, not a real safeguard until auth system is implemented)."
-)
+    @field_validator("time_limit_min")
+    @classmethod
+    def _validate_time_limit(cls, v: Optional[int]) -> Optional[int]:
+        if v is None:
+            return v
+        if v < 1:
+            raise ValueError("time_limit_min must be at least 1 minute.")
+        if v > settings.MAX_TIME_LIMIT_MIN:
+            raise ValueError(
+                f"time_limit_min must not exceed {settings.MAX_TIME_LIMIT_MIN} minutes."
+            )
+        return v
+
 
 @router.post("/start")
-async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(get_db)):
-    """Initializes a new viva session and prepares questions."""
-
-    # ── Consent gate (Requirement 1) ──────────────────────────────────────────
-    # Applied to ALL modes. Client-supplied is_minor flag is NEVER trusted.
-    # Allowed ONLY if:
-    #   1. Authenticated user has stored date_of_birth showing age >= 18 (adult), OR
-    #   2. Authenticated user has a verified parent_consents record.
-    # Label: temporary, not a real safeguard until full auth exists.
-    is_authorized = False
-    if req.user_id:
-        user = db.query(User).filter(User.id == req.user_id).first()
-        if user:
-            if user.date_of_birth:
-                today = datetime.utcnow()
-                dob = user.date_of_birth
-                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-                if age >= 18:
-                    is_authorized = True
-            if not is_authorized:
-                consent = db.query(ParentConsent).filter(
-                    ParentConsent.user_id == user.id,
-                    ParentConsent.verified == True
-                ).first()
-                if consent:
-                    is_authorized = True
-
-    if not is_authorized:
-        raise HTTPException(
-            status_code=423,
-            detail=CONSENT_GATE_ERROR,
-        )
-
+async def start_new_session(
+    req: CreateSessionRequest,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(get_active_user),   # JWT required + account active
+):
+    """
+    Initialize a new viva session.
+    Requires a valid JWT Bearer token; the session is scoped to the authenticated user.
+    """
     session = await session_service.create_session(
         db=db,
         mode=req.mode,
@@ -70,10 +81,10 @@ async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(g
         content_text=req.content_text,
         question_source=req.question_source,
         time_limit_min=req.time_limit_min,
-        user_id=req.user_id,
+        user_id=current_user.id,
         job_role=req.job_role,
         tech_stack=req.tech_stack,
-        experience_level=req.experience_level
+        experience_level=req.experience_level,
     )
     return {
         "session_id": session.id,
@@ -82,109 +93,36 @@ async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(g
         "question_source": session.question_source,
         "time_limit_min": session.time_limit_min,
         "status": session.status,
-        "total_questions": len(session.questions)
+        "total_questions": len(session.questions),
     }
 
-class RegisterStudentRequest(BaseModel):
-    name: str = "Aarav Sharma"
-    grade: Optional[str] = "Class 10"
-    parent_email: str = "parent@vivora.ai"
-    confirm_consent: bool = True
-
-@router.get("/demo-student")
-def get_demo_student(db: DBSession = Depends(get_db)):
-    """
-    Returns or provisions a verified school student profile with verified parental consent.
-    This enables immediate practice in School Viva mode.
-    """
-    user = db.query(User).filter(User.email == "student.demo@vivora.ai").first()
-    from datetime import timedelta
-    if not user:
-        user = User(
-            name="Aarav Sharma (Class 10)",
-            email="student.demo@vivora.ai",
-            role="school",
-            is_minor=True,
-            date_of_birth=datetime.utcnow() - timedelta(days=15 * 365)
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-        consent = ParentConsent(
-            user_id=user.id,
-            parent_email="parent.aarav@example.com",
-            verified=True
-        )
-        db.add(consent)
-        db.commit()
-    else:
-        consent = db.query(ParentConsent).filter(
-            ParentConsent.user_id == user.id,
-            ParentConsent.verified == True
-        ).first()
-        if not consent:
-            consent = ParentConsent(
-                user_id=user.id,
-                parent_email="parent.aarav@example.com",
-                verified=True
-            )
-            db.add(consent)
-            db.commit()
-
-    return {
-        "user_id": user.id,
-        "name": user.name,
-        "email": user.email,
-        "role": user.role,
-        "consent_verified": True
-    }
-
-@router.post("/register-student")
-def register_student(req: RegisterStudentRequest, db: DBSession = Depends(get_db)):
-    """
-    Registers a new student profile with parental consent verification.
-    """
-    from datetime import timedelta
-    import secrets
-    unique_email = f"student_{secrets.token_hex(4)}@vivora.ai"
-    user = User(
-        name=f"{req.name} ({req.grade or 'School'})",
-        email=unique_email,
-        role="school",
-        is_minor=True,
-        date_of_birth=datetime.utcnow() - timedelta(days=15 * 365)
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    consent = ParentConsent(
-        user_id=user.id,
-        parent_email=req.parent_email,
-        verified=req.confirm_consent
-    )
-    db.add(consent)
-    db.commit()
-
-    return {
-        "user_id": user.id,
-        "name": user.name,
-        "parent_email": req.parent_email,
-        "consent_verified": req.confirm_consent
-    }
 
 @router.get("/{session_id}")
-async def get_session_details(session_id: str, db: DBSession = Depends(get_db)):
-    """Fetches session metadata, current questions and answers."""
+async def get_session_details(
+    session_id: str,
+    db: DBSession = Depends(get_db),
+    current_user: User = Depends(get_active_user),
+):
+    """
+    Fetch session metadata and questions.
+
+    Security rules:
+      - Returns 404 (not 403) for sessions that belong to another user,
+        to prevent resource enumeration.
+      - reference_answer is omitted for questions the student has not yet answered.
+        Revealing it before the student answers enables cheating.
+    """
     session = session_service.get_session(db, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+
+    # 404 for both "not found" and "belongs to another user" — no resource enumeration
+    if not session or session.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Session not found.")
 
     questions_list = []
     for q in session.questions:
+        answered = bool(q.answers)
         ans_data = None
-        if q.answers:
+        if answered:
             ans = q.answers[0]
             ans_data = {
                 "id": ans.id,
@@ -194,20 +132,24 @@ async def get_session_details(session_id: str, db: DBSession = Depends(get_db)):
                     "overall_score": ans.evaluation.overall_score,
                     "correctness_score": ans.evaluation.correctness_score,
                     "feedback": ans.evaluation.feedback,
-                    "model_answer": ans.evaluation.model_answer
-                } if ans.evaluation else None
+                    "model_answer": ans.evaluation.model_answer,
+                } if ans.evaluation else None,
             }
 
-        questions_list.append({
+        q_dict = {
             "id": q.id,
             "order_no": q.order_no,
             "question_text": q.question_text,
             "topic": q.topic,
             "difficulty": q.difficulty,
             "origin": q.origin,
-            "reference_answer": q.reference_answer,
-            "answer": ans_data
-        })
+            "answer": ans_data,
+        }
+        # Only include reference_answer after the student has answered
+        if answered:
+            q_dict["reference_answer"] = q.reference_answer
+
+        questions_list.append(q_dict)
 
     return {
         "session_id": session.id,
@@ -215,5 +157,5 @@ async def get_session_details(session_id: str, db: DBSession = Depends(get_db)):
         "time_limit_min": session.time_limit_min,
         "status": session.status,
         "started_at": session.started_at,
-        "questions": questions_list
+        "questions": questions_list,
     }

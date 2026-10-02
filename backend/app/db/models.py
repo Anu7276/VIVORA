@@ -17,10 +17,13 @@ class User(Base):
 
     id = Column(String, primary_key=True, default=gen_uuid)
     name = Column(String, nullable=False, default="Student")
-    email = Column(String, unique=True, index=True, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=True)          # bcrypt hash; None for demo/legacy users
+    # active | pending_parent_consent
+    account_status = Column(String, default="active")
     role = Column(String, default="school")  # school | college | candidate | admin
     language = Column(String, default="en-IN")
-    is_minor = Column(Boolean, default=True)
+    is_minor = Column(Boolean, default=False)
     date_of_birth = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -35,9 +38,13 @@ class ParentConsent(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     parent_email = Column(String, nullable=False)
     verified = Column(Boolean, default=False)
-    consent_date = Column(DateTime, default=datetime.utcnow)
+    # One-time signed token sent in the confirmation email.
+    # ParentConsent.verified may ONLY be set True by the confirm endpoint, never by client input.
+    consent_token = Column(String, nullable=True, unique=True)
+    consent_date = Column(DateTime, nullable=True)   # set when confirmed
 
     user = relationship("User", back_populates="parent_consents")
+
 
 class Document(Base):
     __tablename__ = "documents"
@@ -77,6 +84,8 @@ class Session(Base):
     time_limit_min = Column(Integer, default=15)
     time_used_sec = Column(Integer, default=0)
     current_question_no = Column(Integer, default=0)  # Cursor for session resume after disconnect
+    awaiting_followup = Column(Boolean, default=False)
+    active_followup_id = Column(String, nullable=True)
     status = Column(String, default="created")  # created | live | completed | abandoned
     # Per-session secret token — returned at session creation, required on GET report and DELETE data.
     # This is a temporary access-control measure until proper auth (JWT/OAuth) is implemented.
@@ -142,7 +151,7 @@ class Report(Base):
     __tablename__ = "reports"
 
     id = Column(String, primary_key=True, default=gen_uuid)
-    session_id = Column(String, ForeignKey("sessions.id"))
+    session_id = Column(String, ForeignKey("sessions.id"), unique=True)
     overall_score = Column(Float, default=0.0)
     strengths = Column(Text, nullable=True)
     improvements = Column(Text, nullable=True)

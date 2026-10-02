@@ -1,7 +1,10 @@
+import hmac
+
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session as DBSession
+from app.core.auth import get_active_user, secure_compare
 from app.db.database import get_db
-from app.db.models import Report, Session, Question, Answer, Evaluation, LLMUsageLog
+from app.db.models import Report, Session, Question, Answer, Evaluation, LLMUsageLog, User
 from app.rag.vector_store import vector_store
 from typing import List, Dict, Any, Optional
 
@@ -10,19 +13,36 @@ router = APIRouter()
 
 def _verify_session_token(session: Session, token: Optional[str]):
     """
-    Enforces per-session secret token validation (Requirement 2).
+    Enforces per-session secret token validation.
     Both GET report and DELETE data endpoints require the random 32+ byte token
     issued when the session was created.
-    """
-    if not session.session_token:
-        # If legacy session had no token, bypass check
-        return
 
-    if not token or token.strip() != session.session_token.strip():
+    Security rules:
+      - If session.session_token is None/empty, access is DENIED (no bypass).
+        A session without a token is either corrupted or a legacy record;
+        deny rather than allow.
+      - Token comparison uses hmac.compare_digest (constant-time) to prevent
+        timing attacks.
+    """
+    if not token or not token.strip():
         raise HTTPException(
             status_code=403,
-            detail="Forbidden: Invalid or missing session token. The per-session secret token is required."
+            detail="Forbidden: Missing session token. The per-session secret token is required.",
         )
+
+    # session.session_token must exist; a missing token in the DB is not a bypass
+    if not session.session_token:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: This session has no token on record.",
+        )
+
+    if not secure_compare(token.strip(), session.session_token):
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: Invalid session token.",
+        )
+
 
 
 @router.get("/{session_id}")

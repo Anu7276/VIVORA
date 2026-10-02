@@ -55,7 +55,7 @@ class SessionService:
             question_source=q_source,
             time_limit_min=time_limit,
             status="created",
-            started_at=datetime.datetime.utcnow()
+            started_at=None
         )
         db.add(session)
         db.commit()
@@ -207,7 +207,36 @@ class SessionService:
         return answer
 
     @staticmethod
+    def get_session_evaluations(db: DBSession, session_id: str) -> List[Dict[str, Any]]:
+        questions = db.query(Question).filter(Question.session_id == session_id).order_by(Question.order_no, Question.id).all()
+        evaluations = []
+        for q in questions:
+            for ans in q.answers:
+                if ans.evaluation:
+                    ev = ans.evaluation
+                    evaluations.append({
+                        "question_id": q.id,
+                        "order_no": q.order_no,
+                        "question_text": q.question_text,
+                        "topic": q.topic or "General",
+                        "reference_answer": q.reference_answer or "",
+                        "correctness_score": ev.correctness_score,
+                        "depth_score": ev.depth_score,
+                        "clarity_score": ev.clarity_score,
+                        "overall_score": ev.overall_score,
+                        "feedback": ev.feedback or "",
+                        "missing_concepts": ev.missing_concepts or "",
+                        "model_answer": ev.model_answer or "",
+                        "_is_mock": (ev.provider == "mock")
+                    })
+        return evaluations
+
+    @staticmethod
     def complete_session_report(db: DBSession, session_id: str, report_data: Dict[str, Any]) -> Report:
+        existing_report = db.query(Report).filter(Report.session_id == session_id).first()
+        if existing_report:
+            return existing_report
+
         session = db.query(Session).filter(Session.id == session_id).first()
         if session:
             session.status = "completed"
@@ -245,6 +274,14 @@ class SessionService:
         session = db.query(Session).filter(Session.id == session_id).first()
         if session:
             session.current_question_no = question_no
+            db.commit()
+
+    @staticmethod
+    def set_awaiting_followup(db: DBSession, session_id: str, awaiting: bool, followup_id: Optional[str] = None) -> None:
+        session = db.query(Session).filter(Session.id == session_id).first()
+        if session:
+            session.awaiting_followup = awaiting
+            session.active_followup_id = followup_id
             db.commit()
 
 session_service = SessionService()

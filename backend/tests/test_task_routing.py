@@ -35,6 +35,12 @@ def _make_router(gemini_key="test-gemini", groq_key="test-groq") -> LLMRouter:
     """Build a fresh LLMRouter with fake API keys so all provider slots are filled."""
     with (
         patch("app.llm.router.settings") as mock_settings,
+        patch("app.llm.router.TASK_PROVIDER_MAP", {
+            "question_generation": "gemini",
+            "live_turn": "groq",
+            "evaluation": "groq",
+            "report": "gemini",
+        }),
         patch("app.llm.router._log_usage"),   # silence DB writes
     ):
         mock_settings.GEMINI_API_KEY = gemini_key
@@ -44,6 +50,10 @@ def _make_router(gemini_key="test-gemini", groq_key="test-groq") -> LLMRouter:
         mock_settings.LIVE_PROVIDER = "groq"
         mock_settings.EVALUATION_PROVIDER = "groq"
         mock_settings.REPORT_PROVIDER = "gemini"
+        # Model name fields required by the updated providers
+        mock_settings.GEMINI_MODEL = "gemini-2.5-flash"
+        mock_settings.GROQ_MODEL = "llama-3.1-8b-instant"
+        mock_settings.OPENAI_MODEL = "gpt-4o-mini"
         router = LLMRouter()
     return router
 

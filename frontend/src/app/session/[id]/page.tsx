@@ -240,7 +240,7 @@ export default function SessionRoomPage() {
     wsRef.current.send(
       JSON.stringify({
         type: "submit_answer",
-        transcript: spokenText || "I answered the question with the core concept definition.",
+        transcript: spokenText,
         duration_sec: 10,
         filler_count: 0,
       })

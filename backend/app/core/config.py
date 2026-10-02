@@ -1,15 +1,36 @@
-from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional, List
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "VIVORA - AI Viva & Interview Simulator"
     API_V1_STR: str = "/api"
     DATABASE_URL: str = "sqlite:///./vivora.db"
 
+    # ── Environment ───────────────────────────────────────────────────────────
+    # "development" enables /docs, /openapi.json and the / info route.
+    # Anything else (production, staging, …) disables them.
+    ENV: str = "production"
+
+    # ── Security ──────────────────────────────────────────────────────────────
+    # If not set, a random key is generated at startup (not suitable for multi-replica).
+    JWT_SECRET_KEY: Optional[str] = None
+    # Dev email sender logs the link; production requires SMTP config.
+    EMAIL_FROM: str = "noreply@vivora.ai"
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None   # never logged
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # ── API Keys ─────────────────────────────────────────────────────────────
     GEMINI_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
+
+    # ── Model names (override per deployment) ─────────────────────────────────
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
+    OPENAI_MODEL: str = "gpt-4o-mini"
 
     # ── Per-task LLM routing ──────────────────────────────────────────────────
     # Each task picks a preferred provider by name: gemini | groq | openai | mock
@@ -38,10 +59,13 @@ class Settings(BaseSettings):
     MAX_TIME_LIMIT_MIN: int = 30
 
     # CORS
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
+    ]
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
