@@ -272,7 +272,66 @@ class SmartRuleFallbackProvider(LLMProvider):
             }
 
         # Question generation
-        if "Question" in (system_prompt or "") or "college" in prompt.lower() or "viva" in prompt.lower():
+        if "Question" in (system_prompt or "") or "college" in prompt.lower() or "viva" in prompt.lower() or "interview" in prompt.lower():
+            is_interview = "interview" in prompt.lower() or "job role" in prompt.lower() or "candidate" in prompt.lower() or "hiring" in (system_prompt or "").lower()
+            if is_interview:
+                role_m = re.search(r'Target Job Role:\s*"([^"]+)"', prompt)
+                role_val = role_m.group(1) if role_m else "Full Stack Software Engineer"
+                stack_m = re.search(r'Candidate Tech Stack / Skills:\s*"([^"]+)"', prompt)
+                stack_val = stack_m.group(1) if stack_m else "React, Node.js, PostgreSQL, Docker"
+                return {
+                    "questions": [
+                        {
+                            "question_text": f"In your {role_val} projects using {stack_val}, how do you structure client and server state synchronization and avoid unnecessary re-renders?",
+                            "topic": f"{role_val} - Architecture",
+                            "difficulty": "medium",
+                            "reference_answer": "State is split between server cache and UI state, avoiding waterfall fetches and re-render spikes.",
+                            "followup_question": "How do you profile and eliminate performance bottlenecks or memory leaks in this setup?",
+                            "followup_answer": "Using browser profiling traces, heap snapshots, and component render telemetry."
+                        },
+                        {
+                            "question_text": f"Explain how your backend runtime in {stack_val} handles asynchronous concurrency and non-blocking I/O.",
+                            "topic": f"{role_val} - Concurrency",
+                            "difficulty": "medium",
+                            "reference_answer": "Non-blocking I/O delegates operations to kernel threads while worker pools handle CPU-bound tasks.",
+                            "followup_question": "What happens when the thread pool or event loop gets saturated under heavy traffic?",
+                            "followup_answer": "Request queuing latency surges and upstream gateways trigger timeout errors."
+                        },
+                        {
+                            "question_text": f"When working with your database layer in {stack_val}, how do you optimize slow queries, index design, and transaction isolation?",
+                            "topic": f"{role_val} - Database & Storage",
+                            "difficulty": "hard",
+                            "reference_answer": "Targeted B-tree indexing on filter keys, query plan analysis with EXPLAIN ANALYZE, and appropriate isolation levels.",
+                            "followup_question": "How do you detect and recover from deadlock conditions between concurrent transactions?",
+                            "followup_answer": "Deadlock detection timeouts and automated transaction retry loops with backoff."
+                        },
+                        {
+                            "question_text": f"How do you design and secure API communication in {stack_val} for idempotency, rate limiting, and caching?",
+                            "topic": f"{role_val} - API & Security",
+                            "difficulty": "medium",
+                            "reference_answer": "Idempotency keys stored in Redis, sliding window rate limits, and ETag-based caching headers.",
+                            "followup_question": "How do you mitigate the thundering herd problem when a high-traffic cache key expires?",
+                            "followup_answer": "Early probabilistic expiration or distributed mutex locks on re-computation."
+                        },
+                        {
+                            "question_text": f"Walk me through your resilience pattern for handling downstream service failures or network latency in {role_val} systems.",
+                            "topic": f"{role_val} - Scalability",
+                            "difficulty": "hard",
+                            "reference_answer": "Circuit breakers, fallback responses, exponential backoff with jitter, and dead-letter queues.",
+                            "followup_question": "How do you maintain data consistency across distributed services if one node fails mid-operation?",
+                            "followup_answer": "Saga pattern with compensating transactions or two-phase commit."
+                        },
+                        {
+                            "question_text": f"How do you enforce automated testing, CI/CD pipelines, and zero-downtime deployments for {role_val} applications?",
+                            "topic": f"{role_val} - Deployment",
+                            "difficulty": "medium",
+                            "reference_answer": "Automated test stages in CI, Dockerized builds, and Kubernetes rolling or canary deployments.",
+                            "followup_question": "What automated metrics would trigger an automatic rollback during a canary release?",
+                            "followup_answer": "Spikes in 5xx error rates or p99 latency degradation beyond defined SLOs."
+                        }
+                    ]
+                }
+
             is_college = "college" in prompt.lower() or "practical" in prompt.lower() or "university" in (system_prompt or "").lower()
             if is_college:
                 # Extract topic from prompt if possible

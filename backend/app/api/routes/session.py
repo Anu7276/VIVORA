@@ -17,6 +17,9 @@ class CreateSessionRequest(BaseModel):
     time_limit_min: Optional[int] = None
     user_id: Optional[str] = None
     is_minor: Optional[bool] = None  # Client-supplied is_minor is NOT trusted
+    job_role: Optional[str] = None
+    tech_stack: Optional[str] = None
+    experience_level: Optional[str] = None
 
 
 CONSENT_GATE_ERROR = (
@@ -67,7 +70,10 @@ async def start_new_session(req: CreateSessionRequest, db: DBSession = Depends(g
         content_text=req.content_text,
         question_source=req.question_source,
         time_limit_min=req.time_limit_min,
-        user_id=req.user_id
+        user_id=req.user_id,
+        job_role=req.job_role,
+        tech_stack=req.tech_stack,
+        experience_level=req.experience_level
     )
     return {
         "session_id": session.id,

@@ -126,14 +126,59 @@ const PRESET_COLLEGE_SETS: Record<string, { title: string; content: string }> = 
   }
 };
 
+const PRESET_INTERVIEW_ROLES = [
+  {
+    role: "Full Stack Engineer",
+    stack: "React, Node.js, TypeScript, PostgreSQL, Docker, AWS",
+    summary: "State management, API integration, DB indexing & full-stack architecture"
+  },
+  {
+    role: "Backend Developer",
+    stack: "Python, FastAPI, Redis, PostgreSQL, Docker, Kubernetes",
+    summary: "Concurrency, async queues, query tuning & distributed caching"
+  },
+  {
+    role: "Frontend Engineer",
+    stack: "React, Next.js, TypeScript, TailwindCSS, WebSockets",
+    summary: "SSR hydration, bundle optimization, UI performance & Web Vitals"
+  },
+  {
+    role: "DevOps & Cloud Engineer",
+    stack: "Kubernetes, Docker, Terraform, AWS, CI/CD, Prometheus",
+    summary: "IaC, container orchestration, SRE & zero-downtime releases"
+  },
+  {
+    role: "Data / ML Engineer",
+    stack: "Python, PyTorch, Spark, Kafka, SQL, Snowflake",
+    summary: "Data pipelines, distributed compute, model deployment & schema design"
+  },
+  {
+    role: "Mobile App Engineer",
+    stack: "React Native, Flutter, Swift, Kotlin, Firebase",
+    summary: "Offline-first sync, native bridge performance & mobile UI lifecycle"
+  }
+];
+
+const POPULAR_TECH_TAGS = [
+  "React", "Node.js", "TypeScript", "Next.js", "Python", "FastAPI",
+  "PostgreSQL", "Docker", "Kubernetes", "AWS", "Redis", "GraphQL",
+  "MongoDB", "Go", "Kafka", "TailwindCSS"
+];
+
 export default function HomePage() {
   const router = useRouter();
   const [mode, setMode] = useState<"school" | "college" | "interview">("school");
-  const [inputTab, setInputTab] = useState<"qa_builder" | "text" | "pdf">("qa_builder");
+  const [inputTab, setInputTab] = useState<"qa_builder" | "interview_builder" | "text" | "pdf">("qa_builder");
   const [title, setTitle] = useState("CBSE Class 10 Biology: Life Processes Viva");
   
   // Interactive Q&A state for School students/teachers
   const [qaPairs, setQaPairs] = useState<QAPair[]>(PRESET_SCHOOL_SETS.biology.pairs);
+
+  // Interview customized configuration states
+  const [jobRole, setJobRole] = useState("Full Stack Engineer");
+  const [techStack, setTechStack] = useState("React, Node.js, TypeScript, PostgreSQL, Docker, AWS");
+  const [experienceLevel, setExperienceLevel] = useState<"Junior (0-2 yrs)" | "Mid-Level (2-5 yrs)" | "Senior (5+ yrs)">("Mid-Level (2-5 yrs)");
+  const [showJdAttachment, setShowJdAttachment] = useState(false);
 
   // Bulk paste text state
   const [contentText, setContentText] = useState("");
@@ -230,6 +275,27 @@ export default function HomePage() {
     }
   };
 
+  const handleSelectInterviewRole = (preset: typeof PRESET_INTERVIEW_ROLES[0]) => {
+    setJobRole(preset.role);
+    setTechStack(preset.stack);
+    setTitle(`${preset.role} Technical Interview`);
+  };
+
+  const handleToggleTechTag = (tag: string) => {
+    const current = techStack
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const exists = current.some((t) => t.toLowerCase() === tag.toLowerCase());
+    let next: string[];
+    if (exists) {
+      next = current.filter((t) => t.toLowerCase() !== tag.toLowerCase());
+    } else {
+      next = [...current, tag];
+    }
+    setTechStack(next.join(", "));
+  };
+
   const setPresetMode = (type: "school" | "college" | "interview") => {
     setMode(type);
     if (type === "school") {
@@ -241,15 +307,10 @@ export default function HomePage() {
       setInputTab("text");
       setContentText(PRESET_COLLEGE_SETS.os.content);
     } else {
-      setTitle("Full Stack Software Engineer Interview");
-      setInputTab("text");
-      setContentText(
-`Job Profile: Senior Full-Stack Engineer (React, Node.js, Distributed Systems)
-Key Areas:
-- Scalable System Design (Caching, Load Balancing, Database Sharding)
-- REST vs GraphQL vs WebSockets
-- Performance optimization and async concurrency models`
-      );
+      setTitle("Full Stack Engineer Technical Interview");
+      setInputTab("interview_builder");
+      setJobRole("Full Stack Engineer");
+      setTechStack("React, Node.js, TypeScript, PostgreSQL, Docker, AWS");
     }
   };
 
@@ -262,12 +323,21 @@ Key Areas:
         return;
       }
       finalContent = formatQaPairsToText(validPairs);
+    } else if (mode === "interview" && inputTab === "interview_builder") {
+      if (!jobRole.trim()) {
+        setError("Please specify your target Job Role (e.g. Full Stack Engineer).");
+        return;
+      }
+      const baseSummary = `Target Job Role: ${jobRole.trim()}\nTech Stack: ${techStack.trim() || 'General'}\nExperience Level: ${experienceLevel}`;
+      finalContent = contentText.trim() ? `${baseSummary}\n\nAdditional Context / Focus Notes:\n${contentText.trim()}` : baseSummary;
     } else {
       finalContent = contentText.trim();
     }
 
-    if (!title.trim() || !finalContent) {
-      setError("Please provide a title and chapter syllabus or practical material.");
+    const currentTitle = mode === "interview" ? (title.trim() || `${jobRole} Technical Interview`) : title.trim();
+
+    if (!currentTitle || !finalContent) {
+      setError(mode === "interview" ? "Please provide your Job Role and Tech Stack." : "Please provide a title and chapter syllabus or practical material.");
       return;
     }
 
@@ -277,10 +347,13 @@ Key Areas:
     try {
       const res = await createSession({
         mode,
-        title,
+        title: currentTitle,
         content_text: finalContent,
         question_source: mode === "school" ? "fixed" : "generated",
         user_id: student?.user_id,
+        job_role: mode === "interview" ? jobRole : undefined,
+        tech_stack: mode === "interview" ? techStack : undefined,
+        experience_level: mode === "interview" ? experienceLevel.split(" ")[0] : undefined,
       });
       router.push(`/session/${res.session_id}`);
     } catch (err: any) {
@@ -453,6 +526,36 @@ Key Areas:
         </div>
       )}
 
+      {/* Interview Tailored Role & Stack Banner */}
+      {mode === "interview" && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+            <Briefcase className="w-4 h-4 text-amber-400" />
+            <span>Role &amp; Stack Tailored Technical Interview (Dual-Engine)</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-300">
+            <div className="p-3 rounded-xl bg-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>1. Gemini API (Stack-Specific Question Generation)</span>
+              </div>
+              <p className="text-gray-400 text-[11px] leading-relaxed">
+                No syllabus needed! Gemini analyzes your <strong>Job Role</strong> &amp; <strong>Tech Stack</strong> to generate customized real-world architecture, concurrency, debugging, and system design questions with deep follow-ups.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-white/5 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-accent-cyan">
+                <Zap className="w-3.5 h-3.5" />
+                <span>2. Groq API (Live Spoken Technical Examiner)</span>
+              </div>
+              <p className="text-gray-400 text-[11px] leading-relaxed">
+                Conducts the interview in conversational real-time, probes your technical reasoning with deep follow-ups, and scores pacing, communication clarity, and engineering depth.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* School Semantic Scoring Banner */}
       {mode === "school" && (
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
@@ -468,19 +571,25 @@ Key Areas:
       <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6">
         <div className="flex flex-wrap items-center justify-between border-b border-white/10 pb-4 gap-3">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-primary-400" />
+            {mode === "interview" ? (
+              <Briefcase className="w-5 h-5 text-amber-400" />
+            ) : (
+              <BookOpen className="w-5 h-5 text-primary-400" />
+            )}
             <div>
               <h2 className="text-lg font-bold text-white">
                 {mode === "school" 
                   ? "School Viva Questions & Reference Answers" 
                   : mode === "college" 
                   ? "Chapter Name, Syllabus, or Practical Lab Manual" 
-                  : "Viva Content & Topics"}
+                  : "Target Job Role & Tech Stack Configuration"}
               </h2>
               <p className="text-xs text-gray-400">
-                {mode === "college" 
+                {mode === "school" 
+                  ? "Provide the questions you will be asked in your viva"
+                  : mode === "college" 
                   ? "Gemini will extract the top 10 questions and follow-ups from this material"
-                  : "Provide the questions you will be asked in your viva"}
+                  : "No syllabus needed! Tell us your role & stack, and Gemini will tailor technical interview questions"}
               </p>
             </div>
           </div>
@@ -497,7 +606,20 @@ Key Areas:
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Q&A Builder</span>
+                <span>Q&amp;A Builder</span>
+              </button>
+            )}
+            {mode === "interview" && (
+              <button
+                onClick={() => setInputTab("interview_builder")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                  inputTab === "interview_builder"
+                    ? "bg-accent-amber text-black font-semibold shadow-sm"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                <span>Role &amp; Stack</span>
               </button>
             )}
             <button
@@ -508,7 +630,7 @@ Key Areas:
                   : "text-gray-400 hover:text-white"
               }`}
             >
-              {mode === "college" ? "Chapter / Syllabus Text" : "Paste Text / Q&A"}
+              {mode === "college" ? "Chapter / Syllabus Text" : mode === "interview" ? "Paste JD / Notes" : "Paste Text / Q&A"}
             </button>
             <button
               onClick={() => setInputTab("pdf")}
@@ -519,31 +641,172 @@ Key Areas:
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>{mode === "college" ? "Upload Syllabus / Lab PDF" : "Upload PDF"}</span>
+              <span>{mode === "college" ? "Upload Syllabus / Lab PDF" : mode === "interview" ? "Upload Resume / JD PDF" : "Upload PDF"}</span>
             </button>
           </div>
         </div>
 
         <div className="space-y-5">
-          {/* Viva Title */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
-              {mode === "college" ? "Subject / Chapter / Practical Name" : "Viva Title / Chapter Name"}
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-surfaceLight/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary-500 transition-colors"
-              placeholder={mode === "college" ? "e.g. Operating Systems: Process Synchronization" : "e.g. CBSE Class 10 Biology: Life Processes"}
-            />
-          </div>
+          {/* TAB 0: Interactive Role & Tech Stack Builder for Interview Mode */}
+          {mode === "interview" && inputTab === "interview_builder" && (
+            <div className="space-y-6">
+              {/* Target Job Role */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                    Target Job Role:
+                  </label>
+                  <span className="text-[11px] text-amber-400">Gemini will tailor questions to this exact role</span>
+                </div>
+                <input
+                  type="text"
+                  value={jobRole}
+                  onChange={(e) => {
+                    setJobRole(e.target.value);
+                    setTitle(`${e.target.value} Technical Interview`);
+                  }}
+                  className="w-full bg-surfaceLight/70 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent-amber transition-colors"
+                  placeholder="e.g. Full Stack Engineer, Backend Developer, SRE..."
+                />
+
+                {/* Role Presets */}
+                <div className="pt-1 space-y-1.5">
+                  <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block">
+                    Quick Role Presets:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {PRESET_INTERVIEW_ROLES.map((preset) => {
+                      const isActive = jobRole.toLowerCase() === preset.role.toLowerCase();
+                      return (
+                        <button
+                          key={preset.role}
+                          type="button"
+                          onClick={() => handleSelectInterviewRole(preset)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                            isActive
+                              ? "bg-accent-amber text-black font-semibold shadow-sm scale-105"
+                              : "bg-surfaceLight/40 hover:bg-white/10 text-gray-300 border border-white/10"
+                          }`}
+                        >
+                          {preset.role}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Candidate Tech Stack */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                    Candidate Tech Stack &amp; Skills:
+                  </label>
+                  <span className="text-[11px] text-gray-400">Click tags below to add or remove</span>
+                </div>
+                <input
+                  type="text"
+                  value={techStack}
+                  onChange={(e) => setTechStack(e.target.value)}
+                  className="w-full bg-surfaceLight/70 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent-amber font-mono transition-colors"
+                  placeholder="e.g. React, Node.js, TypeScript, PostgreSQL, Docker, AWS"
+                />
+
+                {/* Popular Tech Tag Chips */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {POPULAR_TECH_TAGS.map((tag) => {
+                    const isSelected = techStack
+                      .toLowerCase()
+                      .includes(tag.toLowerCase());
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleToggleTechTag(tag)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                          isSelected
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                            : "bg-surfaceLight/30 text-gray-400 hover:text-white border border-white/5"
+                        }`}
+                      >
+                        {isSelected ? "✓ " : "+ "}{tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Experience Level Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                  Target Experience Level:
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {(["Junior (0-2 yrs)", "Mid-Level (2-5 yrs)", "Senior (5+ yrs)"] as const).map((level) => {
+                    const isSelected = experienceLevel === level;
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setExperienceLevel(level)}
+                        className={`py-2 px-3 rounded-xl text-xs font-medium border text-center transition-all ${
+                          isSelected
+                            ? "bg-accent-amber/20 border-accent-amber text-amber-300 font-semibold"
+                            : "bg-surfaceLight/30 border-white/10 text-gray-400 hover:text-white"
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Optional JD / Focus Notes toggle */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowJdAttachment(!showJdAttachment)}
+                  className="text-xs text-amber-400/90 hover:text-amber-300 flex items-center gap-1.5 font-medium transition-colors"
+                >
+                  <span>{showJdAttachment ? "▲ Hide Optional Job Description / Notes" : "▼ Have a specific Job Description or Resume notes to include? (Optional)"}</span>
+                </button>
+                {showJdAttachment && (
+                  <div className="mt-3 space-y-2">
+                    <textarea
+                      rows={3}
+                      value={contentText}
+                      onChange={(e) => setContentText(e.target.value)}
+                      placeholder="Paste specific job requirements, company domain (e.g. Fintech, E-commerce), or topics you want to focus on..."
+                      className="w-full bg-surfaceLight/50 border border-white/10 rounded-xl p-3 text-xs text-gray-200 focus:outline-none focus:border-accent-amber transition-colors"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Viva Title (for School and College) */}
+          {mode !== "interview" && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                {mode === "college" ? "Subject / Chapter / Practical Name" : "Viva Title / Chapter Name"}
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full bg-surfaceLight/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary-500 transition-colors"
+                placeholder={mode === "college" ? "e.g. Operating Systems: Process Synchronization" : "e.g. CBSE Class 10 Biology: Life Processes"}
+              />
+            </div>
+          )}
 
           {/* College Preset Buttons */}
           {mode === "college" && (
             <div className="space-y-2">
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                Quick College Subject & Lab Presets:
+                Quick College Subject &amp; Lab Presets:
               </span>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -551,7 +814,7 @@ Key Areas:
                   onClick={() => handleSelectCollegePreset("os")}
                   className="px-3 py-1.5 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 text-primary-300 border border-primary-500/20 text-xs font-medium transition-colors"
                 >
-                  💻 OS (Sync & Deadlocks)
+                  💻 OS (Sync &amp; Deadlocks)
                 </button>
                 <button
                   type="button"
@@ -817,7 +1080,13 @@ Key Areas:
             <div className="flex items-center gap-4 text-xs text-gray-400">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-primary-400" />
-                <span>{mode === "college" ? "10 Questions + Follow-ups" : "Fixed Viva Questions"}</span>
+                <span>
+                  {mode === "college" 
+                    ? "10 Questions + Follow-ups" 
+                    : mode === "interview" 
+                    ? "Role & Stack Tailored Interview" 
+                    : "Fixed Viva Questions"}
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Volume2 className="w-4 h-4 text-accent-cyan" />
@@ -836,6 +1105,8 @@ Key Areas:
                   ? "Generating Questions with Gemini..." 
                   : mode === "college" 
                   ? "Generate Top 10 Questions & Start Live Viva" 
+                  : mode === "interview" 
+                  ? "Start Tailored Interview (Gemini + Groq)" 
                   : "Enter Live Viva Room"}
               </span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

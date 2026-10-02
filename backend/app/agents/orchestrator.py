@@ -39,7 +39,10 @@ class Orchestrator:
         tenant_id: str,
         topic: str = "General",
         context_text: str = "",
-        count: Optional[int] = None
+        count: Optional[int] = None,
+        job_role: Optional[str] = None,
+        tech_stack: Optional[str] = None,
+        experience_level: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         return await self.question.get_questions(
             mode=mode,
@@ -48,7 +51,10 @@ class Orchestrator:
             tenant_id=tenant_id,
             topic=topic,
             context_text=context_text,
-            count=count
+            count=count,
+            job_role=job_role,
+            tech_stack=tech_stack,
+            experience_level=experience_level
         )
 
     async def prepare_interviewer_turn(self, question: Dict[str, Any], mode: str) -> Dict[str, Any]:

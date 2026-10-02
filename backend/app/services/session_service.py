@@ -14,11 +14,24 @@ class SessionService:
         content_text: str = "",
         question_source: Optional[str] = None,
         time_limit_min: Optional[int] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        job_role: Optional[str] = None,
+        tech_stack: Optional[str] = None,
+        experience_level: Optional[str] = None
     ) -> Session:
         cfg = ModeStrategy.get_config(mode)
         q_source = question_source or cfg.question_source_default
         time_limit = time_limit_min or cfg.time_limit_min
+
+        # If job role provided for interview mode, personalize title and content
+        if mode == "interview" and job_role:
+            if not title or title in ("Science Viva", "Science Viva Practice", "Full Stack Software Engineer Interview"):
+                title = f"{job_role} Technical Interview"
+            profile_context = f"Job Role: {job_role}\nTech Stack: {tech_stack or 'Full-Stack'}\nExperience Level: {experience_level or 'Mid-Level'}"
+            if content_text:
+                content_text = f"{profile_context}\n\nCandidate / Role Context:\n{content_text}"
+            else:
+                content_text = profile_context
 
         # 1. Create Document
         doc = Document(
@@ -51,9 +64,10 @@ class SessionService:
         # 4. Populate questions:
         # - School mode: uses uploaded/parsed fixed Q&A pairs
         # - College mode: calls Gemini (QUESTION_GEN_PROVIDER) to collect TOP 10 viva questions
-        #   with follow-up questions and expected answers
+        # - Interview mode: calls Gemini to generate customized technical questions tailored to
+        #   candidate's Job Role and Tech Stack
         questions_data = intake_res
-        if not questions_data or (mode == "college" and q_source != "fixed"):
+        if not questions_data or (mode in ("college", "interview") and q_source != "fixed"):
             if mode == "college":
                 try:
                     questions_data = await orchestrator.initialize_questions(
@@ -64,6 +78,22 @@ class SessionService:
                         topic=title,
                         context_text=content_text,
                         count=10
+                    )
+                except Exception:
+                    questions_data = []
+            elif mode == "interview":
+                try:
+                    questions_data = await orchestrator.initialize_questions(
+                        mode="interview",
+                        question_source="generated",
+                        uploaded_questions=[],
+                        tenant_id=doc.id,
+                        topic=job_role or title,
+                        context_text=content_text,
+                        count=6,
+                        job_role=job_role or title,
+                        tech_stack=tech_stack,
+                        experience_level=experience_level
                     )
                 except Exception:
                     questions_data = []
@@ -90,6 +120,13 @@ class SessionService:
                             "reference_answer": "Acids have a pH less than 7 and release H+ ions, while bases have a pH greater than 7 and release OH- ions."
                         }
                     ]
+                elif mode == "interview":
+                    questions_data = orchestrator.question._get_interview_fallback_questions(
+                        job_role=job_role or title,
+                        tech_stack=tech_stack or "React, Node.js, PostgreSQL, Docker",
+                        experience_level=experience_level or "Mid-Level",
+                        count=6
+                    )
                 else:
                     questions_data = [
                         {

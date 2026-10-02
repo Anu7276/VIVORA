@@ -7,6 +7,9 @@ export interface CreateSessionParams {
   question_source?: "fixed" | "generated";
   time_limit_min?: number;
   user_id?: string;
+  job_role?: string;
+  tech_stack?: string;
+  experience_level?: string;
 }
 
 export interface StudentProfile {

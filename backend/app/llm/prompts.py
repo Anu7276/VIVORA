@@ -47,6 +47,43 @@ Output format strictly JSON with key 'questions' containing an array of {count} 
   ]
 }}"""
 
+INTERVIEW_QUESTION_GENERATION_PROMPT = """You are a Principal Software Engineering Interviewer and Technical Hiring Lead.
+Candidate Profile:
+- Target Job Role: "{job_role}"
+- Candidate Tech Stack / Skills: "{tech_stack}"
+- Experience Level: "{experience_level}"
+- Additional Context / Focus Areas:
+\"\"\"{context}\"\"\"
+
+Generate {count} realistic, practical, and in-depth technical interview questions tailored specifically to this job role and tech stack.
+Cover essential facets:
+1. Core Architecture & Fundamentals: Design decisions, internals, lifecycle, and component interactions in the specified stack.
+2. Production Engineering & Real-world Debugging: Solving race conditions, memory leaks, performance bottlenecks, caching, and database queries.
+3. System Design & Scalability: High-concurrency patterns, microservices vs monolith trade-offs, state management, and API design.
+4. Resilience & Security: Handling downstream outages, authentication/authorization, data validation, and graceful degradation.
+
+For EACH question, you MUST provide:
+1. 'question_text': A crisp, realistic question as spoken aloud by a tech lead in an interview.
+2. 'topic': Specific tech domain (e.g. "React State & Rendering", "Node.js Event Loop & Concurrency", "PostgreSQL Indexing & Transactions", "System Design & Caching").
+3. 'difficulty': "easy" | "medium" | "hard"
+4. 'reference_answer': Key engineering concepts, architectural principles, trade-offs, and best practices expected in an ideal response.
+5. 'followup_question': A probing follow-up question (e.g., "How would this scale under 100k requests/sec?", "What happens if the cache is cold?", "How would you diagnose this in production logs?").
+6. 'followup_answer': The expected answer to the follow-up question.
+
+Output format strictly JSON with key 'questions' containing an array of {count} objects:
+{{
+  "questions": [
+    {{
+      "question_text": "...",
+      "topic": "...",
+      "difficulty": "easy" | "medium" | "hard",
+      "reference_answer": "...",
+      "followup_question": "...",
+      "followup_answer": "..."
+    }}
+  ]
+}}"""
+
 INTERVIEWER_PROMPT = """You are a friendly, encouraging AI Viva Examiner for school students.
 You are asking the student question #{order_no}: "{question_text}".
 Make it conversational and speakable in a single natural sentence."""
