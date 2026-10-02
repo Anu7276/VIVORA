@@ -197,11 +197,21 @@ export default function HomePage() {
     topics: string[];
   } | null>(null);
 
+  const [language, setLanguage] = useState("en-IN");
+  const [sttSupported, setSttSupported] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: load verified demo student profile so parental consent is satisfied seamlessly
+  // On mount: check browser speech recognition support and load verified student profile
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setSttSupported(false);
+      }
+    }
+
     getDemoStudent()
       .then((data) => setStudent(data))
       .catch((err) => console.warn("Demo student auto-fetch notice:", err));
@@ -359,6 +369,7 @@ export default function HomePage() {
         job_role: mode === "interview" ? jobRole : undefined,
         tech_stack: mode === "interview" ? techStack : undefined,
         experience_level: mode === "interview" ? experienceLevel.split(" ")[0] : undefined,
+        language: language,
       });
       router.push(`/session/${res.session_id}`);
     } catch (err: any) {
@@ -381,12 +392,37 @@ export default function HomePage() {
             <span>Parent / Student Consent Verified</span>
           </div>
         </div>
-        <div className="text-[11px] text-gray-400 flex items-center gap-2">
-          <span>RAM-Only Audio</span>
+        <div className="flex items-center gap-3 text-[11px] text-gray-400">
+          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-2 py-1">
+            <span className="text-gray-300 font-medium">Voice Accent:</span>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="bg-transparent text-white text-[11px] focus:outline-none cursor-pointer"
+            >
+              <option value="en-IN" className="bg-surfaceDark text-white">English (India - en-IN)</option>
+              <option value="en-US" className="bg-surfaceDark text-white">English (US - en-US)</option>
+              <option value="en-GB" className="bg-surfaceDark text-white">English (UK - en-GB)</option>
+            </select>
+          </div>
           <span>•</span>
-          <span className="text-primary-300">Gemini (Q-Gen) + Groq (Live Spoken)</span>
+          <span>RAM-Only Audio</span>
         </div>
       </div>
+
+      {!sttSupported && (
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+          <HelpCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-amber-300">Live Speech Recognition Not Supported in this Browser</p>
+            <p className="text-amber-200/80 leading-relaxed">
+              Your current browser does not support the native Web Speech API (common in Firefox or desktop Safari).
+              For spoken viva answers with instant microphone transcription, please open VIVORA in <strong>Google Chrome, Microsoft Edge, or Brave</strong>.
+              You can still practice in this browser using the <strong>Typed Answer Mode</strong> during the session!
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Hero Header */}
       <div className="text-center max-w-3xl mx-auto space-y-4">

@@ -12,7 +12,13 @@ The _make_router() helper in test_task_routing.py patches settings correctly and
 patches TASK_PROVIDER_MAP directly — so isolation is guaranteed.
 """
 import sys
+from pathlib import Path
 import pytest
+
+# Ensure backend root is on sys.path for test discovery and module resolution
+_backend_root = str(Path(__file__).resolve().parent.parent)
+if _backend_root not in sys.path:
+    sys.path.insert(0, _backend_root)
 
 
 @pytest.fixture(autouse=True)

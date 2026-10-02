@@ -41,6 +41,7 @@ class CreateSessionRequest(BaseModel):
     job_role: Optional[str] = None
     tech_stack: Optional[str] = None
     experience_level: Optional[str] = None
+    language: Optional[str] = "en-IN"
 
     @field_validator("mode")
     @classmethod
@@ -87,6 +88,7 @@ async def start_new_session(
         job_role=req.job_role,
         tech_stack=req.tech_stack,
         experience_level=req.experience_level,
+        language=req.language or "en-IN",
     )
     return {
         "session_id": session.id,

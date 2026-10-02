@@ -18,7 +18,9 @@ import {
   Award,
   School,
   FileCheck2,
-  Layers
+  Layers,
+  Activity,
+  MessageSquare
 } from "lucide-react";
 
 export default function ReportPage() {
@@ -113,9 +115,22 @@ export default function ReportPage() {
       {/* Main Scorecard Banner */}
       <div className="glass-panel-glow p-8 rounded-3xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8 border border-emerald-500/20">
         <div className="space-y-3 text-center md:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
-            <School className="w-3.5 h-3.5" />
-            <span>School Viva Assessment Completed</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold capitalize">
+              <School className="w-3.5 h-3.5" />
+              <span>{report.mode || "Viva"} Assessment</span>
+            </div>
+            {report.status === "partial" ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Partial Viva (Concluded Early)</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Full Assessment Completed</span>
+              </div>
+            )}
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Official Viva Scorecard</h1>
           <p className="text-sm text-gray-400 max-w-lg leading-relaxed">
@@ -183,6 +198,54 @@ export default function ReportPage() {
         </div>
       </div>
 
+      {/* Spoken Communication & Delivery Analytics */}
+      {(report.communication_score !== undefined || report.communication_feedback) && (
+        <div className="glass-panel p-6 sm:p-7 rounded-3xl space-y-5 border border-primary-500/20">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div className="flex items-center gap-2.5 text-primary-400 font-bold text-base">
+              <Activity className="w-5 h-5" />
+              <h3>Spoken Communication & Articulation Analysis</h3>
+            </div>
+            {report.communication_score !== undefined && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">Communication Score:</span>
+                <span className="text-base font-extrabold text-white px-3 py-1 rounded-xl bg-primary-500/20 border border-primary-500/30">
+                  {report.communication_score.toFixed(1)} / 10
+                </span>
+              </div>
+            )}
+          </div>
+
+          {report.communication_breakdown && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 rounded-2xl bg-surfaceLight/50 border border-white/5 space-y-1">
+                <span className="text-gray-400">Filler Words (30%)</span>
+                <div className="text-sm font-bold text-emerald-400">{report.communication_breakdown.filler_score.toFixed(1)} / 10</div>
+              </div>
+              <div className="p-3 rounded-2xl bg-surfaceLight/50 border border-white/5 space-y-1">
+                <span className="text-gray-400">Speaking Pace (25%)</span>
+                <div className="text-sm font-bold text-emerald-400">{report.communication_breakdown.pace_score.toFixed(1)} / 10</div>
+              </div>
+              <div className="p-3 rounded-2xl bg-surfaceLight/50 border border-white/5 space-y-1">
+                <span className="text-gray-400">Answer Length (25%)</span>
+                <div className="text-sm font-bold text-emerald-400">{report.communication_breakdown.length_score.toFixed(1)} / 10</div>
+              </div>
+              <div className="p-3 rounded-2xl bg-surfaceLight/50 border border-white/5 space-y-1">
+                <span className="text-gray-400">Structure (20%)</span>
+                <div className="text-sm font-bold text-emerald-400">{report.communication_breakdown.structure_score.toFixed(1)} / 10</div>
+              </div>
+            </div>
+          )}
+
+          {report.communication_feedback && (
+            <div className="p-3.5 rounded-2xl bg-surfaceLight/80 border border-white/10 text-xs text-gray-300 leading-relaxed">
+              <span className="font-semibold text-primary-300 block mb-1">Examiner Delivery Assessment:</span>
+              {report.communication_feedback}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Question-by-Question Semantic Analysis */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -209,7 +272,12 @@ export default function ReportPage() {
 
                 <div className="flex items-center gap-2.5">
                   {/* Concept match pill */}
-                  {item.score >= 8.0 ? (
+                  {item.scored === false ? (
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-amber-400" />
+                      <span>Unscored (Model Degraded)</span>
+                    </span>
+                  ) : item.score >= 8.0 ? (
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                       <span>Full Match (Same Meaning)</span>
@@ -227,7 +295,7 @@ export default function ReportPage() {
 
                   {/* Marks badge */}
                   <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    ⭐ {item.score} / 10
+                    {item.scored === false ? "Unscored" : `⭐ ${item.score} / 10`}
                   </span>
                 </div>
               </div>

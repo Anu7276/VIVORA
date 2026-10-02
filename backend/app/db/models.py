@@ -80,6 +80,7 @@ class Session(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     document_id = Column(String, ForeignKey("documents.id"), nullable=True)
     mode = Column(String, default="school")  # school | college | interview
+    language = Column(String, default="en-IN")  # en-IN default, en-US, etc.
     question_source = Column(String, default="fixed")  # fixed | generated
     time_limit_min = Column(Integer, default=15)
     time_used_sec = Column(Integer, default=0)

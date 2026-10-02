@@ -15,7 +15,10 @@ export class BrowserVoiceClient {
   private micStream: MediaStream | null = null;
   private animFrameId: number | null = null;
 
-  constructor() {
+  private currentLang: string;
+
+  constructor(lang: string = "en-IN") {
+    this.currentLang = lang;
     if (typeof window !== "undefined") {
       const SpeechRecognition =
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -23,7 +26,7 @@ export class BrowserVoiceClient {
         this.recognition = new SpeechRecognition();
         this.recognition.continuous = true;
         this.recognition.interimResults = true;
-        this.recognition.lang = "en-IN";
+        this.recognition.lang = lang;
       }
     }
   }

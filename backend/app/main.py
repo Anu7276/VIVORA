@@ -20,19 +20,10 @@ def validate_provider_configuration():
     (unless fallback is explicitly permitted).
     """
     stt = (settings.STT_PROVIDER or "browser").lower()
-    if stt == "whisper":
+    if stt != "browser":
         raise ValueError(
-            "Startup validation failed: STT_PROVIDER=whisper is planned but not yet implemented. "
-            "Use STT_PROVIDER=browser (default) or STT_PROVIDER=deepgram."
-        )
-    if stt not in ("browser", "deepgram"):
-        raise ValueError(
-            f"Startup validation failed: Unknown STT provider '{stt}'. Supported providers: browser, deepgram."
-        )
-    if stt == "deepgram" and not settings.DEEPGRAM_API_KEY and not settings.ALLOW_STT_FALLBACK:
-        raise ValueError(
-            "Startup validation failed: STT_PROVIDER is set to 'deepgram' but DEEPGRAM_API_KEY is missing "
-            "and ALLOW_STT_FALLBACK is False. Set DEEPGRAM_API_KEY or set ALLOW_STT_FALLBACK=true to allow fallback."
+            f"Startup validation failed: Unknown or unsupported STT provider '{stt}'. "
+            "Supported provider is 'browser' (Web Speech API)."
         )
 
     tts = (settings.TTS_PROVIDER or "browser").lower()

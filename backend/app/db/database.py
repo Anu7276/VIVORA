@@ -57,6 +57,13 @@ def ensure_schema_migrations():
                 if "status" not in r_cols:
                     conn.execute(text("ALTER TABLE reports ADD COLUMN status TEXT DEFAULT 'complete';"))
 
+            # sessions table
+            res_sess = conn.execute(text("PRAGMA table_info(sessions);")).fetchall()
+            s_cols = {row[1] for row in res_sess}
+            if s_cols:
+                if "language" not in s_cols:
+                    conn.execute(text("ALTER TABLE sessions ADD COLUMN language TEXT DEFAULT 'en-IN';"))
+
             conn.commit()
     except Exception:
         pass

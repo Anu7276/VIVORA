@@ -23,7 +23,9 @@ import {
   ChevronDown,
   ChevronUp,
   School,
-  AlertTriangle
+  AlertTriangle,
+  X,
+  Send
 } from "lucide-react";
 
 export default function SessionRoomPage() {
@@ -35,6 +37,7 @@ export default function SessionRoomPage() {
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(3);
+  const [sessionLang, setSessionLang] = useState("en-IN");
   
   // Voice & STT state
   const [isMicActive, setIsMicActive] = useState(false);
@@ -47,6 +50,8 @@ export default function SessionRoomPage() {
   const [showReferenceAnswer, setShowReferenceAnswer] = useState(false);
   const [degradedWarning, setDegradedWarning] = useState<string | null>(null);
   const [doubtExplanation, setDoubtExplanation] = useState<string | null>(null);
+  const [showDoubtModal, setShowDoubtModal] = useState(false);
+  const [doubtInput, setDoubtInput] = useState("");
   const [timerSeconds, setTimerSeconds] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -94,7 +99,15 @@ export default function SessionRoomPage() {
         const data = JSON.parse(event.data);
         console.log("WS Message:", data);
 
-        if (data.type === "question_ready") {
+        if (data.type === "session_started") {
+          if (data.language) {
+            setSessionLang(data.language);
+            voiceClientRef.current = new BrowserVoiceClient(data.language);
+          }
+          if (data.total_questions) {
+            setTotalQuestions(data.total_questions);
+          }
+        } else if (data.type === "question_ready") {
           setCurrentQuestion(data.question);
           setQuestionIndex(data.question_index);
           setTotalQuestions(data.total_questions || totalQuestions);
@@ -109,6 +122,7 @@ export default function SessionRoomPage() {
             BrowserVoiceClient.speak(data.speech.speakable_text, {
               rate: data.speech.tts_payload?.rate || 0.95,
               pitch: data.speech.tts_payload?.pitch || 1.0,
+              lang: sessionLang,
               onEnd: () => {
                 setIsAISpeaking(false);
                 // Auto-start listening after question is asked
@@ -120,6 +134,7 @@ export default function SessionRoomPage() {
           if (data.speech?.speakable_text) {
             setIsAISpeaking(true);
             BrowserVoiceClient.speak(data.speech.speakable_text, {
+              lang: sessionLang,
               onEnd: () => {
                 setIsAISpeaking(false);
                 startMicrophone();
@@ -137,12 +152,13 @@ export default function SessionRoomPage() {
         } else if (data.type === "followup_question") {
           setCurrentQuestion({
             ...data.question,
-            order_no: `${questionIndex + 1} (Follow-up)`,
+            order_no: data.question?.order_no ? `${data.question.order_no} (Follow-up)` : `${questionIndex + 1} (Follow-up)`,
           });
           setTranscript("");
           if (data.speech?.speakable_text) {
             setIsAISpeaking(true);
             BrowserVoiceClient.speak(data.speech.speakable_text, {
+              lang: sessionLang,
               onEnd: () => {
                 setIsAISpeaking(false);
                 startMicrophone();
@@ -154,6 +170,7 @@ export default function SessionRoomPage() {
           if (data.doubt?.explanation) {
             setIsAISpeaking(true);
             BrowserVoiceClient.speak(data.doubt.explanation, {
+              lang: sessionLang,
               onEnd: () => {
                 setIsAISpeaking(false);
               },
@@ -260,12 +277,19 @@ export default function SessionRoomPage() {
     }
   };
 
-  const handleAskDoubt = () => {
-    const doubt = prompt("What is your doubt or concept to clarify?");
+  const handleOpenDoubtModal = () => {
+    stopMicrophone();
+    setShowDoubtModal(true);
+  };
+
+  const handleSubmitDoubt = () => {
+    const doubt = doubtInput.trim();
     if (doubt && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({ type: "ask_doubt", doubt: doubt })
       );
+      setDoubtInput("");
+      setShowDoubtModal(false);
     }
   };
 
@@ -514,7 +538,7 @@ export default function SessionRoomPage() {
                 </button>
 
                 <button
-                  onClick={handleAskDoubt}
+                  onClick={handleOpenDoubtModal}
                   className="px-3.5 py-2.5 rounded-xl bg-primary-500/10 hover:bg-primary-500/20 text-primary-300 text-xs flex items-center gap-1.5 border border-primary-500/20 transition-colors"
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
@@ -567,51 +591,65 @@ export default function SessionRoomPage() {
               </div>
             ) : latestEval ? (
               <div className="space-y-4 animate-fadeIn">
-                {/* Score & Concept Match Badge */}
-                <div className="p-4 rounded-2xl bg-surfaceLight/70 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">Marks Awarded</span>
-                    <span className="text-2xl font-black text-emerald-400">
-                      ⭐ {latestEval.overall_score} <span className="text-xs text-gray-500 font-normal">/ 10</span>
-                    </span>
+                {latestEval.scored === false ? (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>Answer Recorded Unscored</span>
+                    </div>
+                    <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                      {latestEval.feedback || "Evaluation model was unavailable or returned invalid output. Your answer was safely captured without fake scores."}
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    {/* Score & Concept Match Badge */}
+                    <div className="p-4 rounded-2xl bg-surfaceLight/70 border border-white/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400">Marks Awarded</span>
+                        <span className="text-2xl font-black text-emerald-400">
+                          ⭐ {latestEval.overall_score} <span className="text-xs text-gray-500 font-normal">/ 10</span>
+                        </span>
+                      </div>
 
-                  {/* Concept match badge */}
-                  <div className="pt-1">
-                    {latestEval.concept_match === "Full Match" || latestEval.overall_score >= 8.0 ? (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Full Concept Match (Same Meaning)</span>
+                      {/* Concept match badge */}
+                      <div className="pt-1">
+                        {latestEval.concept_match === "Full Match" || latestEval.overall_score >= 8.0 ? (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Full Concept Match (Same Meaning)</span>
+                          </div>
+                        ) : latestEval.concept_match === "Partial Match" || latestEval.overall_score >= 5.0 ? (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-amber/20 text-amber-300 border border-accent-amber/30 text-xs font-semibold">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Partial Concept Match</span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                            <span>Needs Revision</span>
+                          </div>
+                        )}
                       </div>
-                    ) : latestEval.concept_match === "Partial Match" || latestEval.overall_score >= 5.0 ? (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-amber/20 text-amber-300 border border-accent-amber/30 text-xs font-semibold">
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Partial Concept Match</span>
-                      </div>
-                    ) : (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold">
-                        <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                        <span>Needs Revision</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
 
-                {/* Rubric Breakdown */}
-                <div className="space-y-2 text-xs p-3 rounded-xl bg-white/5">
-                  <div className="flex justify-between text-gray-400">
-                    <span>Conceptual Correctness:</span>
-                    <span className="font-semibold text-white">{latestEval.correctness_score}/10</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Explanation Depth:</span>
-                    <span className="font-semibold text-white">{latestEval.depth_score}/10</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Clarity & Expression:</span>
-                    <span className="font-semibold text-white">{latestEval.clarity_score}/10</span>
-                  </div>
-                </div>
+                    {/* Rubric Breakdown */}
+                    <div className="space-y-2 text-xs p-3 rounded-xl bg-white/5">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Conceptual Correctness:</span>
+                        <span className="font-semibold text-white">{latestEval.correctness_score}/10</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>Explanation Depth:</span>
+                        <span className="font-semibold text-white">{latestEval.depth_score}/10</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>Clarity & Expression:</span>
+                        <span className="font-semibold text-white">{latestEval.clarity_score}/10</span>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Teacher Feedback */}
                 <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-gray-200 space-y-1">
@@ -666,6 +704,53 @@ export default function SessionRoomPage() {
           </div>
         </div>
       </div>
+
+      {/* Inline Doubt Clarification Modal */}
+      {showDoubtModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-panel max-w-lg w-full p-6 rounded-3xl space-y-4 border border-primary-500/30 bg-surfaceDark">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div className="flex items-center gap-2 text-primary-400 font-bold text-sm">
+                <HelpCircle className="w-4 h-4" />
+                <span>Ask Examiner a Doubt or Question</span>
+              </div>
+              <button
+                onClick={() => setShowDoubtModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-300">
+              Need clarification on the question or a related concept? Type your doubt below, and the AI examiner will explain it immediately.
+            </p>
+            <textarea
+              value={doubtInput}
+              onChange={(e) => setDoubtInput(e.target.value)}
+              placeholder="e.g. Can you explain what you mean by process synchronization?"
+              rows={3}
+              className="w-full rounded-2xl bg-surfaceLight/80 border border-white/10 p-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-400/50 resize-none"
+              autoFocus
+            />
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowDoubtModal(false)}
+                className="px-4 py-2 rounded-xl text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitDoubt}
+                disabled={!doubtInput.trim()}
+                className="px-5 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 disabled:opacity-40 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Ask Examiner</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

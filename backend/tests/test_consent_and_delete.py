@@ -369,34 +369,19 @@ class TestDeleteAndReadEndpoints:
 # ─── 3. Provider Validation at Startup ─────────────────────────────────────────
 
 class TestSTTProviderValidation:
-    def test_whisper_fails_startup_with_clear_error(self):
-        """Whisper STT must fail at startup with a clear error, not mid-session."""
-        from app.voice.stt_stream import STTRouter
-        with pytest.raises(ValueError, match="planned but not yet implemented"):
-            STTRouter(provider_type="whisper")
+    def test_browser_stt_is_supported(self, monkeypatch):
+        from app.main import validate_provider_configuration
+        from app.core.config import settings
+        monkeypatch.setattr(settings, "STT_PROVIDER", "browser")
+        validate_provider_configuration()
 
-    def test_unknown_provider_fails_startup(self):
-        """Unknown STT provider fails startup with a clear error."""
-        from app.voice.stt_stream import STTRouter
-        with pytest.raises(ValueError, match="Unknown STT provider"):
-            STTRouter(provider_type="unknown_stt_provider")
-
-    def test_deepgram_without_key_refuses_to_start_when_fallback_false(self):
-        """When ALLOW_STT_FALLBACK is False, missing key raises ValueError refusing to start."""
-        from app.voice.stt_stream import STTRouter
-        with pytest.raises(ValueError, match="ALLOW_STT_FALLBACK is False"):
-            STTRouter(provider_type="deepgram", api_key=None, allow_fallback=False)
-
-    def test_deepgram_without_key_falls_back_when_fallback_true(self):
-        """When ALLOW_STT_FALLBACK is True, missing key logs warning and uses BrowserSTTProvider."""
-        from app.voice.stt_stream import STTRouter, BrowserSTTProvider
-        router = STTRouter(provider_type="deepgram", api_key=None, allow_fallback=True)
-        assert isinstance(router.provider, BrowserSTTProvider)
-
-    def test_browser_is_default(self):
-        from app.voice.stt_stream import STTRouter, BrowserSTTProvider
-        router = STTRouter(provider_type="browser")
-        assert isinstance(router.provider, BrowserSTTProvider)
+    def test_unsupported_stt_fails_startup_with_clear_error(self, monkeypatch):
+        """Unsupported STT providers like deepgram or whisper fail startup with a clear error."""
+        from app.main import validate_provider_configuration
+        from app.core.config import settings
+        monkeypatch.setattr(settings, "STT_PROVIDER", "whisper")
+        with pytest.raises(ValueError, match="Supported provider is 'browser'"):
+            validate_provider_configuration()
 
 
 # ─── 4. Mock Fallback Scoring Note on Report ───────────────────────────────────

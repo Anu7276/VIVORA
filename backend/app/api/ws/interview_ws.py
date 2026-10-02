@@ -14,7 +14,6 @@ from app.db.database import SessionLocal
 from app.db.models import Session as SessionModel, Question, Answer, Evaluation, Report
 from app.services.session_service import session_service
 from app.agents.orchestrator import orchestrator
-from app.voice.vad import VoiceActivityDetector
 from app.core.auth import verify_access_token
 from app.schemas.ws_messages import (
     SttPartialMessage,
@@ -102,7 +101,6 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
 
         # ─── 2. Session Initialization & Timer Setup ─────────────────────
         mode = session.mode or "school"
-        vad = VoiceActivityDetector(mode=mode)
 
         now_utc = datetime.utcnow()
         if session.started_at is None:
@@ -233,7 +231,6 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                 },
                 "speech": q_speech
             })
-            vad.reset()
 
         # Send initial (or resumed) question immediately
         await send_current_turn()

@@ -11,6 +11,7 @@ export interface CreateSessionParams {
   job_role?: string;
   tech_stack?: string;
   experience_level?: string;
+  language?: string;
 }
 
 export interface StudentProfile {
@@ -27,6 +28,7 @@ export interface SessionData {
   time_limit_min: number;
   status: string;
   started_at: string;
+  language?: string;
   questions: Array<{
     id: string;
     order_no: number;
@@ -55,11 +57,19 @@ export interface ReportData {
   report_id: string;
   session_id: string;
   mode: string;
+  status?: string;
   overall_score: number;
   strengths: string[];
   improvements: string[];
   revision_plan: string[];
+  communication_score?: number;
   communication_feedback?: string;
+  communication_breakdown?: {
+    filler_score: number;
+    pace_score: number;
+    length_score: number;
+    structure_score: number;
+  };
   scoring_note?: string;
   topic_scores: Array<{
     topic: string;
@@ -73,6 +83,7 @@ export interface ReportData {
     student_transcript: string;
     score: number;
     is_correct?: boolean;
+    scored?: boolean;
     concept_match?: string;
     feedback: string;
     missing_concepts?: string;

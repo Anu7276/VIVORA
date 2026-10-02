@@ -19,7 +19,8 @@ class SessionService:
         user_id: Optional[str] = None,
         job_role: Optional[str] = None,
         tech_stack: Optional[str] = None,
-        experience_level: Optional[str] = None
+        experience_level: Optional[str] = None,
+        language: str = "en-IN"
     ) -> Session:
         cfg = ModeStrategy.get_config(mode)
         q_source = question_source or cfg.question_source_default
@@ -76,6 +77,7 @@ class SessionService:
             user_id=user_id,
             document_id=doc.id,
             mode=mode,
+            language=language,
             question_source=q_source,
             time_limit_min=time_limit,
             status="created",

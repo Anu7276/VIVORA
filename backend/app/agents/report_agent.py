@@ -88,6 +88,11 @@ class ReportAgent(BaseAgent):
         else:
             scoring_note = "All evaluations AI-scored."
 
+        # Communication score and metrics for Interview mode
+        comm_metrics = None
+        if mode == "interview":
+            comm_metrics = self._compute_communication_metrics(evaluations)
+
         evals_summary = [
             {
                 "question": e.get("question_text", ""),
@@ -123,6 +128,11 @@ class ReportAgent(BaseAgent):
             if not report_data.get("topic_scores"):
                 report_data["topic_scores"] = topic_scores
 
+            if comm_metrics:
+                report_data["communication_score"] = comm_metrics["communication_score"]
+                report_data["communication_breakdown"] = comm_metrics["communication_breakdown"]
+                report_data["communication_feedback"] = comm_metrics["communication_breakdown"]["explanation"]
+
             # Clean internal meta keys
             report_data.pop("_provider", None)
             report_data.pop("_is_mock", None)
@@ -130,7 +140,7 @@ class ReportAgent(BaseAgent):
 
         except Exception as e:
             logger.warning(f"Report LLM generation failed: {e}. Returning numeric summary only.")
-            return {
+            res = {
                 "overall_score": avg_score,
                 "status": report_status,
                 "strengths": [],
@@ -142,6 +152,126 @@ class ReportAgent(BaseAgent):
                     f"{scoring_note} (AI report text generation was unavailable)."
                 ).strip(),
             }
+            if comm_metrics:
+                res["communication_score"] = comm_metrics["communication_score"]
+                res["communication_breakdown"] = comm_metrics["communication_breakdown"]
+                res["communication_feedback"] = comm_metrics["communication_breakdown"]["explanation"]
+            return res
+
+    @staticmethod
+    def _compute_communication_metrics(evaluations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Computes server-authoritative communication metrics for candidate interviews:
+        - Filler words per 100 words
+        - Speaking pace (words per minute)
+        - Answer length appropriateness
+        - Structure heuristic (transitions, argumentation)
+        """
+        total_words = 0
+        total_fillers = 0
+        total_duration = 0.0
+        structure_hits = 0
+        evaluated_turns = 0
+
+        structure_keywords = {
+            "firstly", "secondly", "thirdly", "furthermore", "moreover", "in addition",
+            "for example", "for instance", "such as", "because", "therefore", "as a result",
+            "however", "on the other hand", "trade-off", "tradeoff", "alternatively", "in conclusion"
+        }
+
+        for e in evaluations:
+            transcript = e.get("student_transcript") or e.get("transcript") or ""
+            words = transcript.lower().split()
+            w_count = len(words)
+            if w_count == 0:
+                continue
+
+            evaluated_turns += 1
+            total_words += w_count
+            duration = float(e.get("duration_sec") or 0)
+            total_duration += duration
+            fillers = int(e.get("filler_count") or 0)
+            total_fillers += fillers
+
+            for kw in structure_keywords:
+                if kw in transcript.lower():
+                    structure_hits += 1
+                    break
+
+        if total_words == 0:
+            return {
+                "communication_score": 0.0,
+                "communication_breakdown": {
+                    "filler_rate_per_100_words": 0.0,
+                    "speaking_pace_wpm": 0.0,
+                    "length_appropriateness_score": 0.0,
+                    "structure_score": 0.0,
+                    "explanation": "No spoken words were recorded to evaluate communication."
+                }
+            }
+
+        # 1. Filler rate per 100 words (0..10 score)
+        filler_rate = round((total_fillers / total_words) * 100.0, 1)
+        if filler_rate <= 1.0:
+            filler_score = 10.0
+        elif filler_rate <= 3.0:
+            filler_score = 8.5
+        elif filler_rate <= 5.0:
+            filler_score = 6.5
+        elif filler_rate <= 8.0:
+            filler_score = 4.5
+        else:
+            filler_score = 2.0
+
+        # 2. Speaking pace: words per minute
+        duration_min = (total_duration / 60.0) if total_duration > 0 else 0.5
+        wpm = round(total_words / duration_min, 1) if duration_min > 0 else 0.0
+        if 110 <= wpm <= 160:
+            pace_score = 10.0
+        elif 90 <= wpm <= 180:
+            pace_score = 8.0
+        elif 70 <= wpm <= 200:
+            pace_score = 6.0
+        else:
+            pace_score = 4.0
+
+        # 3. Answer length appropriateness
+        avg_words_per_ans = total_words / max(evaluated_turns, 1)
+        if 40 <= avg_words_per_ans <= 150:
+            length_score = 10.0
+        elif 25 <= avg_words_per_ans <= 250:
+            length_score = 7.5
+        else:
+            length_score = 5.0
+
+        # 4. Structure heuristic
+        struct_ratio = (structure_hits / max(evaluated_turns, 1))
+        structure_score = round(min(10.0, struct_ratio * 10.0 + 3.0), 1)
+
+        # Composite communication score
+        comm_score = round(
+            filler_score * 0.3 + pace_score * 0.25 + length_score * 0.25 + structure_score * 0.2,
+            1
+        )
+
+        explanation = (
+            f"Communication Score {comm_score}/10 based on: "
+            f"Filler Rate: {filler_rate} fillers/100 words ({filler_score}/10); "
+            f"Pace: {wpm} WPM ({pace_score}/10); "
+            f"Average Length: {round(avg_words_per_ans, 1)} words/answer ({length_score}/10); "
+            f"Structured Argumentation: {round(struct_ratio * 100, 1)}% of answers ({structure_score}/10)."
+        )
+
+        return {
+            "communication_score": comm_score,
+            "communication_breakdown": {
+                "filler_rate_per_100_words": filler_rate,
+                "speaking_pace_wpm": wpm,
+                "length_appropriateness_score": length_score,
+                "structure_score": structure_score,
+                "explanation": explanation
+            }
+        }
 
 
 report_agent = ReportAgent()
