@@ -111,6 +111,7 @@ export default function ReportPage() {
           <span>Back to Home</span>
         </button>
 
+        <div className="flex items-center gap-3">
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200 text-xs font-medium border border-white/10 transition-colors"
