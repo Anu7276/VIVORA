@@ -152,7 +152,7 @@ export default function HomePage() {
       const res = await createSession({
         title: sessionTitle,
         mode: sessionMode,
-        raw_text: finalContent,
+        content_text: finalContent,
         language: language,
         document_id: uploadedDocumentId || undefined,
       });
@@ -193,7 +193,7 @@ export default function HomePage() {
     }
   };
 
-  const userName = user?.full_name?.split(" ")[0] || "Pramila";
+  const userName = user?.name?.split(" ")[0] || "Pramila";
 
   return (
     <div className="flex h-screen w-screen bg-[#faf9f6] text-[#1f2937] font-sans antialiased overflow-hidden">

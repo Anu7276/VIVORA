@@ -476,7 +476,7 @@ export default function SessionRoomPage() {
           {/* Session Title */}
           <div className="flex items-center space-x-2">
             <span className="text-sm font-medium text-[#cbd5e1]">
-              {session?.document?.title || "System Design Mock Interview & Technical Viva"}
+              {session?.mode ? `${session.mode.toUpperCase()} Viva & Technical Interview` : "System Design Mock Interview & Technical Viva"}
             </span>
             <span className="px-2 py-0.5 rounded bg-[#1e202f] text-[11px] font-mono text-[#00ea64] border border-[#00ea64]/30">
               Q{questionIndex + 1}/{totalQuestions}
