@@ -234,60 +234,62 @@ export default function VIVORAEditorialHomePage() {
       </header>
 
       {/* ── HERO SECTION ────────────────────────────────────────────────────── */}
-      <section className="pt-32 md:pt-40 pb-16 md:pb-24 px-6 relative overflow-hidden">
+      <section className="pt-28 md:pt-36 pb-16 md:pb-24 px-6 relative overflow-hidden">
         
-        {/* Atmospheric Nature Memory Fragment 01 (Stitch-Generated Misty Mountain Ridge at Dawn) */}
+        {/* Atmospheric Mountain Background (Cinematic Misty Valley & Morning Ridge) */}
         <div 
-          className="nature-memory-layer nature-mask-organic-hero animate-nature-drift inset-0 -top-28 h-[880px] w-full"
+          className="nature-memory-layer nature-mask-hero animate-nature-drift inset-0 top-0 h-[720px] md:h-[820px] w-full"
           style={{
-            backgroundImage: `url('https://lh3.googleusercontent.com/aida/AEtjO1Vdq04qyKnT3PmD-LiVXYGhNU9GZBysT0l1vNWG88ALZ1VCRZBD2RaHIDWL-mzFaRo0gFno8Y1-rlCUD4Kh_xFDVO6XiC-EhwQz288qSYJ6cBbebXP4zgT6JbutgsIShje8RynWAFX_ML9CX1ekTSx_rDzHFUmfbW_3SDVLuOKADC2GaoeygXW1brvWyLmdpX7uDyO72CPjnDeHoAKl01WDJlSpqh36-aO-KkoOqT_cuhePmFxYwlHwcRg')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2400&q=85')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center 35%',
-            opacity: 0.17,
-            transform: `translate3d(0, ${scrollY * 0.08}px, 0)`,
+            backgroundPosition: 'center 28%',
+            opacity: 0.78,
+            transform: `translate3d(0, ${scrollY * 0.06}px, 0)`,
           }}
         />
         
-        {/* Soft atmospheric ivory wash & gradient aura */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F5]/40 via-transparent to-[#FAF9F5] pointer-events-none z-0" />
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[700px] md:w-[1000px] h-[450px] bg-gradient-to-b from-[#e8e4d3]/30 via-[#e0ddd0]/15 to-transparent blur-3xl pointer-events-none rounded-full z-0" />
+        {/* Soft atmospheric gradient wash ensuring contrast */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F5]/30 via-transparent to-[#FAF9F5] pointer-events-none z-0" />
+        <div className="absolute bottom-0 inset-x-0 h-44 bg-gradient-to-t from-[#FAF9F5] via-[#FAF9F5]/80 to-transparent pointer-events-none z-0" />
 
-        <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-6 relative z-10">
+        <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-6 relative z-10 pt-4">
           
           {/* Announcement pill */}
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[#F2EFE6]/90 backdrop-blur-xs border border-[#DDD9CF] text-[12px] font-medium text-[#4a5043] shadow-2xs">
-            <span>✦</span>
-            <span>AI-Powered Oral Defense & Viva Workspace</span>
+          <div className="inline-flex items-center space-x-2 px-4 py-1 rounded-full bg-[#FAF9F5]/90 backdrop-blur-md border border-[#DDD9CF] text-[11px] font-mono uppercase tracking-widest text-[#4a5043] shadow-xs">
+            <span className="text-[#7D9F68]">✦</span>
+            <span>CREDIBILITY • DISCIPLINE • COMMUNICATION</span>
           </div>
 
-          {/* Editorial Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[68px] font-serif font-normal text-[#20211E] tracking-tight leading-[1.08] max-w-3xl">
-            Study smarter.<br />
-            Speak better.<br />
-            <span className="italic text-[#7D9F68]">Perform with confidence.</span>
+          {/* Editorial Headline matching screenshot */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[72px] font-serif font-normal text-[#20211E] tracking-tight leading-[1.06] max-w-3xl">
+            Your next answer<br />
+            <span className="italic font-normal">starts here.</span>
           </h1>
 
           {/* Supporting Copy */}
-          <p className="text-base sm:text-lg text-[#6F7069] max-w-xl font-normal leading-relaxed pt-1">
-            One intelligent workspace for studying, viva preparation, technical interviews, and real-world communication.
+          <p className="text-sm sm:text-base md:text-lg text-[#555850] max-w-xl font-normal leading-relaxed">
+            Study. Practice. Speak. Improve.<br className="hidden sm:inline" />
+            Enter your viva with clarity and effortless intellectual composure.
           </p>
 
-          {/* Primary & Secondary CTAs */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-3">
+          {/* Primary CTA Button */}
+          <div className="pt-2">
             <button
               onClick={() => setShowSetupModal(true)}
-              className="px-6 py-3 rounded-full bg-[#20211E] hover:bg-[#343631] text-white text-[14px] font-medium shadow-sm hover:shadow-md transition-all flex items-center space-x-2 group"
+              className="px-8 py-3.5 rounded-full bg-[#20211E] hover:bg-[#343631] text-white text-[14px] font-medium shadow-md hover:shadow-lg transition-all flex items-center space-x-2.5 group"
             >
               <span>Try VIVORA free</span>
-              <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
+          </div>
 
-            <a
-              href="#product"
-              className="px-5 py-3 rounded-full bg-white hover:bg-[#F2EFE6] text-[#20211E] border border-[#DDD9CF] text-[14px] font-medium transition-all shadow-2xs"
-            >
-              See how it works
-            </a>
+          {/* Trust points row */}
+          <div className="pt-2 text-[11px] font-mono text-[#787c74] flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+            <span>No credit card required</span>
+            <span>•</span>
+            <span>Instant syllabus ingestion</span>
+            <span>•</span>
+            <span>5 deep-memory viva defenses</span>
           </div>
         </div>
 
@@ -437,15 +439,15 @@ export default function VIVORAEditorialHomePage() {
       {/* ── SECTION 2: PRODUCT VALUE ────────────────────────────────────────── */}
       <section className="py-20 md:py-28 px-6 border-t border-[#EBE7DD] bg-[#FAF9F5] relative overflow-hidden">
         
-        {/* Atmospheric Nature Memory Fragment 02 (Stitch-Generated Woodland Foliage & Canopy Rays) */}
+        {/* Atmospheric Nature Layer (Morning Canopy & Golden Rays) */}
         <div 
-          className="nature-memory-layer nature-mask-organic-right animate-nature-drift-reverse -right-24 top-10 w-[720px] h-[780px]"
+          className="nature-memory-layer nature-mask-organic-right animate-nature-drift-reverse -right-20 top-6 w-[760px] h-[800px]"
           style={{
-            backgroundImage: `url('https://lh3.googleusercontent.com/aida/AEtjO1VH0LZMcVpNoztzfMuzoXVAAM5CMZqnqDZ4KkUsjou3ze9B5N_mJtkVK5ILxwccMdK6QqMFYBkYIB-pWlRnhPa93rX4I13uafWxrgKYa3sCekRjtXpi-sahTxrM5GgfNPpMZV745xx7PszV6SPOMtkKYfUZ29hI6LpecRElFg_3jFDFZHSzB99kp0FWNF13TGbWjw1AcFVlFSlBI2yZajFGPLUNLbiddubOjC4_zGtvfh-U23dvrRWIQw')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=2000&q=80')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center right',
-            opacity: 0.15,
-            transform: `translate3d(0, ${(scrollY - 400) * 0.05}px, 0)`,
+            opacity: 0.45,
+            transform: `translate3d(0, ${(scrollY - 400) * 0.04}px, 0)`,
           }}
         />
 
@@ -535,15 +537,15 @@ export default function VIVORAEditorialHomePage() {
       {/* ── SECTION 3: AI VIVA EXPERIENCE ────────────────────────────────────── */}
       <section className="py-20 md:py-28 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
         
-        {/* Atmospheric Nature Memory Fragment 03 (Stitch-Generated Foggy Forest Path in Misty Green Valley) */}
+        {/* Atmospheric Nature Layer (Misty Mountain Forest & Quiet Mist) */}
         <div 
-          className="nature-memory-layer nature-mask-radial animate-nature-drift -left-28 top-1/2 -translate-y-1/2 w-[820px] h-[680px]"
+          className="nature-memory-layer nature-mask-radial animate-nature-drift -left-20 top-1/2 -translate-y-1/2 w-[860px] h-[720px]"
           style={{
-            backgroundImage: `url('https://lh3.googleusercontent.com/aida/AEtjO1VmKBAbcGsuKZpBVUazcX_Ba_PoyxM0e4pVRquifoGPlxXomHnVscxccghkeBTX4YjWRALfokQPPM4BfLuZgQ0OVng2P1soKmkEQYnAUvc_Z5MSEEYhd2HTH-rOphTA1RBhPUvNtDws4PsAiTzSoS9Z3jIJ9jaG9wxuAUzYTA2ce0DcjU9-1n2irXgT1HdTdLBpxSqjxt1QMWzaAxnPJXCMgmhP8XLYGvO_LCL5vaTV8nLXvT4X01ukyw')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1511497584788-87676104235f?auto=format&fit=crop&w=2000&q=80')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            opacity: 0.16,
-            transform: `translate3d(0, ${(scrollY - 1000) * 0.05}px, 0)`,
+            opacity: 0.45,
+            transform: `translate3d(0, ${(scrollY - 1000) * 0.04}px, 0)`,
           }}
         />
 
@@ -871,15 +873,15 @@ export default function VIVORAEditorialHomePage() {
       {/* ── SECTION 8: FINAL CINEMATIC CTA ──────────────────────────────────── */}
       <section className="py-24 md:py-32 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
         
-        {/* Atmospheric Nature Memory Fragment 05 (Stitch-Generated Sunrise Horizon & Golden Emerald Haze) */}
+        {/* Atmospheric Nature Layer (Alpine Morning Light & Misty Horizon) */}
         <div 
           className="nature-memory-layer nature-mask-fade-down animate-nature-drift inset-0 h-full w-full"
           style={{
-            backgroundImage: `url('https://lh3.googleusercontent.com/aida/AEtjO1V-mYgTuY7UoeGMz30kAcHugN_hnxHc3vrZ3My1Jduej62a7qkEsjn-kJfoQxXhFvGJwue_SP1aKhcsVYmEDCIws4GIKJ_IBS6eoFiqXX3W7dnAhfl6hv4RjaY--sUoFyQqVkTtASsRvxKhyLg8u8OqF6yh2NmLalKbt2tjDFV5LpDqJ8IxJJOJUCRe2glMWNnxEHZueEGLsygh7xjCgRWiXhQykoo064poCzeqLuaf6mrFChxyBBpe1Vw')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=2400&q=85')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center 45%',
-            opacity: 0.22,
-            transform: `translate3d(0, ${(scrollY - 3000) * 0.04}px, 0)`,
+            backgroundPosition: 'center 40%',
+            opacity: 0.55,
+            transform: `translate3d(0, ${(scrollY - 2800) * 0.04}px, 0)`,
           }}
         />
 
