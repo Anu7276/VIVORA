@@ -111,8 +111,24 @@ class GroqProvider(LLMProvider):
             return resp.json()["choices"][0]["message"]["content"]
 
     async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
-        text = await self.generate_text(prompt, system_prompt)
-        return _extract_json_from_text(text)
+        prompt = Guardrails.sanitize_input(prompt)
+        messages: List[Dict[str, str]] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                self.base_url, headers=headers,
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "response_format": {"type": "json_object"}
+                },
+            )
+            resp.raise_for_status()
+            text = resp.json()["choices"][0]["message"]["content"]
+            return _extract_json_from_text(text)
 
 
 # ─── OpenAI ───────────────────────────────────────────────────────────────────

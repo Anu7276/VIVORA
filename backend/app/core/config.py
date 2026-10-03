@@ -32,21 +32,21 @@ class Settings(BaseSettings):
 
     # ── Model names (override per deployment) ─────────────────────────────────
     GEMINI_MODEL: str = "gemini-2.5-flash"
-    GROQ_MODEL: str = "llama-3.1-8b-instant"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
     OPENAI_MODEL: str = "gpt-4o-mini"
 
     # ── Per-task LLM routing ──────────────────────────────────────────────────
     # Each task picks a preferred provider by name: gemini | groq | openai | mock
     # If the chosen provider has no key, the router falls back automatically.
     #
-    #  question_generation  → runs once at session start (deep context, Gemini default)
+    #  question_generation  → runs once at session start (deep context, Groq/Qwen default)
     #  live_turn            → real-time follow-up / doubt / interviewer (low-latency, Groq default)
     #  evaluation           → score each answer rubric (Groq default, fast)
-    #  report               → final session report (richer output, Gemini default)
-    QUESTION_GEN_PROVIDER: str = "gemini"
+    #  report               → final session report (richer output, Groq default)
+    QUESTION_GEN_PROVIDER: str = "groq"
     LIVE_PROVIDER: str = "groq"
     EVALUATION_PROVIDER: str = "groq"
-    REPORT_PROVIDER: str = "gemini"
+    REPORT_PROVIDER: str = "groq"
 
     # Voice Providers (browser for STT; browser or elevenlabs for TTS)
     STT_PROVIDER: str = "browser"
