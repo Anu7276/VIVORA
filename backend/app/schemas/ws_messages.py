@@ -14,6 +14,7 @@ class SttPartialMessage(BaseModel):
 
 class SubmitAnswerMessage(BaseModel):
     type: Literal["submit_answer"]
+    question_id: Optional[str] = None
     transcript: str = Field(..., max_length=5000)
     duration_sec: Optional[int] = None
     filler_count: Optional[int] = None

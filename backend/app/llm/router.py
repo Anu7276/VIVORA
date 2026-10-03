@@ -549,8 +549,10 @@ class LLMRouter:
             self._pool["gemini"] = GeminiProvider(settings.GEMINI_API_KEY)
         if settings.GROQ_API_KEY:
             self._pool["groq"] = GroqProvider(settings.GROQ_API_KEY)
-        if settings.ENV in ("test", "testing") or "pytest" in sys.modules:
-            self._pool["mock"] = SmartRuleFallbackProvider()
+        if settings.OPENAI_API_KEY:
+            self._pool["openai"] = OpenAIProvider(settings.OPENAI_API_KEY)
+        # Mock fallback provider is always registered for offline/testing/graceful degradation
+        self._pool["mock"] = SmartRuleFallbackProvider()
 
         # NOTE: last_call_meta is intentionally per-call (set in complete()),
         # not a shared global — callers must pass it through or read it immediately.

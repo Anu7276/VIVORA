@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # ── Environment ───────────────────────────────────────────────────────────
     # "development" enables /docs, /openapi.json and the / info route.
     # Anything else (production, staging, …) disables them.
-    ENV: str = "production"
+    ENV: str = "development"
 
     # ── Security ──────────────────────────────────────────────────────────────
     # If not set, a random key is generated at startup (not suitable for multi-replica).
@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None   # never logged
     FRONTEND_URL: str = "http://localhost:3000"
+
+    # ── LLM Provider Override (e.g. 'mock' for testing) ──────────────────────
+    LLM_PROVIDER: Optional[str] = None
 
     # ── API Keys ─────────────────────────────────────────────────────────────
     GEMINI_API_KEY: Optional[str] = None

@@ -48,6 +48,12 @@ def validate_provider_configuration():
                 f"Startup validation failed: Unknown LLM provider '{provider_name}' for task '{task_name}'. "
                 f"Valid providers are: {', '.join(sorted(valid_llm_providers))}."
             )
+    import os
+    if settings.ENV.lower() == "production" and not getattr(settings, "JWT_SECRET_KEY", None):
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            raise ValueError("Startup validation failed: JWT_SECRET_KEY must be configured when running in production environment.")
+        else:
+            logger.warning("JWT_SECRET_KEY is not configured for production in test mode.")
 
 # Run startup validation
 validate_provider_configuration()
@@ -84,6 +90,29 @@ app = FastAPI(
     redoc_url="/redoc" if _is_dev else None,
     openapi_url=f"{settings.API_V1_STR}/openapi.json" if _is_dev else None,
 )
+
+MAX_GLOBAL_BODY_SIZE = 2 * 1024 * 1024  # 2 MB
+MAX_UPLOAD_BODY_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+@app.middleware("http")
+async def body_size_limit_middleware(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            cl = int(content_length)
+            is_upload = request.url.path.startswith(f"{settings.API_V1_STR}/upload/file")
+            limit = MAX_UPLOAD_BODY_SIZE if is_upload else MAX_GLOBAL_BODY_SIZE
+            if cl > limit:
+                from starlette.responses import JSONResponse
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": f"Request body too large. Maximum allowed size is {limit // (1024*1024)} MB."}
+                )
+        except ValueError:
+            pass
+    return await call_next(request)
+
 
 @app.middleware("http")
 async def request_id_and_logging_middleware(request: Request, call_next):

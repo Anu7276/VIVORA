@@ -16,7 +16,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DBSession
 
 from starlette.concurrency import run_in_threadpool
@@ -70,9 +70,9 @@ def _check_file_type_allowed(filename: str, content_type: str) -> None:
 
 
 class TextUploadRequest(BaseModel):
-    title: str
-    doc_type: str = "questions"  # syllabus | topic | questions | textbook | resume
-    content: str
+    title: str = Field(..., min_length=1, max_length=200)
+    doc_type: str = Field("questions", max_length=50)  # syllabus | topic | questions | textbook | resume
+    content: str = Field(..., min_length=1, max_length=_MAX_TEXT_LENGTH_CHARS)
 
 
 @router.post("/text")
@@ -118,9 +118,10 @@ async def upload_text_material(
             "chunks_count": len(res.get("chunks", [])),
         }
     except Exception as e:
+        logger.error(f"Ingestion failed for doc {doc.id}: {e}", exc_info=True)
         doc.ingest_status = "failed"
         db.commit()
-        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Document ingestion failed. Please try again.")
 
 
 @router.post("/file")

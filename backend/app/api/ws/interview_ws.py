@@ -3,8 +3,9 @@ import asyncio
 import logging
 import time
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
+from collections import defaultdict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -29,12 +30,14 @@ logger = logging.getLogger("vivora.ws")
 router = APIRouter()
 
 FILLER_REGEX = re.compile(r"\b(um|uh|like|you know|basically|actually)\b", re.IGNORECASE)
+MAX_EVAL_RETRIES_PER_QUESTION = 2
 
 
 @router.websocket("/ws/session/{session_id}")
 async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
     await websocket.accept()
     db: DBSession = SessionLocal()
+    retry_counts: Dict[str, int] = defaultdict(int)
 
     try:
         session = session_service.get_session(db, session_id)
@@ -102,7 +105,7 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
         # ─── 2. Session Initialization & Timer Setup ─────────────────────
         mode = session.mode or "school"
 
-        now_utc = datetime.utcnow()
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         if session.started_at is None:
             session.started_at = now_utc
             session.status = "live"
@@ -111,7 +114,8 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
 
         # Server-authoritative timer
         time_limit_sec = float((session.time_limit_min or 30) * 60)
-        elapsed_sec = (datetime.utcnow() - session.started_at).total_seconds()
+        session_started_dt = session.started_at or now_utc
+        elapsed_sec = (now_utc - session_started_dt).total_seconds()
         session.time_used_sec = max(session.time_used_sec or 0, int(elapsed_sec))
         db.commit()
 
@@ -128,7 +132,6 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
         existing_report = db.query(Report).filter(Report.session_id == session_id).first()
         if existing_report or session.status == "completed":
             if not existing_report:
-                # Build report from DB evaluations
                 db_evals = session_service.get_session_evaluations(db, session_id)
                 report_data = await orchestrator.generate_final_report(mode=mode, evaluations=db_evals)
                 existing_report = session_service.complete_session_report(db, session_id, report_data)
@@ -238,7 +241,8 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
         # ─── 3. Message Processing Loop ──────────────────────────────────
         while True:
             # Check elapsed time
-            now_elapsed = (datetime.utcnow() - session.started_at).total_seconds()
+            now_dt = datetime.now(timezone.utc).replace(tzinfo=None)
+            now_elapsed = (now_dt - session_started_dt).total_seconds()
             session.time_used_sec = max(session.time_used_sec or 0, int(now_elapsed))
             db.commit()
 
@@ -293,13 +297,50 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
             try:
                 if msg_type == "stt_partial":
                     stt_msg = SttPartialMessage(**data)
-                    await websocket.send_json({
-                        "type": "stt_partial",
-                        "transcript": stt_msg.transcript or ""
-                    })
+                    # Don't commit or write DB on stt_partial
 
                 elif msg_type == "submit_answer":
                     sub_msg = SubmitAnswerMessage(**data)
+
+                    # 1. If all questions finished, ignore submit gracefully
+                    if current_q_idx >= len(questions) and not (session.awaiting_followup and session.active_followup_id):
+                        logger.info(f"Ignoring submit_answer on completed session {session_id}")
+                        continue
+
+                    # 2. Determine target question
+                    if session.awaiting_followup and session.active_followup_id:
+                        target_q = db.query(Question).filter(Question.id == session.active_followup_id).first()
+                        if not target_q:
+                            target_q = questions[current_q_idx]
+                    else:
+                        target_q = questions[current_q_idx]
+
+                    # 3. Validate question_id if provided
+                    if sub_msg.question_id:
+                        if sub_msg.question_id != target_q.id:
+                            # Check if it belongs to another question in this session
+                            q_match = db.query(Question).filter(
+                                Question.id == sub_msg.question_id,
+                                Question.session_id == session_id
+                            ).first()
+                            if q_match:
+                                # Duplicate submission for already answered question -> ignore gracefully
+                                logger.info(f"Duplicate answer submit for question {sub_msg.question_id} in session {session_id}")
+                                continue
+                            else:
+                                # Foreign question_id from another session
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "code": "INVALID_QUESTION_ID",
+                                    "message": "Question ID does not belong to this active session."
+                                })
+                                continue
+
+                    # 4. Check if target_q already has an answer (duplicate frame protection)
+                    existing_ans = db.query(Answer).filter(Answer.question_id == target_q.id).first()
+                    if existing_ans:
+                        logger.info(f"Answer already recorded for question {target_q.id}; ignoring duplicate submit.")
+                        continue
 
                     # Compute honest server metrics
                     duration_sec = max(1, int(time.time() - question_sent_at)) if question_sent_at else 5
@@ -313,10 +354,6 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
 
                     if session.awaiting_followup and session.active_followup_id:
                         # Follow-up evaluation turn
-                        target_q = db.query(Question).filter(Question.id == session.active_followup_id).first()
-                        if not target_q:
-                            target_q = questions[current_q_idx]
-
                         if not raw_transcript:
                             stored_transcript = "no answer"
                             eval_data = {
@@ -371,8 +408,6 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
 
                     else:
                         # Main question turn
-                        target_q = questions[current_q_idx]
-
                         if not raw_transcript:
                             stored_transcript = "no answer"
                             eval_data = {
@@ -473,22 +508,26 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                     if session.awaiting_followup and session.active_followup_id:
                         active_q = db.query(Question).filter(Question.id == session.active_followup_id).first()
                     else:
-                        active_q = questions[current_q_idx]
+                        if current_q_idx < len(questions):
+                            active_q = questions[current_q_idx]
+                        else:
+                            continue
 
-                    q_speech = await orchestrator.prepare_interviewer_turn(
-                        question={
-                            "id": active_q.id,
-                            "order_no": current_q_idx + 1,
-                            "question_text": active_q.question_text,
-                            "topic": active_q.topic,
-                            "difficulty": active_q.difficulty
-                        },
-                        mode=mode
-                    )
-                    await websocket.send_json({
-                        "type": "question_repeated",
-                        "speech": q_speech
-                    })
+                    if active_q:
+                        q_speech = await orchestrator.prepare_interviewer_turn(
+                            question={
+                                "id": active_q.id,
+                                "order_no": current_q_idx + 1,
+                                "question_text": active_q.question_text,
+                                "topic": active_q.topic,
+                                "difficulty": active_q.difficulty
+                            },
+                            mode=mode
+                        )
+                        await websocket.send_json({
+                            "type": "question_repeated",
+                            "speech": q_speech
+                        })
 
                 elif msg_type == "skip_question":
                     _ = SkipQuestionMessage(**data)
@@ -524,51 +563,77 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                     retry_msg = RetryEvaluationMessage(**data)
                     q_id = retry_msg.question_id
                     target_ans = None
+
                     if q_id:
-                        target_ans = db.query(Answer).filter(Answer.question_id == q_id).order_by(Answer.answered_at.desc()).first()
+                        # Restrict query strictly to this session's questions
+                        target_ans = (
+                            db.query(Answer)
+                            .join(Question, Answer.question_id == Question.id)
+                            .filter(Question.session_id == session_id, Answer.question_id == q_id)
+                            .order_by(Answer.answered_at.desc())
+                            .first()
+                        )
                     else:
                         prev_idx = max(0, current_q_idx - 1) if current_q_idx > 0 else 0
                         if prev_idx < len(questions):
-                            target_ans = db.query(Answer).filter(Answer.question_id == questions[prev_idx].id).order_by(Answer.answered_at.desc()).first()
+                            target_ans = (
+                                db.query(Answer)
+                                .filter(Answer.question_id == questions[prev_idx].id)
+                                .order_by(Answer.answered_at.desc())
+                                .first()
+                            )
 
-                    if target_ans:
-                        q_obj = target_ans.question
-                        turn_result = await orchestrator.evaluate_turn(
-                            tenant_id=session.document_id or session.id,
-                            question_text=q_obj.question_text,
-                            answer_transcript=target_ans.transcript,
-                            reference_answer=q_obj.reference_answer or "",
-                            mode=mode,
-                            planned_followup=None,
-                            planned_followup_answer=None
-                        )
-                        eval_data = turn_result["evaluation"]
-                        eval_data["question_text"] = q_obj.question_text
-                        eval_data["topic"] = q_obj.topic
-                        eval_data["reference_answer"] = q_obj.reference_answer or ""
-
-                        if target_ans.evaluation:
-                            target_ans.evaluation.scored = eval_data.get("scored", True)
-                            target_ans.evaluation.correctness_score = eval_data.get("correctness_score")
-                            target_ans.evaluation.depth_score = eval_data.get("depth_score")
-                            target_ans.evaluation.clarity_score = eval_data.get("clarity_score")
-                            target_ans.evaluation.overall_score = eval_data.get("overall_score")
-                            target_ans.evaluation.feedback = eval_data.get("feedback", "")
-                            target_ans.evaluation.missing_concepts = eval_data.get("missing_concepts", "")
-                            target_ans.evaluation.model_answer = eval_data.get("model_answer", "")
-                            target_ans.evaluation.provider = eval_data.get("_provider", "mock")
-                            db.commit()
-
-                        await websocket.send_json({
-                            "type": "evaluation_result",
-                            "evaluation": eval_data
-                        })
-                    else:
+                    if not target_ans:
                         await websocket.send_json({
                             "type": "error",
                             "code": "ANSWER_NOT_FOUND",
-                            "message": "No answer found to re-evaluate."
+                            "message": "No answer found in this session to re-evaluate."
                         })
+                        continue
+
+                    # Check retry cap per question
+                    qid_key = target_ans.question_id
+                    if retry_counts[qid_key] >= MAX_EVAL_RETRIES_PER_QUESTION:
+                        await websocket.send_json({
+                            "type": "error",
+                            "code": "RETRY_LIMIT_REACHED",
+                            "message": f"Maximum evaluation retries ({MAX_EVAL_RETRIES_PER_QUESTION}) reached for this question."
+                        })
+                        continue
+
+                    retry_counts[qid_key] += 1
+
+                    q_obj = target_ans.question
+                    turn_result = await orchestrator.evaluate_turn(
+                        tenant_id=session.document_id or session.id,
+                        question_text=q_obj.question_text,
+                        answer_transcript=target_ans.transcript,
+                        reference_answer=q_obj.reference_answer or "",
+                        mode=mode,
+                        planned_followup=None,
+                        planned_followup_answer=None
+                    )
+                    eval_data = turn_result["evaluation"]
+                    eval_data["question_text"] = q_obj.question_text
+                    eval_data["topic"] = q_obj.topic
+                    eval_data["reference_answer"] = q_obj.reference_answer or ""
+
+                    if target_ans.evaluation:
+                        target_ans.evaluation.scored = eval_data.get("scored", True)
+                        target_ans.evaluation.correctness_score = eval_data.get("correctness_score")
+                        target_ans.evaluation.depth_score = eval_data.get("depth_score")
+                        target_ans.evaluation.clarity_score = eval_data.get("clarity_score")
+                        target_ans.evaluation.overall_score = eval_data.get("overall_score")
+                        target_ans.evaluation.feedback = eval_data.get("feedback", "")
+                        target_ans.evaluation.missing_concepts = eval_data.get("missing_concepts", "")
+                        target_ans.evaluation.model_answer = eval_data.get("model_answer", "")
+                        target_ans.evaluation.provider = eval_data.get("_provider", "mock")
+                        db.commit()
+
+                    await websocket.send_json({
+                        "type": "evaluation_result",
+                        "evaluation": eval_data
+                    })
 
                 else:
                     await websocket.send_json({
@@ -578,17 +643,18 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                     })
 
             except (ValidationError, ValueError) as val_err:
+                logger.warning(f"WS validation error: {val_err}")
                 await websocket.send_json({
                     "type": "error",
                     "code": "VALIDATION_ERROR",
-                    "message": str(val_err)
+                    "message": "Invalid message structure or parameters."
                 })
             except Exception as e:
                 logger.error(f"Error handling message {msg_type}: {e}", exc_info=True)
                 await websocket.send_json({
                     "type": "error",
                     "code": "HANDLER_ERROR",
-                    "message": "Error processing your request."
+                    "message": "Internal error processing request."
                 })
 
     except WebSocketDisconnect:

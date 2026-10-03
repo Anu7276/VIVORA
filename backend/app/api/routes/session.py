@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Optional, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy.orm import Session as DBSession
 
 from app.core.auth import get_active_user
@@ -31,17 +31,17 @@ _VALID_MODES = {"school", "college", "interview"}
 
 
 class CreateSessionRequest(BaseModel):
-    mode: str = "school"
-    title: str = "Science Viva Practice"
-    content_text: str = ""
-    document_id: Optional[str] = None
-    question_source: Optional[str] = None
-    time_limit_min: Optional[int] = None
+    mode: str = Field("school", max_length=20)
+    title: str = Field("Science Viva Practice", max_length=200)
+    content_text: str = Field("", max_length=500_000)
+    document_id: Optional[str] = Field(None, max_length=100)
+    question_source: Optional[str] = Field(None, max_length=50)
+    time_limit_min: Optional[int] = Field(None, ge=1, le=180)
     # job_role/tech_stack/experience_level only relevant for interview mode
-    job_role: Optional[str] = None
-    tech_stack: Optional[str] = None
-    experience_level: Optional[str] = None
-    language: Optional[str] = "en-IN"
+    job_role: Optional[str] = Field(None, max_length=100)
+    tech_stack: Optional[str] = Field(None, max_length=200)
+    experience_level: Optional[str] = Field(None, max_length=50)
+    language: Optional[str] = Field("en-IN", max_length=20)
 
     @field_validator("mode")
     @classmethod

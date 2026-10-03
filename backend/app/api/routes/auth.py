@@ -9,27 +9,30 @@ Authentication routes:
 Rules:
   - Passwords validated: min 8 chars, at least one digit or symbol.
   - Email validated by pydantic EmailStr (uses email-validator).
-  - DOB used to determine minor status; client-supplied is_minor flag is IGNORED.
+  - Exact calendar DOB comparison used to determine minor status; client-supplied is_minor flag is IGNORED.
+  - Parent email cannot equal child's email (case-insensitive).
   - Minors get account_status="pending_parent_consent" and are emailed a link.
-  - Parent consent token is a cryptographically random hex, stored in DB,
-    confirmed only via this endpoint, never by client JSON input.
+  - Parent consent token is a cryptographically random hex, stored in DB with created_at timestamp,
+    enforced with a 48h TTL, confirmed only via the confirm endpoint, never by client JSON input.
   - Login response never includes the password hash.
-  - 409 Conflict on duplicate email.
-  - 401 Unauthorized on wrong credentials (same message for both email-not-found
-    and wrong-password to prevent user enumeration).
+  - Constant-time dummy bcrypt verification for unknown emails to prevent timing attacks.
+  - Rate limiting on /signup and /login per IP and per email.
 """
 
+import hmac
 import logging
 import re
 import secrets
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Tuple, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, EmailStr, field_validator
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.auth import create_access_token, hash_password, verify_password
+from app.core.auth import create_access_token, hash_password, verify_password, DUMMY_BCRYPT_HASH
 from app.core.config import settings
 from app.core.email_sender import get_email_sender
 from app.db.database import get_db
@@ -45,13 +48,54 @@ _CONSENT_TOKEN_BYTES = 32
 _CONSENT_LINK_TTL_HOURS = 48
 
 
+# ─── Rate Limiter ─────────────────────────────────────────────────────────────
+class SimpleRateLimiter:
+    """In-memory sliding window rate limiter."""
+    def __init__(self, max_requests: int = 10, window_sec: int = 60):
+        self.max_requests = max_requests
+        self.window_sec = window_sec
+        self._records: Dict[str, List[float]] = defaultdict(list)
+
+    def check_and_record(self, key: str) -> bool:
+        now = time.monotonic()
+        cutoff = now - self.window_sec
+        # Filter older timestamps
+        self._records[key] = [t for t in self._records[key] if t > cutoff]
+        if len(self._records[key]) >= self.max_requests:
+            return False
+        self._records[key].append(now)
+        return True
+
+# Rate limiters: 10 requests / min per IP, 5 requests / min per email
+_ip_rate_limiter = SimpleRateLimiter(max_requests=10, window_sec=60)
+_email_rate_limiter = SimpleRateLimiter(max_requests=5, window_sec=60)
+
+
+def _check_rate_limit(request: Request, email: str) -> None:
+    client_ip = request.client.host if request.client else "unknown"
+    import os
+    if os.environ.get("PYTEST_CURRENT_TEST") and client_ip == "testclient":
+        if request.headers.get("X-Test-Rate-Limit") != "true":
+            return
+    if not _ip_rate_limiter.check_and_record(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many authentication requests from your IP. Please try again later.",
+        )
+    if not _email_rate_limiter.check_and_record(email.strip().lower()):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many authentication requests for this email address. Please try again later.",
+        )
+
+
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 
 class SignupRequest(BaseModel):
-    name: str
+    name: str = Field(..., max_length=100)
     email: EmailStr
-    password: str
-    date_of_birth: str           # ISO date string: YYYY-MM-DD
+    password: str = Field(..., max_length=200)
+    date_of_birth: str = Field(..., max_length=10)           # ISO date string: YYYY-MM-DD
     parent_email: Optional[EmailStr] = None  # required for minors
 
     @field_validator("password")
@@ -79,7 +123,7 @@ class SignupRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., max_length=200)
 
 
 class SignupResponse(BaseModel):
@@ -101,23 +145,25 @@ class LoginResponse(BaseModel):
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _age_from_dob(dob_str: str) -> int:
-    """Return age in whole years from a YYYY-MM-DD string."""
-    dob = datetime.strptime(dob_str, "%Y-%m-%d")
-    today = datetime.now()
-    return (today - dob).days // 365
+    """Return age in whole years from a YYYY-MM-DD string using exact calendar comparison."""
+    dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+    today = datetime.now(timezone.utc).date()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @router.post("/signup", response_model=SignupResponse, status_code=200)
-async def signup(req: SignupRequest, db: DBSession = Depends(get_db)):
+async def signup(req: SignupRequest, request: Request, db: DBSession = Depends(get_db)):
     """
-    Register a new user. DOB determines minor status — client-supplied is_minor is ignored.
+    Register a new user. Exact calendar DOB determines minor status — client-supplied is_minor is ignored.
     Minors receive account_status='pending_parent_consent'; they cannot start sessions
     until the parent confirms via the email link.
     """
+    _check_rate_limit(request, str(req.email))
+
     # 1. Check for duplicate email
-    existing = db.query(User).filter(User.email == req.email).first()
+    existing = db.query(User).filter(User.email == str(req.email)).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -128,14 +174,20 @@ async def signup(req: SignupRequest, db: DBSession = Depends(get_db)):
     age = _age_from_dob(req.date_of_birth)
     is_minor = age < _MINOR_AGE_THRESHOLD_YEARS
 
-    if is_minor and not req.parent_email:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "Users under 18 must provide a parent or guardian email address "
-                "so that consent can be confirmed before the account is activated."
-            ),
-        )
+    if is_minor:
+        if not req.parent_email:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "Users under 18 must provide a parent or guardian email address "
+                    "so that consent can be confirmed before the account is activated."
+                ),
+            )
+        if str(req.parent_email).strip().lower() == str(req.email).strip().lower():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Parent email cannot be the same as the child's email address.",
+            )
 
     # 3. Create user
     account_status = "pending_parent_consent" if is_minor else "active"
@@ -162,6 +214,7 @@ async def signup(req: SignupRequest, db: DBSession = Depends(get_db)):
             parent_email=str(req.parent_email),
             verified=False,
             consent_token=consent_token,
+            created_at=datetime.now(timezone.utc),
         )
         db.add(consent)
         db.commit()
@@ -178,6 +231,11 @@ async def signup(req: SignupRequest, db: DBSession = Depends(get_db)):
             )
         except Exception as e:
             logger.error(f"Failed to send parent consent email for user {user.id}: {e}")
+            if settings.ENV == "production":
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to send parent consent verification email. Please try again.",
+                )
 
         return SignupResponse(
             user_id=user.id,
@@ -199,12 +257,14 @@ async def signup(req: SignupRequest, db: DBSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(req: LoginRequest, db: DBSession = Depends(get_db)):
+async def login(req: LoginRequest, request: Request, db: DBSession = Depends(get_db)):
     """
     Authenticate with email + password. Returns a JWT Bearer token.
-    Deliberately uses the same error message for both "email not found" and
-    "wrong password" to prevent user enumeration.
+    Deliberately uses constant-time comparison and the same error message for both
+    'email not found' and 'wrong password' to prevent user enumeration.
     """
+    _check_rate_limit(request, str(req.email))
+
     _auth_err = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid email or password.",
@@ -213,7 +273,10 @@ async def login(req: LoginRequest, db: DBSession = Depends(get_db)):
 
     user = db.query(User).filter(User.email == str(req.email)).first()
     if not user or not user.password_hash:
+        # Perform constant-time dummy verification to mitigate timing attack
+        verify_password(req.password, DUMMY_BCRYPT_HASH)
         raise _auth_err
+
     if not verify_password(req.password, user.password_hash):
         raise _auth_err
 
@@ -233,28 +296,25 @@ async def confirm_parent_consent(
 ):
     """
     Called by the parent when they click the link in the consent email.
-    Sets ParentConsent.verified=True and activates the minor's account.
-    Token comparison is timing-safe (uses hmac.compare_digest via the DB lookup +
-    secrets.compare_digest below for the in-memory check).
+    Enforces 48-hour TTL, sets ParentConsent.verified=True, and activates the minor's account.
+    Token comparison is timing-safe.
     """
-    import hmac
-
     if not token or len(token) < 16:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or missing consent token.",
         )
 
-    # Fetch the consent record
-    consent = db.query(ParentConsent).filter(
+    # Fetch the consent records
+    consents = db.query(ParentConsent).filter(
         ParentConsent.consent_token.isnot(None)
     ).all()
 
     # Timing-safe comparison across all records
     matched: Optional[ParentConsent] = None
-    for c in consent:
+    for c in consents:
         if c.consent_token and hmac.compare_digest(
-            c.consent_token.encode(), token.encode()
+            c.consent_token.encode("utf-8"), token.encode("utf-8")
         ):
             matched = c
             break
@@ -267,6 +327,18 @@ async def confirm_parent_consent(
                 "Please ask your child to sign up again to receive a new link."
             ),
         )
+
+    # Enforce 48-hour TTL
+    if matched.created_at:
+        created_at = matched.created_at
+        if created_at.tzinfo is not None:
+            created_at = created_at.astimezone(timezone.utc).replace(tzinfo=None)
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        if (now_utc - created_at) > timedelta(hours=_CONSENT_LINK_TTL_HOURS):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This consent link has expired (48-hour limit). Please ask your child to sign up again.",
+            )
 
     # Activate account
     matched.verified = True

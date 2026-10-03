@@ -1,13 +1,13 @@
 import hmac
+from typing import List, Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from sqlalchemy.orm import Session as DBSession
-from app.core.auth import get_active_user, secure_compare
+from app.core.auth import secure_compare
 from app.db.database import get_db
-from app.db.models import Report, Session, Question, Answer, Evaluation, LLMUsageLog, User
+from app.db.models import Report, Session, Question, Answer, Evaluation, LLMUsageLog, User, Document, DocumentChunk
 from app.rag.vector_store import vector_store
 from app.rag.retriever import rag_retriever
-from typing import List, Dict, Any, Optional
 
 router = APIRouter()
 
@@ -20,10 +20,7 @@ def _verify_session_token(session: Session, token: Optional[str]):
 
     Security rules:
       - If session.session_token is None/empty, access is DENIED (no bypass).
-        A session without a token is either corrupted or a legacy record;
-        deny rather than allow.
-      - Token comparison uses hmac.compare_digest (constant-time) to prevent
-        timing attacks.
+      - Token comparison uses hmac.compare_digest (constant-time) to prevent timing attacks.
     """
     if not token or not token.strip():
         raise HTTPException(
@@ -31,7 +28,6 @@ def _verify_session_token(session: Session, token: Optional[str]):
             detail="Forbidden: Missing session token. The per-session secret token is required.",
         )
 
-    # session.session_token must exist; a missing token in the DB is not a bypass
     if not session.session_token:
         raise HTTPException(
             status_code=403,
@@ -43,7 +39,6 @@ def _verify_session_token(session: Session, token: Optional[str]):
             status_code=403,
             detail="Forbidden: Invalid session token.",
         )
-
 
 
 @router.get("/{session_id}")
@@ -58,7 +53,7 @@ async def get_session_report(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify per-session secret token
+    # Verify per-session secret token (prefer X-Session-Token header)
     auth_token = x_session_token or token
     _verify_session_token(session, auth_token)
 
@@ -94,12 +89,10 @@ async def get_session_report(
             "missing_concepts": ev.missing_concepts if ev else "",
             "reference_answer": q.reference_answer or "",
             "model_answer": ev.model_answer if (ev and ev.model_answer) else (q.reference_answer or ""),
-            "concept_match": "Full Match" if (ev and ev.overall_score >= 8.0) else "Partial Match" if (ev and ev.overall_score >= 5.0) else "Needs Review",
+            "concept_match": "Full Match" if (ev and ev.overall_score is not None and ev.overall_score >= 8.0) else "Partial Match" if (ev and ev.overall_score is not None and ev.overall_score >= 5.0) else "Needs Review",
             "provider": ev.provider if ev else "mock"
         })
 
-    # Item 6: only include communication_feedback when it is actually computed
-    # (non-empty and non-zero). Interview mode sets it; school/college leave it blank.
     comm_feedback = report.communication_feedback
     include_comm = bool(comm_feedback and comm_feedback.strip())
 
@@ -122,7 +115,7 @@ async def get_session_report(
     return payload
 
 
-# ── Delete-my-data endpoint (Requirement 2) ───────────────────────────────────
+# ── Delete-my-data endpoint (Requirement C5) ───────────────────────────────────
 
 @router.delete("/{session_id}/data")
 async def delete_session_data(
@@ -140,28 +133,45 @@ async def delete_session_data(
       - Evaluations
       - Reports & topic scores
       - LLM usage logs for this session
-      - In-memory vector-store chunks for this session
+      - In-memory vector-store chunks for this session / document
+      - Document & DocumentChunk rows if no other session uses that document
       - Session and Question records
     """
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify per-session secret token
+    # Verify per-session secret token (prefer X-Session-Token header)
     auth_token = x_session_token or token
     _verify_session_token(session, auth_token)
 
-    # 1. Clear in-memory vector-store chunks & retriever cache for this session
+    doc_id = session.document_id
+
+    # 1. Clear in-memory vector-store chunks & retriever cache for this document
+    if doc_id:
+        vector_store.clear_tenant(doc_id)
+        rag_retriever.invalidate_cache(doc_id)
     vector_store.clear_tenant(session_id)
-    if session.document_id:
-        rag_retriever.invalidate_cache(session.document_id)
+    rag_retriever.invalidate_cache(session_id)
 
     # 2. Delete LLM usage logs referencing this session
     db.query(LLMUsageLog).filter(LLMUsageLog.session_id == session_id).delete()
 
-    # 3. Delete the session — cascade handles Questions → Answers (transcripts) →
-    # Evaluations → Report → TopicScores via SQLAlchemy cascade="all, delete-orphan"
+    # 3. Check if other sessions share this document
+    other_sessions_using_doc = (
+        db.query(Session).filter(Session.document_id == doc_id, Session.id != session_id).first()
+        if doc_id else None
+    )
+
+    # 4. Delete the session (cascade handles Questions, Answers, Evaluations, Report, TopicScores)
     db.delete(session)
+
+    # 5. If no other session uses this document, delete Document & DocumentChunk rows
+    if doc_id and not other_sessions_using_doc:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if doc:
+            db.delete(doc)
+
     db.commit()
 
     return {
@@ -169,6 +179,6 @@ async def delete_session_data(
         "session_id": session_id,
         "message": (
             "All session data deleted: transcripts, evaluations, report, "
-            "topic scores, LLM usage logs, and vector-store chunks."
+            "topic scores, LLM usage logs, vector-store chunks, and associated document artifacts."
         ),
     }

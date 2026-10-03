@@ -159,13 +159,6 @@ class RAGRetriever:
         finally:
             db.close()
 
-    def clear_cache(self, tenant_id: Optional[str] = None) -> None:
-        """Evict cached index for a specific tenant or clear entire cache."""
-        if tenant_id:
-            self._cache.pop(tenant_id, None)
-        else:
-            self._cache.clear()
-
     def invalidate_cache(self, tenant_id: str) -> None:
         """Evict cached index for tenant/document when updated or deleted."""
         self.clear_cache(tenant_id)

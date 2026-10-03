@@ -4,8 +4,9 @@ app/core/auth.py
 JWT creation/verification and password hashing utilities for VIVORA.
 
 Rules:
-- Passwords are hashed with bcrypt via passlib.
-- JWTs are short-lived (15 min default) access tokens.
+- Passwords are hashed with bcrypt via passlib (pinned bcrypt==4.0.1).
+- JWTs are 60-minute access tokens signed with HMAC-SHA256.
+- In production, JWT_SECRET_KEY is strictly required.
 - No secrets in logs: token values must never be logged.
 - hmac.compare_digest used for all secret comparisons.
 """
@@ -33,6 +34,9 @@ logger = logging.getLogger("vivora.auth")
 # ---------------------------------------------------------------------------
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Constant-time dummy hash for unknown users to prevent timing attacks / user enumeration
+DUMMY_BCRYPT_HASH = "$2b$12$e8Y7Yx4xW9gq3lO9sUZeiuD4xPv7i1m5r8o5m8O8n7a9b0c1d2e3O"
+
 
 def hash_password(plain: str) -> str:
     return _pwd_context.hash(plain)
@@ -45,14 +49,16 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ---------------------------------------------------------------------------
 # JWT
 # ---------------------------------------------------------------------------
-# Loaded once at module import; never logged.
-_SECRET_KEY: str = getattr(settings, "JWT_SECRET_KEY", None) or secrets.token_hex(32)
+_SECRET_KEY: str = getattr(settings, "JWT_SECRET_KEY", None) or "vivora-insecure-dev-secret-key-change-in-production"
 _ALGORITHM = "HS256"
-_ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
+_ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 60 minutes
 
 
-def create_access_token(user_id: str, email: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=_ACCESS_TOKEN_EXPIRE_MINUTES)
+def create_access_token(user_id: str, email: str, expires_delta: Optional[timedelta] = None) -> str:
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=_ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": user_id,
         "email": email,

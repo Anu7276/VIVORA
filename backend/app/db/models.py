@@ -45,6 +45,7 @@ class ParentConsent(Base):
     # ParentConsent.verified may ONLY be set True by the confirm endpoint, never by client input.
     consent_token = Column(String, nullable=True, unique=True)
     consent_date = Column(DateTime, nullable=True)   # set when confirmed
+    created_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", back_populates="parent_consents")
 

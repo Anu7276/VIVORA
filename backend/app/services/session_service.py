@@ -28,6 +28,7 @@ class SessionService:
 
         # 1. Resolve Document
         doc: Optional[Document] = None
+        newly_created_doc = False
         if document_id:
             doc = db.query(Document).filter(Document.id == document_id).first()
             if not doc or (user_id and doc.user_id and doc.user_id != user_id):
@@ -57,72 +58,85 @@ class SessionService:
             db.add(doc)
             db.commit()
             db.refresh(doc)
+            newly_created_doc = True
 
-        # 2. Ingest into RAG and ensure chunks are persisted to DB if not already indexed
-        from app.db.models import DocumentChunk
-        chunk_count = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).count()
-        if chunk_count == 0 and content_text:
-            await orchestrator.ingest_material(
-                tenant_id=doc.id,
-                title=doc.title,
-                text=content_text,
-                doc_type=doc.doc_type,
-                db=db
+        session: Optional[Session] = None
+        try:
+            # 2. Ingest into RAG and ensure chunks are persisted to DB if not already indexed
+            from app.db.models import DocumentChunk
+            chunk_count = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).count()
+            if chunk_count == 0 and content_text:
+                await orchestrator.ingest_material(
+                    tenant_id=doc.id,
+                    title=doc.title,
+                    text=content_text,
+                    doc_type=doc.doc_type,
+                    db=db
+                )
+
+            intake_res = orchestrator.intake._extract_explicit_questions(content_text)
+            
+            # 3. Create Session
+            session = Session(
+                user_id=user_id,
+                document_id=doc.id,
+                mode=mode,
+                language=language,
+                question_source=q_source,
+                time_limit_min=time_limit,
+                status="created",
+                started_at=None
             )
+            db.add(session)
+            db.commit()
+            db.refresh(session)
 
-        intake_res = orchestrator.intake._extract_explicit_questions(content_text)
-        
-        # 3. Create Session
-        session = Session(
-            user_id=user_id,
-            document_id=doc.id,
-            mode=mode,
-            language=language,
-            question_source=q_source,
-            time_limit_min=time_limit,
-            status="created",
-            started_at=None
-        )
-        db.add(session)
-        db.commit()
-        db.refresh(session)
-
-        # 4. Populate questions:
-        # - School mode: uses uploaded/parsed fixed Q&A pairs
-        # - College mode: calls Gemini (QUESTION_GEN_PROVIDER) to collect TOP 10 viva questions
-        # - Interview mode: calls Gemini to generate customized technical questions tailored to
-        #   candidate's Job Role and Tech Stack
-        questions_data = intake_res
-        if not questions_data or (mode in ("college", "interview") and q_source != "fixed"):
-            if mode == "college":
-                try:
-                    questions_data = await orchestrator.initialize_questions(
-                        mode="college",
-                        question_source="generated",
-                        uploaded_questions=[],
-                        tenant_id=doc.id,
-                        topic=title,
-                        context_text=content_text,
-                        count=10
-                    )
-                except Exception:
-                    questions_data = []
-            elif mode == "interview":
-                try:
-                    questions_data = await orchestrator.initialize_questions(
-                        mode="interview",
-                        question_source="generated",
-                        uploaded_questions=[],
-                        tenant_id=doc.id,
-                        topic=job_role or title,
-                        context_text=content_text,
-                        count=6,
-                        job_role=job_role or title,
-                        tech_stack=tech_stack,
-                        experience_level=experience_level
-                    )
-                except Exception:
-                    questions_data = []
+            # 4. Populate questions:
+            questions_data = intake_res
+            if not questions_data or (mode in ("college", "interview") and q_source != "fixed"):
+                if mode == "college":
+                    try:
+                        questions_data = await orchestrator.initialize_questions(
+                            mode="college",
+                            question_source="generated",
+                            uploaded_questions=[],
+                            tenant_id=doc.id,
+                            topic=title,
+                            context_text=content_text,
+                            count=10
+                        )
+                    except Exception:
+                        questions_data = []
+                elif mode == "interview":
+                    try:
+                        questions_data = await orchestrator.initialize_questions(
+                            mode="interview",
+                            question_source="generated",
+                            uploaded_questions=[],
+                            tenant_id=doc.id,
+                            topic=job_role or title,
+                            context_text=content_text,
+                            count=6,
+                            job_role=job_role or title,
+                            tech_stack=tech_stack,
+                            experience_level=experience_level
+                        )
+                    except Exception:
+                        questions_data = []
+                elif mode == "school":
+                    if (content_text and len(content_text.strip()) > 10) or title:
+                        try:
+                            questions_data = await orchestrator.initialize_questions(
+                                mode="school",
+                                question_source="generated",
+                                uploaded_questions=[],
+                                tenant_id=doc.id,
+                                topic=title or "General",
+                                context_text=content_text,
+                                count=5
+                            )
+                        except Exception:
+                            questions_data = []
 
             if not questions_data:
                 if mode in ("college", "interview"):
@@ -130,50 +144,48 @@ class SessionService:
                         status_code=503,
                         detail="Question generation failed: AI provider is unavailable. Please try again."
                     )
-                elif mode == "school":
-                    questions_data = [
-                        {
-                            "question_text": "What is photosynthesis and where does it occur in plant cells?",
-                            "topic": "Biology",
-                            "difficulty": "easy",
-                            "reference_answer": "Photosynthesis is the process by which green plants make food using sunlight, water, and CO2, occurring in chloroplasts."
-                        },
-                        {
-                            "question_text": "State Newton's Third Law of Motion and give one real-life example.",
-                            "topic": "Physics",
-                            "difficulty": "easy",
-                            "reference_answer": "For every action, there is an equal and opposite reaction. Example: A rocket propulsion or pushing against a wall."
-                        },
-                        {
-                            "question_text": "What is the difference between an acid and a base in terms of pH?",
-                            "topic": "Chemistry",
-                            "difficulty": "easy",
-                            "reference_answer": "Acids have a pH less than 7 and release H+ ions, while bases have a pH greater than 7 and release OH- ions."
-                        }
-                    ]
                 else:
                     raise HTTPException(
-                        status_code=503,
-                        detail="Question generation failed: AI provider is unavailable."
+                        status_code=422,
+                        detail="No explicit questions found and insufficient text provided to generate questions. Please upload a structured question set or syllabus content."
                     )
 
-        for idx, q in enumerate(questions_data):
-            q_model = Question(
-                session_id=session.id,
-                order_no=idx + 1,
-                question_text=q["question_text"],
-                topic=q.get("topic", "General"),
-                difficulty=q.get("difficulty", "medium"),
-                origin=q.get("origin", "generated" if mode == "college" else "uploaded"),
-                reference_answer=q.get("reference_answer", ""),
-                followup_question=q.get("followup_question", ""),
-                followup_answer=q.get("followup_answer", "")
-            )
-            db.add(q_model)
+            for idx, q in enumerate(questions_data):
+                q_model = Question(
+                    session_id=session.id,
+                    order_no=idx + 1,
+                    question_text=q["question_text"],
+                    topic=q.get("topic", "General"),
+                    difficulty=q.get("difficulty", "medium"),
+                    origin=q.get("origin", "generated" if mode in ("college", "interview") else "uploaded"),
+                    reference_answer=q.get("reference_answer", ""),
+                    followup_question=q.get("followup_question", ""),
+                    followup_answer=q.get("followup_answer", "")
+                )
+                db.add(q_model)
 
-        db.commit()
-        db.refresh(session)
-        return session
+            db.commit()
+            db.refresh(session)
+            return session
+
+        except Exception as e:
+            db.rollback()
+            # Clean up orphan session and orphan document
+            if session and session.id:
+                try:
+                    db.delete(session)
+                    db.commit()
+                except Exception:
+                    pass
+            if newly_created_doc and doc and doc.id:
+                try:
+                    db.delete(doc)
+                    db.commit()
+                except Exception:
+                    pass
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail="Failed to initialize session.")
 
     @staticmethod
     def get_session(db: DBSession, session_id: str) -> Optional[Session]:
@@ -188,19 +200,18 @@ class SessionService:
         filler_count: int,
         evaluation_data: Dict[str, Any]
     ) -> Answer:
-        # Create Answer record (Audio is never stored)
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         answer = Answer(
             question_id=question_id,
             transcript=transcript,
             duration_sec=duration_sec,
             filler_word_count=filler_count,
-            answered_at=datetime.datetime.utcnow()
+            answered_at=now_utc
         )
         db.add(answer)
         db.commit()
         db.refresh(answer)
 
-        # Create Evaluation record
         eval_record = Evaluation(
             answer_id=answer.id,
             scored=evaluation_data.get("scored", True),
@@ -249,10 +260,11 @@ class SessionService:
         if existing_report:
             return existing_report
 
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         session = db.query(Session).filter(Session.id == session_id).first()
         if session:
             session.status = "completed"
-            session.ended_at = datetime.datetime.utcnow()
+            session.ended_at = now_utc
 
         report = Report(
             session_id=session_id,
@@ -262,7 +274,8 @@ class SessionService:
             improvements="\n".join(report_data.get("improvements", [])) if isinstance(report_data.get("improvements"), list) else str(report_data.get("improvements", "")),
             revision_plan="\n".join(report_data.get("revision_plan", [])) if isinstance(report_data.get("revision_plan"), list) else str(report_data.get("revision_plan", "")),
             communication_feedback=report_data.get("communication_feedback", ""),
-            scoring_note=report_data.get("scoring_note", "")
+            scoring_note=report_data.get("scoring_note", ""),
+            generated_at=now_utc
         )
         db.add(report)
         db.commit()

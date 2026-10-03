@@ -68,10 +68,10 @@ class IntakeAgent(BaseAgent):
             if should_close_db:
                 active_db.close()
 
-        # Parse fixed questions or topics
+        # Parse explicit questions if present
         fixed_questions = self._extract_explicit_questions(text)
 
-        # If LLM is available and text is not structured questions, we can extract topics
+        # Topics from chunk metadata
         topics = list(set([c["topic_tag"] for c in chunks])) if chunks else [title]
 
         return {
@@ -84,16 +84,9 @@ class IntakeAgent(BaseAgent):
 
     def _extract_explicit_questions(self, text: str) -> List[Dict[str, Any]]:
         """
-        Fast, robust parser for question and answer pairs.
-        Supports:
-          1. JSON arrays of Q&A objects: [{"question": "...", "answer": "..."}]
-          2. Text formats:
-             Q1: What is photosynthesis?
-             Ans: Photosynthesis is the process by which green plants make food...
-             
-             1. State Newton's third law.
-             Answer: For every action, there is an equal and opposite reaction.
-          3. Multi-line answers and varied prefixes (Q:, Question, Ans:, Answer, A:).
+        Extracts explicitly structured question-and-answer pairs.
+        Returns empty list for unstructured prose/syllabus so the system can generate questions.
+        Never inserts placeholder reference answers.
         """
         stripped = (text or "").strip()
         if not stripped:
@@ -114,14 +107,14 @@ class IntakeAgent(BaseAgent):
                                     "question_text": str(q_text).strip(),
                                     "topic": str(item.get("topic") or "School Viva"),
                                     "difficulty": str(item.get("difficulty") or "easy"),
-                                    "reference_answer": str(a_text).strip() if a_text else f"Standard textbook answer for: {q_text}"
+                                    "reference_answer": str(a_text).strip() if a_text else ""
                                 })
                     if parsed_from_json:
                         return parsed_from_json
             except Exception:
                 pass
 
-        # 2. Text line parser with multi-line answer support
+        # 2. Text line parser for structured Q&A formats
         lines = [l.strip() for l in stripped.split('\n') if l.strip()]
         questions: List[Dict[str, Any]] = []
 
@@ -138,7 +131,6 @@ class IntakeAgent(BaseAgent):
         in_answer_block = False
 
         for line in lines:
-            # Check if this line is a new question
             q_match = q_pattern.match(line)
             is_lone_question = (
                 not q_match
@@ -168,7 +160,6 @@ class IntakeAgent(BaseAgent):
                 in_answer_block = bool(ref_ans)
                 continue
 
-            # Check if this line is an answer indicator
             ans_match = ans_pattern.match(line)
             if current_q and ans_match:
                 ans_text = ans_match.group(1).strip()
@@ -179,27 +170,12 @@ class IntakeAgent(BaseAgent):
                 in_answer_block = True
                 continue
 
-            # If we are inside an answer block and it's not a new question, append as continuation of answer
             if current_q and in_answer_block:
                 current_q["reference_answer"] = (current_q["reference_answer"] + " " + line).strip()
                 continue
 
-        # Fill default reference answers if any question had none provided
-        for q in questions:
-            if not q.get("reference_answer"):
-                q["reference_answer"] = f"Complete textbook explanation for: {q['question_text']}"
-
-        # If no explicit markers found, fallback to sentence or question splits
-        if not questions and len(lines) > 0:
-            for l in lines:
-                if len(l) > 10 and ('?' in l or len(l.split()) > 3):
-                    questions.append({
-                        "question_text": l,
-                        "topic": "School Viva",
-                        "difficulty": "easy",
-                        "reference_answer": f"Standard textbook answer explaining {l}"
-                    })
-
+        # If no explicit markers found, do NOT treat prose lines as individual questions
+        # Return only questions that were matched with structured question patterns
         return questions
 
 intake_agent = IntakeAgent()
