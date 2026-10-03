@@ -6,6 +6,7 @@ module.exports = {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    extend: {
       fontFamily: {
         serif: ['var(--font-serif)', 'Newsreader', 'Georgia', 'serif'],
         sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
@@ -28,7 +29,7 @@ module.exports = {
           emerald: "#10B981",
           amber: "#F59E0B",
           rose: "#F43F5E",
-        }
+        },
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -38,9 +39,9 @@ module.exports = {
         wave: {
           '0%, 100%': { transform: 'scaleY(0.4)' },
           '50%': { transform: 'scaleY(1.2)' },
-        }
-      }
+        },
+      },
     },
   },
   plugins: [],
-}
+};
