@@ -2,7 +2,8 @@ from typing import List, Dict, Any, Optional
 import re
 from app.agents.base import BaseAgent
 from app.llm.prompts import (
-    QUESTION_GENERATION_PROMPT, 
+    QUESTION_GENERATION_PROMPT,
+    SCHOOL_QUESTION_GENERATION_PROMPT,
     COLLEGE_QUESTION_GENERATION_PROMPT,
     INTERVIEW_QUESTION_GENERATION_PROMPT
 )
@@ -27,14 +28,13 @@ class QuestionAgent(BaseAgent):
         """
         Returns questions:
         - If fixed question mode (School viva): uses uploaded questions directly
-        - If College viva mode: uses Gemini (QUESTION_GEN_PROVIDER) to collect top 10 questions
-          along with expected answers and probing follow-up questions
-        - If Interview mode: generates customized technical & scenario questions tailored to
-          the candidate's Job Role and Tech Stack
+        - If College viva mode: uses Gemini (QUESTION_GEN_PROVIDER) to generate top 10 conceptual viva questions
+          with selective probing follow-up questions
+        - If Interview mode: generates questions customized to candidate's Resume and target Job Role
         """
         # Default question count per mode
         if count is None:
-            count = 10 if mode == "college" else 6
+            count = 10 if mode == "college" else (5 if mode == "school" else 6)
 
         if question_source == "fixed" and uploaded_questions:
             result = []
@@ -46,43 +46,39 @@ class QuestionAgent(BaseAgent):
                     "difficulty": q.get("difficulty", "medium"),
                     "origin": "uploaded",
                     "reference_answer": q.get("reference_answer", ""),
-                    "followup_question": q.get("followup_question", ""),
-                    "followup_answer": q.get("followup_answer", "")
+                    "followup_question": "",
+                    "followup_answer": ""
                 })
             return result
 
-        # Generated Mode (College / Interview)
+        # Generated Mode (School / College / Interview)
         rag_context = self.rag.get_context_string(tenant_id, query=topic, top_k=5)
-        combined_context = (context_text.strip() + "\n" + (rag_context or "")).strip() or f"Topics for {topic}"
+        combined_context = (context_text.strip() + "\n" + (rag_context or "")).strip() or f"Content for {topic}"
 
-        # Determine job role, tech stack and experience level
-        role = job_role or topic or "Full Stack Engineer"
-        stack = tech_stack or ""
-        level = experience_level or "Mid-Level"
-
-        if not stack and mode == "interview":
-            m_stack = re.search(r'(?:tech\s*stack|technologies|skills)\s*[:=]\s*([^\n]+)', combined_context, re.IGNORECASE)
-            if m_stack:
-                stack = m_stack.group(1).strip()
-            else:
-                stack = "React, Node.js, TypeScript, PostgreSQL, Docker, AWS"
-
-        if mode == "college":
+        if mode == "school":
+            prompt = SCHOOL_QUESTION_GENERATION_PROMPT.format(
+                topic=topic or "School Chapter Viva",
+                context=combined_context[:3000],
+                count=count
+            )
+            system_prompt = "You are a warm, encouraging School Viva Examiner for students."
+        elif mode == "college":
             prompt = COLLEGE_QUESTION_GENERATION_PROMPT.format(
-                topic=topic,
+                topic=topic or "College Subject Viva",
                 context=combined_context[:3000],
                 count=count
             )
             system_prompt = "You are a senior university professor and college viva examiner."
         elif mode == "interview":
+            role = job_role or topic or "Software Engineer"
+            level = experience_level or "Mid-Level"
             prompt = INTERVIEW_QUESTION_GENERATION_PROMPT.format(
                 job_role=role,
-                tech_stack=stack,
                 experience_level=level,
-                context=combined_context[:3000],
+                context=combined_context[:4000],
                 count=count
             )
-            system_prompt = "You are a Principal Software Engineering Interviewer and Technical Hiring Lead."
+            system_prompt = f"You are an expert hiring interviewer evaluating a candidate for the {role} position based on their resume."
         else:
             prompt = QUESTION_GENERATION_PROMPT.format(
                 mode=mode,
@@ -103,6 +99,7 @@ class QuestionAgent(BaseAgent):
             )
             generated = data.get("questions", [])
             result = []
+            default_topic = topic or (job_role if mode == "interview" else "General")
             for idx, q in enumerate(generated):
                 q_text = q.get("question_text", "").strip()
                 if not q_text:
@@ -110,7 +107,7 @@ class QuestionAgent(BaseAgent):
                 result.append({
                     "order_no": idx + 1,
                     "question_text": q_text,
-                    "topic": q.get("topic", f"{role} - Technical"),
+                    "topic": q.get("topic", default_topic),
                     "difficulty": q.get("difficulty", "medium"),
                     "origin": "generated",
                     "reference_answer": q.get("reference_answer", ""),

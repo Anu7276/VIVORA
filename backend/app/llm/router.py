@@ -309,62 +309,78 @@ class SmartRuleFallbackProvider(LLMProvider):
             }
 
         # Question generation
-        if "Question" in (system_prompt or "") or "college" in prompt.lower() or "viva" in prompt.lower() or "interview" in prompt.lower():
-            is_interview = "interview" in prompt.lower() or "job role" in prompt.lower() or "candidate" in prompt.lower() or "hiring" in (system_prompt or "").lower()
-            if is_interview:
-                role_m = re.search(r'Target Job Role:\s*"([^"]+)"', prompt)
-                role_val = role_m.group(1) if role_m else "Full Stack Software Engineer"
-                stack_m = re.search(r'Candidate Tech Stack / Skills:\s*"([^"]+)"', prompt)
-                stack_val = stack_m.group(1) if stack_m else "React, Node.js, PostgreSQL, Docker"
+        if "Question" in (system_prompt or "") or "college" in prompt.lower() or "viva" in prompt.lower() or "interview" in prompt.lower() or "school" in prompt.lower():
+            is_school = "school" in prompt.lower() or "young student" in (system_prompt or "").lower()
+            is_interview = "interview" in prompt.lower() or "target job role" in prompt.lower() or "candidate" in prompt.lower() or "hiring" in (system_prompt or "").lower()
+            
+            if is_school:
+                topic_m = re.search(r'Topic / Chapter:\s*"([^"]+)"', prompt)
+                t_val = topic_m.group(1) if topic_m else "General Science"
                 return {
                     "questions": [
                         {
-                            "question_text": f"In your {role_val} projects using {stack_val}, how do you structure client and server state synchronization and avoid unnecessary re-renders?",
-                            "topic": f"{role_val} - Architecture",
-                            "difficulty": "medium",
-                            "reference_answer": "State is split between server cache and UI state, avoiding waterfall fetches and re-render spikes.",
-                            "followup_question": "How do you profile and eliminate performance bottlenecks or memory leaks in this setup?",
-                            "followup_answer": "Using browser profiling traces, heap snapshots, and component render telemetry."
+                            "question_text": f"What is the basic definition and purpose of {t_val}?",
+                            "topic": f"{t_val} - Definition",
+                            "difficulty": "easy",
+                            "reference_answer": f"{t_val} explains key processes and fundamental principles in this chapter.",
+                            "followup_question": "",
+                            "followup_answer": ""
                         },
                         {
-                            "question_text": f"Explain how your backend runtime in {stack_val} handles asynchronous concurrency and non-blocking I/O.",
-                            "topic": f"{role_val} - Concurrency",
-                            "difficulty": "medium",
-                            "reference_answer": "Non-blocking I/O delegates operations to kernel threads while worker pools handle CPU-bound tasks.",
-                            "followup_question": "What happens when the thread pool or event loop gets saturated under heavy traffic?",
-                            "followup_answer": "Request queuing latency surges and upstream gateways trigger timeout errors."
+                            "question_text": f"Can you give one real-life example or application of {t_val}?",
+                            "topic": f"{t_val} - Examples",
+                            "difficulty": "easy",
+                            "reference_answer": "Real-life examples demonstrate the practical observation of this principle.",
+                            "followup_question": "",
+                            "followup_answer": ""
                         },
                         {
-                            "question_text": f"When working with your database layer in {stack_val}, how do you optimize slow queries, index design, and transaction isolation?",
-                            "topic": f"{role_val} - Database & Storage",
+                            "question_text": f"What are the main parts or key steps involved in {t_val}?",
+                            "topic": f"{t_val} - Steps",
+                            "difficulty": "medium",
+                            "reference_answer": "It consists of sequential components functioning together.",
+                            "followup_question": "",
+                            "followup_answer": ""
+                        }
+                    ]
+                }
+
+            if is_interview:
+                role_m = re.search(r'Target Job Role(?: Applied For)?:\s*"([^"]+)"', prompt)
+                role_val = role_m.group(1) if role_m else "Candidate"
+                return {
+                    "questions": [
+                        {
+                            "question_text": f"In your past projects as a {role_val}, walk me through a complex problem you solved and your technical approach.",
+                            "topic": f"{role_val} - Project Experience",
+                            "difficulty": "medium",
+                            "reference_answer": "Clear problem statement, structured solution architecture, metrics, and lessons learned.",
+                            "followup_question": "Why did you choose that specific approach instead of alternative solutions?",
+                            "followup_answer": "Evaluation of trade-offs, constraints, and operational efficiency."
+                        },
+                        {
+                            "question_text": f"As a {role_val}, how do you ensure high performance, reliability, and code quality in your deliverable?",
+                            "topic": f"{role_val} - Best Practices",
+                            "difficulty": "medium",
+                            "reference_answer": "Automated testing, modular code design, profiling, and continuous integration.",
+                            "followup_question": "What metrics do you monitor to catch regressions before they hit production?",
+                            "followup_answer": "Latency, error rates, resource utilization, and unit/integration test coverage."
+                        },
+                        {
+                            "question_text": f"Can you describe a challenging bug or outage you investigated in a {role_val} project and how you diagnosed it?",
+                            "topic": f"{role_val} - Debugging & Diagnostics",
                             "difficulty": "hard",
-                            "reference_answer": "Targeted B-tree indexing on filter keys, query plan analysis with EXPLAIN ANALYZE, and appropriate isolation levels.",
-                            "followup_question": "How do you detect and recover from deadlock conditions between concurrent transactions?",
-                            "followup_answer": "Deadlock detection timeouts and automated transaction retry loops with backoff."
+                            "reference_answer": "Log inspection, reproducing the issue, isolating the root cause, and applying a robust regression test.",
+                            "followup_question": "What safeguards did you implement to prevent this failure from recurring?",
+                            "followup_answer": "Enhanced alerting, automated guardrails, and post-mortem documentation."
                         },
                         {
-                            "question_text": f"How do you design and secure API communication in {stack_val} for idempotency, rate limiting, and caching?",
-                            "topic": f"{role_val} - API & Security",
-                            "difficulty": "medium",
-                            "reference_answer": "Idempotency keys stored in Redis, sliding window rate limits, and ETag-based caching headers.",
-                            "followup_question": "How do you mitigate the thundering herd problem when a high-traffic cache key expires?",
-                            "followup_answer": "Early probabilistic expiration or distributed mutex locks on re-computation."
-                        },
-                        {
-                            "question_text": f"Walk me through your resilience pattern for handling downstream service failures or network latency in {role_val} systems.",
-                            "topic": f"{role_val} - Scalability",
+                            "question_text": f"How do you handle architectural trade-offs between delivery speed and technical debt in {role_val} initiatives?",
+                            "topic": f"{role_val} - Engineering Strategy",
                             "difficulty": "hard",
-                            "reference_answer": "Circuit breakers, fallback responses, exponential backoff with jitter, and dead-letter queues.",
-                            "followup_question": "How do you maintain data consistency across distributed services if one node fails mid-operation?",
-                            "followup_answer": "Saga pattern with compensating transactions or two-phase commit."
-                        },
-                        {
-                            "question_text": f"How do you enforce automated testing, CI/CD pipelines, and zero-downtime deployments for {role_val} applications?",
-                            "topic": f"{role_val} - Deployment",
-                            "difficulty": "medium",
-                            "reference_answer": "Automated test stages in CI, Dockerized builds, and Kubernetes rolling or canary deployments.",
-                            "followup_question": "What automated metrics would trigger an automatic rollback during a canary release?",
-                            "followup_answer": "Spikes in 5xx error rates or p99 latency degradation beyond defined SLOs."
+                            "reference_answer": "Pragmatic prioritization, well-documented design choices, and planned refactoring cycles.",
+                            "followup_question": "How do you align technical priorities with product and stakeholder expectations?",
+                            "followup_answer": "Quantifying technical debt impact in terms of reliability, velocity, and user experience."
                         }
                     ]
                 }

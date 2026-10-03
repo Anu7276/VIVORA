@@ -191,20 +191,7 @@ export default function SessionRoomPage() {
     canvas.height = rect.height * 2;
     ctx.scale(2, 2);
 
-    // Initial Chalkboard Greeting (Clean light theme)
-    ctx.fillStyle = "#64748b";
-    ctx.font = "italic 20px 'Space Grotesk', system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("welcome to", rect.width / 2, rect.height / 2 - 40);
 
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "600 34px 'Space Grotesk', system-ui, sans-serif";
-    ctx.fillText("System Design Mock Interview & Viva", rect.width / 2, rect.height / 2 + 10);
-
-    ctx.fillStyle = "#64748b";
-    ctx.font = "15px 'Plus Jakarta Sans', system-ui, sans-serif";
-    ctx.fillText("We'll delve deep into system architecture, requirements & component trade-offs.", rect.width / 2, rect.height / 2 + 56);
-    ctx.fillText("Use the top whiteboard tools to sketch diagrams, databases, and message queues.", rect.width / 2, rect.height / 2 + 80);
   }, []);
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -433,7 +420,7 @@ export default function SessionRoomPage() {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
-          type: "answer_submitted",
+          type: "submit_answer",
           transcript: transcript.trim(),
         })
       );
@@ -738,79 +725,7 @@ export default function SessionRoomPage() {
         {/* ── RIGHT MAIN STAGE: WHITEBOARD & FLOATING CANDIDATE PIP ────────── */}
         <main className="flex-1 bg-[#fbfbf9] flex flex-col relative overflow-hidden">
           
-          {/* Top Floating Whiteboard Tool Belt */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center bg-white/95 backdrop-blur-md border border-[#cbd5e1] px-3.5 py-1.5 rounded-full shadow-lg space-x-1.5">
-            <button
-              onClick={() => setActiveTool("draw")}
-              className={`p-1.5 rounded-full transition-colors ${
-                activeTool === "draw" ? "bg-[#0f766e] text-white" : "text-[#64748b] hover:text-[#0f172a]"
-              }`}
-              title="Pencil / Draw"
-            >
-              <PenTool className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setActiveTool("rect")}
-              className={`p-1.5 rounded-full transition-colors ${
-                activeTool === "rect" ? "bg-[#0f766e] text-white" : "text-[#64748b] hover:text-[#0f172a]"
-              }`}
-              title="Rectangle"
-            >
-              <Square className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setActiveTool("diamond")}
-              className={`p-1.5 rounded-full transition-colors ${
-                activeTool === "diamond" ? "bg-[#0f766e] text-white" : "text-[#64748b] hover:text-[#0f172a]"
-              }`}
-              title="Diamond"
-            >
-              <Diamond className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setActiveTool("circle")}
-              className={`p-1.5 rounded-full transition-colors ${
-                activeTool === "circle" ? "bg-[#0f766e] text-white" : "text-[#64748b] hover:text-[#0f172a]"
-              }`}
-              title="Circle"
-            >
-              <CircleIcon className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setActiveTool("arrow")}
-              className={`p-1.5 rounded-full transition-colors ${
-                activeTool === "arrow" ? "bg-[#0f766e] text-white" : "text-[#64748b] hover:text-[#0f172a]"
-              }`}
-              title="Arrow"
-            >
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setActiveTool("text")}
-              className={`p-1.5 rounded-full transition-colors ${
-                activeTool === "text" ? "bg-[#0f766e] text-white" : "text-[#64748b] hover:text-[#0f172a]"
-              }`}
-              title="Text"
-            >
-              <Type className="w-3.5 h-3.5" />
-            </button>
 
-            <span className="w-px h-4 bg-[#e2e8f0] mx-1" />
-
-            {/* Color Swatches */}
-            <button
-              onClick={() => setCanvasColor("#0f766e")}
-              className="w-4 h-4 rounded-full bg-[#0f766e] ring-2 ring-transparent hover:ring-[#0f766e] transition-all"
-            />
-            <button
-              onClick={() => setCanvasColor("#2563eb")}
-              className="w-4 h-4 rounded-full bg-[#2563eb] ring-2 ring-transparent hover:ring-[#2563eb] transition-all"
-            />
-            <button
-              onClick={() => setCanvasColor("#0f172a")}
-              className="w-4 h-4 rounded-full bg-[#0f172a] ring-2 ring-transparent hover:ring-[#0f172a] transition-all"
-            />
-          </div>
 
           {/* ── TOP FLOATING LIVE QUESTION & CANDIDATE SPEECH HUD BANNER ──────── */}
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 w-[94%] max-w-3xl space-y-2 pointer-events-auto">
@@ -918,45 +833,10 @@ export default function SessionRoomPage() {
             </div>
           </div>
 
-          {/* Interactive Whiteboard Canvas */}
-          <div className="flex-1 w-full h-full relative cursor-crosshair bg-[radial-gradient(#e2e8f0_1.5px,transparent_1.5px)] [background-size:24px_24px]">
-            <canvas
-              ref={canvasRef}
-              onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseUp={handleCanvasMouseUp}
-              className="w-full h-full block"
-            />
-          </div>
+          {/* Clean background area */}
+          <div className="flex-1 w-full h-full bg-[#FAF9F5]" />
 
-          {/* Bottom Left Canvas Zoom & Reset Controls */}
-          <div className="absolute bottom-5 left-5 z-10 flex items-center space-x-1.5 bg-white border border-[#cbd5e1] px-3 py-1.5 rounded-full shadow-md text-xs font-mono">
-            <button
-              onClick={() => setCanvasZoom((z) => Math.max(z - 10, 50))}
-              className="p-1 text-[#64748b] hover:text-[#0f172a] transition-colors"
-              title="Zoom Out"
-            >
-              <Minus className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-[#334155] font-bold px-1">{canvasZoom}%</span>
-            <button
-              onClick={() => setCanvasZoom((z) => Math.min(z + 10, 200))}
-              className="p-1 text-[#64748b] hover:text-[#0f172a] transition-colors"
-              title="Zoom In"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
 
-            <span className="w-px h-3.5 bg-[#e2e8f0] mx-1" />
-
-            <button
-              onClick={clearCanvas}
-              className="p-1 text-[#64748b] hover:text-red-600 transition-colors"
-              title="Clear Canvas"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
 
           {/* ── FLOATING CANDIDATE PIP WEBCAM FEED (Bottom-Right) ─────────────── */}
           <div className="absolute bottom-5 right-5 z-20 w-56 sm:w-64 md:w-72 h-36 sm:h-44 md:h-48 rounded-2xl overflow-hidden shadow-2xl border-2 border-white bg-[#0f172a] transition-all hover:ring-2 hover:ring-[#7D9F68]">

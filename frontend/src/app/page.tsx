@@ -50,9 +50,11 @@ export default function VIVORAEditorialHomePage() {
   // Interactive Practice Drawer / Modal
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [promptText, setPromptText] = useState("");
-  const [selectedMode, setSelectedMode] = useState<"interview" | "college" | "school">("interview");
-  const [title, setTitle] = useState("System Design & Technical Architecture Viva");
-  const [contentText, setContentText] = useState("System Architecture, Microservices, Load Balancers, Distributed Caching, Consensus, CAP Theorem");
+  const [selectedMode, setSelectedMode] = useState<"interview" | "college" | "school">("college");
+  const [title, setTitle] = useState("Operating Systems: Process Synchronization & Deadlocks");
+  const [contentText, setContentText] = useState("Critical section problem, Peterson's algorithm, Semaphores, Mutex, Deadlock conditions (Mutual Exclusion, Hold and Wait, No Preemption, Circular Wait), Banker's Algorithm.");
+  const [jobRole, setJobRole] = useState("Frontend Developer");
+  const [experienceLevel, setExperienceLevel] = useState("Mid-Level");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pdfParsing, setPdfParsing] = useState(false);
   const [uploadedDocumentId, setUploadedDocumentId] = useState<string | null>(null);
@@ -98,15 +100,32 @@ export default function VIVORAEditorialHomePage() {
     }
 
     try {
-      const sessionTitle = customTitle || title || promptText || "System Design Mock Interview";
-      const sessionMode = customMode || selectedMode;
-      const finalContent = customContent || contentText || promptText || "General Engineering Viva";
+      const activeMode = customMode || selectedMode;
+      let sessionTitle = customTitle || title;
+      if (activeMode === "interview") {
+        sessionTitle = `${jobRole || "Professional"} Interview`;
+      } else if (activeMode === "college") {
+        sessionTitle = customTitle || title || promptText || "College Viva Voce";
+      } else {
+        sessionTitle = customTitle || title || promptText || "School Viva Practice";
+      }
+
+      let finalContent = customContent || contentText || promptText;
+      if (activeMode === "interview") {
+        finalContent = (contentText ? `Resume / Background:\n${contentText}\n\n` : "") + 
+                       (promptText ? `Target Role Notes:\n${promptText}` : "");
+        if (!finalContent.trim()) {
+          finalContent = `Target Role: ${jobRole}`;
+        }
+      }
 
       const res = await createSession({
         title: sessionTitle,
-        mode: sessionMode,
+        mode: activeMode,
         content_text: finalContent,
         document_id: uploadedDocumentId || undefined,
+        job_role: activeMode === "interview" ? jobRole : undefined,
+        experience_level: activeMode === "interview" ? experienceLevel : undefined,
       });
 
       router.push(`/session/${res.session_id}`);
@@ -131,12 +150,21 @@ export default function VIVORAEditorialHomePage() {
     setError(null);
 
     try {
-      const data = await uploadFileMaterial(file, title, selectedMode === "school" ? "questions" : "syllabus");
+      const docType = selectedMode === "interview" 
+        ? "resume" 
+        : (selectedMode === "school" ? "questions" : "syllabus");
+      const docTitle = selectedMode === "interview" 
+        ? `${jobRole || "Candidate"} Resume` 
+        : (file.name.replace(/\.[^/.]+$/, ""));
+
+      const data = await uploadFileMaterial(file, docTitle, docType);
       setUploadedDocumentId(data.document_id);
       if (data.extracted_text) {
         setContentText(data.extracted_text);
       }
-      setTitle(file.name.replace(/\.[^/.]+$/, ""));
+      if (selectedMode !== "interview") {
+        setTitle(file.name.replace(/\.[^/.]+$/, ""));
+      }
       setPdfParsing(false);
     } catch (err: any) {
       console.error("Upload error:", err);
@@ -1018,78 +1046,232 @@ export default function VIVORAEditorialHomePage() {
               </button>
             </div>
 
-            {/* Mode Selector */}
+            {/* 3 Distinct Agent Modes */}
             <div className="grid grid-cols-3 gap-2 text-xs font-medium">
               <button
-                onClick={() => {
-                  setSelectedMode("interview");
-                  setTitle("System Design Mock Interview & Technical Viva");
-                  setContentText("System Architecture, Microservices, Load Balancers, Distributed Caching, Consensus");
-                }}
-                className={`p-2.5 rounded-xl border text-center transition-all ${
-                  selectedMode === "interview"
-                    ? "bg-[#2d4a3e] text-white border-[#2d4a3e]"
-                    : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD] hover:border-[#D6D0C2]"
-                }`}
-              >
-                Tech Interview
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedMode("college");
-                  setTitle("University Viva Voce: Distributed Systems");
-                  setContentText("PBFT, Raft Consensus, Byzantine Fault Tolerance, CAP Theorem");
-                }}
-                className={`p-2.5 rounded-xl border text-center transition-all ${
-                  selectedMode === "college"
-                    ? "bg-[#2d4a3e] text-white border-[#2d4a3e]"
-                    : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD] hover:border-[#D6D0C2]"
-                }`}
-              >
-                College Viva
-              </button>
-              <button
+                type="button"
                 onClick={() => {
                   setSelectedMode("school");
-                  setTitle("Class 10 Biology: Life Processes Viva");
+                  setTitle("Class 10 Biology: Life Processes");
                   setContentText("Photosynthesis, Respiration, Hemoglobin, Circulation, Excretion");
+                  setSelectedFile(null);
+                  setError(null);
                 }}
                 className={`p-2.5 rounded-xl border text-center transition-all ${
                   selectedMode === "school"
-                    ? "bg-[#2d4a3e] text-white border-[#2d4a3e]"
+                    ? "bg-[#2d4a3e] text-white border-[#2d4a3e] shadow-xs"
                     : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD] hover:border-[#D6D0C2]"
                 }`}
               >
-                School Viva
+                🏫 School Viva
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMode("college");
+                  setTitle("Operating Systems: Process Synchronization & Deadlocks");
+                  setContentText("Critical section, Peterson's algorithm, Semaphores, Mutex, Deadlocks, Banker's Algorithm");
+                  setSelectedFile(null);
+                  setError(null);
+                }}
+                className={`p-2.5 rounded-xl border text-center transition-all ${
+                  selectedMode === "college"
+                    ? "bg-[#2d4a3e] text-white border-[#2d4a3e] shadow-xs"
+                    : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD] hover:border-[#D6D0C2]"
+                }`}
+              >
+                🎓 College Viva
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMode("interview");
+                  setJobRole("Frontend Developer");
+                  setContentText("");
+                  setSelectedFile(null);
+                  setError(null);
+                }}
+                className={`p-2.5 rounded-xl border text-center transition-all ${
+                  selectedMode === "interview"
+                    ? "bg-[#2d4a3e] text-white border-[#2d4a3e] shadow-xs"
+                    : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD] hover:border-[#D6D0C2]"
+                }`}
+              >
+                💼 Job Interview
               </button>
             </div>
 
-            {/* Topic Input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono text-[#8c9099] uppercase">Topic / Syllabus Outline</label>
-              <textarea
-                value={promptText}
-                onChange={(e) => setPromptText(e.target.value)}
-                placeholder="e.g. Distributed Consensus, PBFT, Raft, Load Balancer trade-offs..."
-                rows={3}
-                className="w-full bg-[#FAF9F5] border border-[#E5E0D4] rounded-2xl p-3.5 text-xs text-[#1a1b1e] focus:outline-none focus:border-[#2d4a3e] resize-none"
-              />
-            </div>
-
-            {/* PDF Attachment Option */}
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center space-x-1.5 text-xs text-[#5c5f66] hover:text-[#1a1b1e] cursor-pointer">
-                <UploadCloud className="w-4 h-4 text-[#2d4a3e]" />
-                <span>{pdfParsing ? "Parsing PDF..." : "Attach PDF Textbook/Notes"}</span>
-                <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
-              </label>
-
-              {selectedFile && (
-                <span className="text-[11px] font-mono text-[#2d4a3e] truncate max-w-[180px]">
-                  📄 {selectedFile.name}
-                </span>
+            {/* Mode Description Banner */}
+            <div className="p-3 rounded-2xl bg-[#F4F1EA] border border-[#EBE7DD] text-xs text-[#555850] space-y-1">
+              {selectedMode === "school" && (
+                <>
+                  <div className="font-semibold text-[#2d4a3e]">🏫 School Viva Agent</div>
+                  <div>Upload textbook Q&A, study notes, or syllabus (PDF or text). AI asks direct viva questions to test your knowledge with simple, encouraging evaluation.</div>
+                </>
+              )}
+              {selectedMode === "college" && (
+                <>
+                  <div className="font-semibold text-[#2d4a3e]">🎓 College Viva Agent</div>
+                  <div>Upload textbook chapters, syllabus outline, or lab practicals (PDF or text). Gemini prepares conceptual viva questions with targeted cross-examination (*"Why this, why not that?"*).</div>
+                </>
+              )}
+              {selectedMode === "interview" && (
+                <>
+                  <div className="font-semibold text-[#2d4a3e]">💼 Job Interview Agent</div>
+                  <div>Upload your Resume (PDF) and enter the Target Role applied for. AI asks questions tailored specifically to your real resume projects, background, and role.</div>
+                </>
               )}
             </div>
+
+            {/* Inputs Tailored to Mode */}
+            {selectedMode === "interview" ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-mono text-[#8c9099] uppercase">Target Job Role Applied For *</label>
+                  <input
+                    type="text"
+                    value={jobRole}
+                    onChange={(e) => setJobRole(e.target.value)}
+                    placeholder="e.g. Frontend React Developer, Python Backend Engineer, Data Scientist, Product Manager..."
+                    className="w-full bg-[#FAF9F5] border border-[#E5E0D4] rounded-xl px-3.5 py-2.5 text-xs text-[#1a1b1e] focus:outline-none focus:border-[#2d4a3e]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-mono text-[#8c9099] uppercase">Experience Level</label>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {["Entry-Level / Fresher", "Mid-Level (2-5 yrs)", "Senior / Lead (5+ yrs)"].map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setExperienceLevel(lvl.split(" ")[0])}
+                        className={`py-1.5 px-2 rounded-lg border text-center transition-all ${
+                          experienceLevel === lvl.split(" ")[0]
+                            ? "bg-[#2d4a3e] text-white border-[#2d4a3e]"
+                            : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD]"
+                        }`}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Resume PDF Attachment */}
+                <div className="space-y-1 pt-1">
+                  <label className="flex items-center justify-between p-3 rounded-xl border border-dashed border-[#2d4a3e]/40 bg-[#FAF9F5] hover:bg-[#F4F1EA] cursor-pointer transition-colors">
+                    <div className="flex items-center space-x-2 text-xs font-medium text-[#2d4a3e]">
+                      <UploadCloud className="w-4 h-4" />
+                      <span>{pdfParsing ? "Parsing Resume PDF..." : "📄 Attach Resume (PDF)"}</span>
+                    </div>
+                    <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
+                  </label>
+                  {selectedFile && (
+                    <div className="text-[11px] font-mono text-[#2d4a3e] flex items-center justify-between px-2 pt-1">
+                      <span className="truncate">✓ Attached: {selectedFile.name}</span>
+                      <button type="button" onClick={() => setSelectedFile(null)} className="text-red-500 hover:underline ml-2">Remove</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-[#8c9099] uppercase">Focus Areas (Optional)</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["System Design", "DSA", "React / Frontend", "SQL & DBs", "Behavioural", "ML / AI"].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setPromptText(promptText.includes(tag) ? promptText.replace(tag, "").replace(/,\s*/g, ", ").trim().replace(/^,|,$/g, "").trim() : (promptText ? `${promptText}, ${tag}` : tag))}
+                        className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
+                          promptText.includes(tag)
+                            ? "bg-[#2d4a3e] text-white border-[#2d4a3e]"
+                            : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD] hover:border-[#2d4a3e]/40"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={promptText}
+                    onChange={(e) => setPromptText(e.target.value)}
+                    placeholder="Or type custom focus areas..."
+                    className="w-full bg-[#FAF9F5] border border-[#E5E0D4] rounded-xl px-3.5 py-2 text-xs text-[#1a1b1e] focus:outline-none focus:border-[#2d4a3e]"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-mono text-[#8c9099] uppercase">
+                    {selectedMode === "school" ? "Chapter / Subject Name" : "Subject & Syllabus / Lab Topic"}
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={selectedMode === "school" ? "e.g. Class 10 Biology — Life Processes" : "e.g. Operating Systems: Process Synchronization"}
+                    className="w-full bg-[#FAF9F5] border border-[#E5E0D4] rounded-xl px-3.5 py-2.5 text-xs text-[#1a1b1e] focus:outline-none focus:border-[#2d4a3e]"
+                  />
+                </div>
+
+                {/* PDF Attachment Option */}
+                <div className="space-y-1">
+                  <label className="flex items-center justify-between p-3 rounded-xl border border-dashed border-[#2d4a3e]/40 bg-[#FAF9F5] hover:bg-[#F4F1EA] cursor-pointer transition-colors">
+                    <div className="flex items-center space-x-2 text-xs font-medium text-[#2d4a3e]">
+                      <UploadCloud className="w-4 h-4" />
+                      <span>
+                        {pdfParsing
+                          ? "Parsing PDF..."
+                          : selectedMode === "school"
+                          ? "📄 Attach Textbook / Q&A Notes (PDF)"
+                          : "📄 Attach Textbook Chapter / Lab Manual (PDF)"}
+                      </span>
+                    </div>
+                    <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
+                  </label>
+                  {selectedFile && (
+                    <div className="text-[11px] font-mono text-[#2d4a3e] flex items-center justify-between px-2 pt-1">
+                      <span className="truncate">✓ Attached: {selectedFile.name}</span>
+                      <button type="button" onClick={() => setSelectedFile(null)} className="text-red-500 hover:underline ml-2">Remove</button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-[#8c9099] uppercase">
+                    {selectedMode === "school" ? "Key Topics (Optional)" : "Key Concepts / Topics (Optional)"}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(selectedMode === "school"
+                      ? ["Photosynthesis", "Cell Division", "Electricity", "History", "Trigonometry", "Grammar"]
+                      : ["Algorithms", "DBMS", "Networks", "OS Concepts", "Data Structures", "Cloud"]
+                    ).map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setPromptText(promptText.includes(tag) ? promptText.replace(tag, "").replace(/,\s*/g, ", ").trim().replace(/^,|,$/g, "").trim() : (promptText ? `${promptText}, ${tag}` : tag))}
+                        className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
+                          promptText.includes(tag)
+                            ? "bg-[#2d4a3e] text-white border-[#2d4a3e]"
+                            : "bg-[#FAF9F5] text-[#5c5f66] border-[#EBE7DD] hover:border-[#2d4a3e]/40"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={promptText}
+                    onChange={(e) => setPromptText(e.target.value)}
+                    placeholder={selectedMode === "school" ? "Or type topics, e.g. Respiration, Algebra..." : "Or type concepts, e.g. TCP/IP, Deadlock..."}
+                    className="w-full bg-[#FAF9F5] border border-[#E5E0D4] rounded-xl px-3.5 py-2 text-xs text-[#1a1b1e] focus:outline-none focus:border-[#2d4a3e]"
+                  />
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
@@ -1100,20 +1282,22 @@ export default function VIVORAEditorialHomePage() {
             {/* Launch Action Button */}
             <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#EBE7DD]">
               <button
+                type="button"
                 onClick={() => setShowSetupModal(false)}
                 className="px-4 py-2 rounded-full text-xs font-medium text-[#71767f] hover:text-[#1a1b1e]"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleStartSession(promptText || title, promptText || contentText, selectedMode)}
+                type="button"
+                onClick={() => handleStartSession()}
                 disabled={loading}
                 className="px-6 py-2.5 rounded-full bg-[#1a1b1e] hover:bg-[#2d4a3e] text-white text-xs font-medium transition-all shadow-sm flex items-center space-x-2 disabled:opacity-50"
               >
                 {loading ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Launching...</span>
+                    <span>Preparing Viva Session...</span>
                   </>
                 ) : (
                   <>

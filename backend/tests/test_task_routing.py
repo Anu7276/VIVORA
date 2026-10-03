@@ -33,14 +33,14 @@ from app.llm.router import (
 
 def _make_router(gemini_key="test-gemini", groq_key="test-groq") -> LLMRouter:
     """Build a fresh LLMRouter with fake API keys so all provider slots are filled."""
+    TASK_PROVIDER_MAP.update({
+        "question_generation": "gemini",
+        "live_turn": "groq",
+        "evaluation": "groq",
+        "report": "gemini",
+    })
     with (
         patch("app.llm.router.settings") as mock_settings,
-        patch("app.llm.router.TASK_PROVIDER_MAP", {
-            "question_generation": "gemini",
-            "live_turn": "groq",
-            "evaluation": "groq",
-            "report": "gemini",
-        }),
         patch("app.llm.router._log_usage"),   # silence DB writes
     ):
         mock_settings.GEMINI_API_KEY = gemini_key

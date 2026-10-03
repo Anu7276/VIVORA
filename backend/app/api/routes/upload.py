@@ -53,6 +53,7 @@ def _check_file_type_allowed(filename: str, content_type: str) -> None:
     Checks both extension and MIME type (don't trust either alone).
     """
     ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    # Only allowed extensions are permitted
     if ext not in _ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=415,
@@ -60,12 +61,6 @@ def _check_file_type_allowed(filename: str, content_type: str) -> None:
                 f"File type '{ext}' is not supported. "
                 f"Only {', '.join(sorted(_ALLOWED_EXTENSIONS))} files are accepted."
             ),
-        )
-    # If MIME is octet-stream, only allow for txt/md extensions (not pdf)
-    if content_type == "application/octet-stream" and ext == ".pdf":
-        raise HTTPException(
-            status_code=415,
-            detail="Cannot accept application/octet-stream for PDF files. Please upload a valid PDF.",
         )
 
 

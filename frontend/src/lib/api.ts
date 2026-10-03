@@ -68,10 +68,20 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (err: any) {
+    if (err?.message === "Failed to fetch" || err?.name === "TypeError") {
+      throw new Error(
+        "Cannot connect to the VIVORA backend server (http://127.0.0.1:8000). Please ensure the backend is running."
+      );
+    }
+    throw err;
+  }
 
   if (res.status === 401) {
     clearAuthToken();

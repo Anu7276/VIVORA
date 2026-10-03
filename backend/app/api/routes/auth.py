@@ -32,7 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.orm import Session as DBSession
 
-from app.core.auth import create_access_token, hash_password, verify_password, DUMMY_BCRYPT_HASH
+from app.core.auth import create_access_token, hash_password, verify_password, DUMMY_BCRYPT_HASH, get_active_user
 from app.core.config import settings
 from app.core.email_sender import get_email_sender
 from app.db.database import get_db
@@ -358,3 +358,15 @@ async def confirm_parent_consent(
             f"The account for '{user.name if user else 'your child'}' is now active."
         ),
     }
+
+
+@router.get("/me")
+def get_current_user_profile(current_user: User = Depends(get_active_user)):
+    """Return the currently authenticated active user's profile."""
+    return {
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "account_status": current_user.account_status,
+    }
+

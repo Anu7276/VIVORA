@@ -13,25 +13,53 @@ Difficulty: {difficulty}
 Generate {count} concise, conversational viva questions. Each question must be short, direct, and easily spoken aloud.
 Return JSON with key 'questions' containing list of objects with 'question_text', 'topic', 'difficulty', 'reference_answer'."""
 
+SCHOOL_QUESTION_GENERATION_PROMPT = """You are a warm, supportive, and encouraging Viva Examiner for school students.
+The student has provided the following textbook chapter, notes, or study questions:
+Topic / Chapter: "{topic}"
+Notes / Questions Context:
+\"\"\"{context}\"\"\"
+
+Generate {count} simple, clear, and direct viva questions designed to test their recall and foundational understanding of these notes/chapter.
+Rules:
+- Questions must be direct, simple, and age-appropriate (e.g. definitions, function of parts/organs, basic scientific/historical facts, examples).
+- Do NOT ask complex architecture, multi-part, or tricky adversarial questions.
+- Keep each question easily speakable in one sentence.
+- Provide a clean, factual model reference answer for each question.
+- Do NOT generate follow-up cross-examination questions for school viva (set 'followup_question' and 'followup_answer' to "").
+
+Output format strictly JSON with key 'questions' containing an array of {count} objects:
+{{
+  "questions": [
+    {{
+      "question_text": "...",
+      "topic": "...",
+      "difficulty": "easy" | "medium",
+      "reference_answer": "...",
+      "followup_question": "",
+      "followup_answer": ""
+    }}
+  ]
+}}"""
+
 COLLEGE_QUESTION_GENERATION_PROMPT = """You are a distinguished University Professor and College Viva Examiner.
-The student has provided the following Chapter, Subject, Syllabus, or Lab Practical details:
+The student has provided the following Chapter, Syllabus, Notes, or Lab Practical details:
 Title / Topic: "{topic}"
 Syllabus / Lab Context:
 \"\"\"{context}\"\"\"
 
-Generate the TOP {count} essential viva questions for this chapter, subject, or lab practical.
+Generate the TOP {count} essential viva questions for this chapter, subject, or lab practical to thoroughly test conceptual understanding.
 Structure the questions progressively:
-- Questions 1 to 3: Core definitions, primary laws/principles, and fundamental objectives.
-- Questions 4 to 7: Implementation mechanisms, algorithms, circuit/experimental procedures, and component roles.
-- Questions 8 to 10: Deep edge-cases, error analysis, trade-offs, failure modes, or practical optimizations.
+- Questions 1 to 3: Core definitions, governing laws/theorems, and fundamental principles.
+- Questions 4 to 7: Implementation mechanisms, algorithms, lab experimental procedures, and component roles.
+- Questions 8 to 10: Deep edge-cases, trade-offs, error analysis, failure modes, or practical optimizations.
 
 For EACH question, you MUST provide:
-1. 'question_text': A crisp, direct viva question that sounds natural when spoken aloud by the examiner.
-2. 'topic': Specific sub-topic, law, or experiment step.
+1. 'question_text': A crisp, direct viva question that sounds natural when spoken aloud by an examiner.
+2. 'topic': Specific sub-topic, law, algorithm, or experiment step.
 3. 'difficulty': "easy" | "medium" | "hard"
-4. 'reference_answer': A precise, technically sound model answer explaining key principles, formulas, or mechanism.
-5. 'followup_question': A probing follow-up question (e.g., "Why did you choose that approach?", "What happens if this component fails?", "How does time complexity scale?").
-6. 'followup_answer': The expected answer to the follow-up question.
+4. 'reference_answer': A precise, technically sound model answer explaining key principles, formulas, or mechanisms.
+5. 'followup_question': A targeted probing question ("Why this mechanism instead of [alternative]?", "Why not use [X] here?", "What trade-off is involved?"). Provide this ONLY where important for conceptual depth. If no probing is needed, leave empty ("").
+6. 'followup_answer': The expected answer or trade-off rationale.
 
 Output format strictly JSON with key 'questions' containing an array of {count} objects:
 {{
@@ -47,28 +75,31 @@ Output format strictly JSON with key 'questions' containing an array of {count} 
   ]
 }}"""
 
-INTERVIEW_QUESTION_GENERATION_PROMPT = """You are a Principal Software Engineering Interviewer and Technical Hiring Lead.
-Candidate Profile:
-- Target Job Role: "{job_role}"
-- Candidate Tech Stack / Skills: "{tech_stack}"
-- Experience Level: "{experience_level}"
-- Additional Context / Focus Areas:
+INTERVIEW_QUESTION_GENERATION_PROMPT = """You are an experienced Hiring Manager and Professional Interviewer conducting an interview for the target role: "{job_role}".
+
+Candidate's Uploaded Resume & Profile Context:
 \"\"\"{context}\"\"\"
 
-Generate {count} realistic, practical, and in-depth technical interview questions tailored specifically to this job role and tech stack.
-Cover essential facets:
-1. Core Architecture & Fundamentals: Design decisions, internals, lifecycle, and component interactions in the specified stack.
-2. Production Engineering & Real-world Debugging: Solving race conditions, memory leaks, performance bottlenecks, caching, and database queries.
-3. System Design & Scalability: High-concurrency patterns, microservices vs monolith trade-offs, state management, and API design.
-4. Resilience & Security: Handling downstream outages, authentication/authorization, data validation, and graceful degradation.
+Target Job Role Applied For: "{job_role}"
+Candidate Experience Level: "{experience_level}"
 
-For EACH question, you MUST provide:
-1. 'question_text': A crisp, realistic question as spoken aloud by a tech lead in an interview.
-2. 'topic': Specific tech domain (e.g. "React State & Rendering", "Node.js Event Loop & Concurrency", "PostgreSQL Indexing & Transactions", "System Design & Caching").
-3. 'difficulty': "easy" | "medium" | "hard"
-4. 'reference_answer': Key engineering concepts, architectural principles, trade-offs, and best practices expected in an ideal response.
-5. 'followup_question': A probing follow-up question (e.g., "How would this scale under 100k requests/sec?", "What happens if the cache is cold?", "How would you diagnose this in production logs?").
-6. 'followup_answer': The expected answer to the follow-up question.
+INSTRUCTIONS:
+1. Thoroughly inspect the candidate's actual Resume text (their listed projects, previous work experience, tech stack/tools, achievements, or domain background).
+2. Generate {count} realistic, conversational interview questions tailored specifically to:
+   - The candidate's real background and projects listed on their resume.
+   - The specific core competencies and responsibilities required for "{job_role}".
+   (IMPORTANT: Do NOT invent or default to arbitrary technologies unless they are relevant to their resume or the applied target role!).
+3. Cover practical interview dimensions:
+   - Resume Project Deep-Dive: Ask about a specific project or achievement mentioned in their resume (e.g. "In your resume, you built [Project]. Can you walk me through how you designed [Component/Feature] and what challenges you faced?").
+   - Role Scenarios: Practical, situational problem-solving relevant to a "{job_role}".
+   - Architectural / Decision-Making: Asking them to justify technical or strategic decisions in their past work.
+4. For EACH question provide:
+   - 'question_text': A realistic, spoken interview question.
+   - 'topic': Specific project or domain area (e.g., "Resume Project: [Name]", "Architecture", "Data Pipeline", "API Design", "Problem Solving").
+   - 'difficulty': "easy" | "medium" | "hard"
+   - 'reference_answer': Key concepts, trade-offs, and indicators of an ideal strong response.
+   - 'followup_question': A cross-examination probing question ("In that project, why did you choose that approach instead of [alternative]?", "Why this and not [other option]?", "What trade-offs did you consider?"). Include only where important.
+   - 'followup_answer': Expected reasoning and trade-off points.
 
 Output format strictly JSON with key 'questions' containing an array of {count} objects:
 {{
@@ -156,12 +187,17 @@ Output format strictly JSON:
   "model_answer": "string"
 }}"""
 
-FOLLOWUP_PROMPT = """You are a Follow-up Agent for College/Interview viva.
-Question: {question_text}
-Student Answer: {answer_transcript}
-Identified Gap: {missing_concepts}
+FOLLOWUP_PROMPT = """You are a Follow-up Cross-Questioning Agent for a {mode} viva/interview.
+Original Question: {question_text}
+Candidate's Spoken Answer: {answer_transcript}
+Identified Gap / Context: {missing_concepts}
 
-Generate ONE probing follow-up question (e.g. asking 'why', 'how does it work under the hood?', or asking them to clarify a missing concept). Keep it speakable and direct."""
+CRITICAL RULES:
+1. Cross-question ONLY where important and impactful (e.g. testing "Why did you choose this over [alternative]?", "Why this mechanism instead of that?", "What trade-offs did you consider in your project/answer?").
+2. Do NOT cross-question blindly on every answer. If the candidate's answer is already clear, acceptable, or if a follow-up is not meaningful, reply with exactly: NONE
+3. If asking a follow-up, generate ONE crisp, natural spoken sentence.
+
+Your response (either ONE probing question or NONE):"""
 
 DOUBT_PROMPT = """You are a helpful Tutor Agent answering a student's doubt during a Viva.
 Student's doubt: "{student_doubt}"

@@ -103,7 +103,8 @@ class Orchestrator:
                 follow_up_question = await self.followup.generate_followup(
                     question_text=question_text,
                     answer_transcript=answer_transcript,
-                    missing_concepts=eval_result.get("missing_concepts", "")
+                    missing_concepts=eval_result.get("missing_concepts", ""),
+                    mode=mode
                 )
 
         return {

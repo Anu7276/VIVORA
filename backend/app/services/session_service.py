@@ -1,3 +1,4 @@
+import logging
 import datetime
 from typing import Dict, Any, List, Optional
 from fastapi import HTTPException
@@ -5,6 +6,8 @@ from sqlalchemy.orm import Session as DBSession
 from app.db.models import Session, Question, Answer, Evaluation, Report, TopicScore, Document
 from app.agents.orchestrator import orchestrator
 from app.services.mode_strategy import ModeStrategy
+
+logger = logging.getLogger("vivora.session_service")
 
 class SessionService:
     @staticmethod
@@ -39,20 +42,22 @@ class SessionService:
                 title = doc.title
 
         # If job role provided for interview mode, personalize title and content
-        if mode == "interview" and job_role:
-            if not title or title in ("Science Viva", "Science Viva Practice", "Full Stack Software Engineer Interview"):
-                title = f"{job_role} Technical Interview"
-            profile_context = f"Job Role: {job_role}\nTech Stack: {tech_stack or 'Full-Stack'}\nExperience Level: {experience_level or 'Mid-Level'}"
+        if mode == "interview":
+            target_role = job_role or "Software Engineer"
+            if not title or title in ("Science Viva", "Science Viva Practice", "Full Stack Software Engineer Interview", "System Design Mock Interview", "System Design & Technical Architecture Viva"):
+                title = f"{target_role} Interview"
+            profile_context = f"Target Job Role: {target_role}\nExperience Level: {experience_level or 'Mid-Level'}" + (f"\nTech Stack: {tech_stack}" if tech_stack else "")
             if content_text:
-                content_text = f"{profile_context}\n\nCandidate / Role Context:\n{content_text}"
+                content_text = f"{profile_context}\n\nCandidate Resume / Background Context:\n{content_text}"
             else:
                 content_text = profile_context
 
         if not doc:
+            doc_type_val = "resume" if mode == "interview" else ("questions" if mode == "school" else "syllabus")
             doc = Document(
                 user_id=user_id,
                 title=title,
-                doc_type="questions" if q_source == "fixed" else "syllabus",
+                doc_type=doc_type_val,
                 content=content_text
             )
             db.add(doc)
@@ -105,7 +110,8 @@ class SessionService:
                             context_text=content_text,
                             count=10
                         )
-                    except Exception:
+                    except Exception as e:
+                        logger.error(f"College question generation error: {e}", exc_info=True)
                         questions_data = []
                 elif mode == "interview":
                     try:
@@ -121,7 +127,8 @@ class SessionService:
                             tech_stack=tech_stack,
                             experience_level=experience_level
                         )
-                    except Exception:
+                    except Exception as e:
+                        logger.error(f"Interview question generation error: {e}", exc_info=True)
                         questions_data = []
                 elif mode == "school":
                     if (content_text and len(content_text.strip()) > 10) or title:
@@ -135,7 +142,8 @@ class SessionService:
                                 context_text=content_text,
                                 count=5
                             )
-                        except Exception:
+                        except Exception as e:
+                            logger.error(f"School question generation error: {e}", exc_info=True)
                             questions_data = []
 
             if not questions_data:
