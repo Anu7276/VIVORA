@@ -3,7 +3,7 @@ import asyncio
 from app.db.database import SessionLocal, Base, engine
 from app.services.session_service import session_service
 from app.db.models import User
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def test_college_viva_generates_top_10_questions_with_followups():
     Base.metadata.create_all(bind=engine)
@@ -17,7 +17,7 @@ def test_college_viva_generates_top_10_questions_with_followups():
                 email="college_tester@example.com",
                 role="college",
                 is_minor=False,
-                date_of_birth=datetime.utcnow() - timedelta(days=21 * 365)
+                date_of_birth=datetime.now(timezone.utc) - timedelta(days=21 * 365)
             )
             db.add(user)
             db.commit()

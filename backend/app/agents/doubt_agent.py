@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from app.agents.base import BaseAgent
 from app.llm.prompts import DOUBT_PROMPT
+from app.llm.guardrails import Guardrails
 from app.voice.tts_stream import tts_router
 
 
@@ -16,9 +17,10 @@ class DoubtAgent(BaseAgent):
         self.tts = tts_router
 
     async def answer_doubt(self, tenant_id: str, doubt_query: str, mode: str = "school") -> Dict[str, Any]:
-        context = self.rag.get_context_string(tenant_id, query=doubt_query, top_k=3)
+        sanitized_query = Guardrails.sanitize_input(doubt_query)
+        context = self.rag.get_context_string(tenant_id, query=sanitized_query, top_k=3)
 
-        delimited_doubt = f"<student_doubt>\n{doubt_query[:500]}\n</student_doubt>"
+        delimited_doubt = f"<student_doubt>\n{sanitized_query[:500]}\n</student_doubt>"
         delimited_context = f"<subject_context>\n{(context or 'General textbook subject knowledge')[:3000]}\n</subject_context>"
 
         prompt = DOUBT_PROMPT.format(

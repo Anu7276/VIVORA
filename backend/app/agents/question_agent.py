@@ -113,9 +113,9 @@ class QuestionAgent(BaseAgent):
                     "topic": q.get("topic", f"{role} - Technical"),
                     "difficulty": q.get("difficulty", "medium"),
                     "origin": "generated",
-                    "reference_answer": q.get("reference_answer", f"Standard model answer for {q_text}"),
-                    "followup_question": q.get("followup_question", f"Why is that principle important in practical production systems?"),
-                    "followup_answer": q.get("followup_answer", f"Detailed practical mechanism and production reasoning.")
+                    "reference_answer": q.get("reference_answer", ""),
+                    "followup_question": q.get("followup_question", ""),
+                    "followup_answer": q.get("followup_answer", "")
                 })
             if result:
                 return result

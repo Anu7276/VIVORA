@@ -3,7 +3,7 @@ import asyncio
 from app.db.database import SessionLocal, Base, engine
 from app.db.models import User, Session, Question
 from app.services.session_service import session_service
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 @pytest.fixture(scope="module")
 def setup_db():
@@ -16,10 +16,10 @@ def test_interview_customizes_questions_for_job_role_and_tech_stack(setup_db):
         # Create adult user
         user = User(
             name="Interview Candidate",
-            email=f"candidate_{datetime.utcnow().timestamp()}@example.com",
+            email=f"candidate_{datetime.now(timezone.utc).timestamp()}@example.com",
             role="interview",
             is_minor=False,
-            date_of_birth=datetime.utcnow() - timedelta(days=25 * 365)
+            date_of_birth=datetime.now(timezone.utc) - timedelta(days=25 * 365)
         )
         db.add(user)
         db.commit()

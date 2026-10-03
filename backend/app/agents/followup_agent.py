@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional
 from app.agents.base import BaseAgent
 from app.llm.prompts import FOLLOWUP_PROMPT
+from app.llm.guardrails import Guardrails
 
 class FollowupAgent(BaseAgent):
     """
@@ -19,9 +20,12 @@ class FollowupAgent(BaseAgent):
         if not answer_transcript or len(answer_transcript.split()) < 3:
             return None
 
+        clean_question = Guardrails.sanitize_input(question_text)
+        clean_answer = Guardrails.sanitize_input(answer_transcript)
+
         prompt = FOLLOWUP_PROMPT.format(
-            question_text=question_text,
-            answer_transcript=answer_transcript,
+            question_text=clean_question,
+            answer_transcript=clean_answer,
             missing_concepts=missing_concepts or "underlying mechanism and reason"
         )
 
@@ -31,13 +35,15 @@ class FollowupAgent(BaseAgent):
                 prompt=prompt,
                 system_prompt="You are a follow-up interviewer probing deeper on technical concepts.",
             )
+            if not followup_text or not followup_text.strip():
+                return None
             return {
                 "question_text": followup_text.strip(),
                 "difficulty": "hard",
                 "origin": "follow_up",
-                "reference_answer": f"Detailed technical follow-up context for {question_text}"
+                "reference_answer": ""  # Leave empty so evaluator uses RAG context
             }
-        except Exception as e:
+        except Exception:
             return None
 
 followup_agent = FollowupAgent()
