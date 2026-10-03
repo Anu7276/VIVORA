@@ -26,7 +26,7 @@ Tests for:
 import sys
 import os
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest
@@ -70,12 +70,12 @@ def _make_adult_token(password="TestPass123!") -> str:
     try:
         user = User(
             name="Adult Student",
-            email=f"adult_{datetime.utcnow().timestamp()}@example.com",
+            email=f"adult_{datetime.now(timezone.utc).timestamp()}@example.com",
             role="college",
             is_minor=False,
             account_status="active",
             password_hash=hash_password(password),
-            date_of_birth=datetime.utcnow() - timedelta(days=20 * 365 + 10)
+            date_of_birth=datetime.now(timezone.utc) - timedelta(days=20 * 365 + 10)
         )
         db.add(user)
         db.commit()
@@ -101,12 +101,12 @@ def minor_with_verified_consent():
     try:
         user = User(
             name="Minor Student With Consent",
-            email=f"minor_ok_{datetime.utcnow().timestamp()}@example.com",
+            email=f"minor_ok_{datetime.now(timezone.utc).timestamp()}@example.com",
             role="school",
             is_minor=True,
             account_status="active",   # Already confirmed by parent
             password_hash=hash_password("TestPass123!"),
-            date_of_birth=datetime.utcnow() - timedelta(days=14 * 365)
+            date_of_birth=datetime.now(timezone.utc) - timedelta(days=14 * 365)
         )
         db.add(user)
         db.commit()
@@ -134,12 +134,12 @@ def minor_without_verified_consent():
     try:
         user = User(
             name="Minor Student No Consent",
-            email=f"minor_no_{datetime.utcnow().timestamp()}@example.com",
+            email=f"minor_no_{datetime.now(timezone.utc).timestamp()}@example.com",
             role="school",
             is_minor=True,
             account_status="pending_parent_consent",  # Not yet confirmed
             password_hash=hash_password("TestPass123!"),
-            date_of_birth=datetime.utcnow() - timedelta(days=14 * 365)
+            date_of_birth=datetime.now(timezone.utc) - timedelta(days=14 * 365)
         )
         db.add(user)
         db.commit()
