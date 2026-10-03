@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Newsreader, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -8,9 +8,10 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
+const newsreader = Newsreader({
   subsets: ["latin"],
-  variable: "--font-display",
+  style: ["normal", "italic"],
+  variable: "--font-serif",
   display: "swap",
 });
 
@@ -21,8 +22,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VIVORA | AI Viva & Technical Interview Simulator",
-  description: "Live voice-driven AI interviewer and oral examination simulator with instant rubric scoring, interactive whiteboard canvas, and real-time speech analytics.",
+  title: "VIVORA — Intelligent AI Study, Viva & Interview Platform",
+  description: "Study smarter. Speak better. Perform with confidence. Your AI workspace for studying, viva preparation, technical interviews, and real-world oral communication.",
 };
 
 export default function RootLayout({
@@ -31,8 +32,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${plusJakarta.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-      <body className="bg-[#fcfbf9] text-[#1e293b] font-sans min-h-screen antialiased selection:bg-[#10b981]/20 selection:text-[#047857] overflow-x-hidden">
+    <html lang="en" className={`${plusJakarta.variable} ${newsreader.variable} ${jetbrainsMono.variable}`}>
+      <body className="bg-[#FAF9F5] text-[#1a1b1e] font-sans min-h-screen antialiased selection:bg-[#0f766e]/15 selection:text-[#0f766e] overflow-x-hidden">
         {children}
       </body>
     </html>
