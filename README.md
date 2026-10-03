@@ -30,12 +30,13 @@
 9. [Environment Variables](#-environment-variables)
 10. [API Reference](#-api-reference)
 11. [Database Schema](#-database-schema)
-12. [AI Agent Details](#-ai-agent-details)
-13. [RAG Pipeline](#-rag-pipeline)
-14. [Voice System](#-voice-system)
-15. [Session State Machine](#-session-state-machine)
-16. [Deployment](#-deployment)
-17. [Contributing](#-contributing)
+12. [AI Agent Routing](#-ai-agent-routing)
+13. [LLM Router & Fallback](#-llm-router--fallback)
+14. [RAG Pipeline](#-rag-pipeline)
+15. [Voice System](#-voice-system)
+16. [Session State Machine](#-session-state-machine)
+17. [Deployment](#-deployment)
+18. [Contributing](#-contributing)
 
 ---
 
@@ -56,157 +57,142 @@ VIVORA supports **three distinct AI agents** tailored for different audiences:
 ## 🤖 The 3 AI Agents
 
 ### 🏫 School Viva Agent
-
-```
-Input:  Textbook Q&A PDF / Study notes / Topic name
-Output: Simple, direct recall questions
-Style:  One question at a time. No cross-questioning. Encouraging feedback.
-Example: "What is photosynthesis? Where does it take place in the cell?"
-```
-
 - Accepts **PDF textbooks, Q&A sheets, or typed topic names**
 - Generates **foundational recall questions** — definitions, processes, facts
 - Feedback is **positive and motivating** — suitable for younger students
-- **No follow-up cross-questioning** — each answer moves to the next question
-
----
+- **No follow-up cross-questioning** — each answer moves straight to the next question
+- *Example:* `"What is photosynthesis? Where does it take place in the cell?"`
 
 ### 🎓 College Viva Agent
-
-```
-Input:  Syllabus PDF / Lab manual / Topic outline
-Output: Conceptual & application-level viva questions
-Style:  Progressive depth. Selective follow-up probing.
-Example: "Explain how Banker's Algorithm prevents deadlock. What are its limitations?"
-```
-
-- Accepts **textbook chapters, syllabus outlines, practical lab manuals** (PDF or text)
+- Accepts **textbook chapters, syllabus outlines, lab manuals** (PDF or text)
 - Generates **conceptual and application-level questions** using Gemini AI
-- Applies **selective cross-examination** — only on important answers, not every one
-- Follow-up probes: *"Why this approach over X? What if Y fails?"*
-
----
+- Applies **selective cross-examination** — only on answers where depth matters
+- Follow-up probes: *"Why this approach over X? What if Y fails instead?"*
+- *Example:* `"Explain how Banker's Algorithm prevents deadlock. What are its limitations?"`
 
 ### 💼 Job Interview Agent
-
-```
-Input:  Resume PDF + Target Job Role (text)
-Output: Resume-driven, role-specific technical & behavioural questions
-Style:  Cross-examination on experience, projects, and role-specific skills
-Example: "You mentioned React in your resume — explain how you handled state
-          management in your e-commerce project."
-```
-
-- Accepts **Resume PDF** + **Target Role** text input
-- AI reads your actual resume and asks questions **specifically about your experience**
-- Applies **targeted cross-examination** on claimed resume experience
-- Supports **experience level** selection: Entry / Mid / Senior
-- Generates **role-specific technical questions** based on the job applied for
+- Accepts **Resume PDF** + **Target Role** (text)
+- AI reads your actual resume and asks questions **specific to your experience**
+- Applies **targeted cross-examination** on every claimed skill and project
+- Supports **experience level**: Entry / Mid / Senior
+- *Example:* `"You mentioned Redis — how did you handle cache invalidation at scale?"`
 
 ---
 
 ## 🏗 System Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                         VIVORA PLATFORM                              │
-│                                                                      │
-│  ┌───────────────────────┐       ┌──────────────────────────────┐   │
-│  │   FRONTEND (Next.js)  │       │     BACKEND (FastAPI)         │   │
-│  │                       │       │                              │   │
-│  │  ┌─────────────────┐  │       │  ┌────────────────────────┐  │   │
-│  │  │  Landing Page   │  │       │  │    REST API Routes     │  │   │
-│  │  │  (Agent Select) │◄─┼──HTTP─►  │  /auth /sessions       │  │   │
-│  │  └─────────────────┘  │       │  │  /upload  /reports     │  │   │
-│  │                       │       │  └────────────────────────┘  │   │
-│  │  ┌─────────────────┐  │       │                              │   │
-│  │  │  Session Room   │◄─┼──WS───►  ┌────────────────────────┐  │   │
-│  │  │  (Live Viva)    │  │       │  │  WebSocket Handler     │  │   │
-│  │  └─────────────────┘  │       │  │  /ws/session/{id}      │  │   │
-│  │                       │       │  └───────────┬────────────┘  │   │
-│  │  ┌─────────────────┐  │       │              │               │   │
-│  │  │  Report Page    │◄─┼──HTTP─►  ┌───────────▼────────────┐  │   │
-│  │  │  (Scorecard)    │  │       │  │     ORCHESTRATOR        │  │   │
-│  │  └─────────────────┘  │       │  └─────┬────┬────┬────────┘  │   │
-│  └───────────────────────┘       │        │    │    │           │   │
-│                                  │  ┌─────▼┐ ┌─▼──┐ ┌▼───────┐ │   │
-│                                  │  │  Q   │ │Eval│ │Followup│ │   │
-│                                  │  │Agent │ │Agt │ │ Agent  │ │   │
-│                                  │  └──┬───┘ └─┬──┘ └───┬────┘ │   │
-│                                  │     └────────┴────────┘      │   │
-│                                  │              │               │   │
-│                                  │  ┌───────────▼────────────┐  │   │
-│                                  │  │      LLM ROUTER         │  │   │
-│                                  │  │  Gemini / Smart Fallback│  │   │
-│                                  │  └───────────┬────────────┘  │   │
-│                                  │              │               │   │
-│                                  │  ┌───────────▼────────────┐  │   │
-│                                  │  │      RAG PIPELINE       │  │   │
-│                                  │  │  PDF → Chunks → Context │  │   │
-│                                  │  └───────────┬────────────┘  │   │
-│                                  │              │               │   │
-│                                  │  ┌───────────▼────────────┐  │   │
-│                                  │  │    SQLite Database      │  │   │
-│                                  │  │ Sessions/Questions/Evals│  │   │
-│                                  │  └────────────────────────┘  │   │
-│                                  └──────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["⚛️ Frontend (Next.js)"]
+        LP[Landing Page\nAgent Select Modal]
+        SR[Session Room\nLive Viva]
+        RP[Report Page\nScorecard]
+    end
+
+    subgraph Backend["🐍 Backend (FastAPI)"]
+        REST[REST API Routes\n/auth /sessions /upload /reports]
+        WS[WebSocket Handler\n/ws/session/{id}]
+
+        subgraph Agents["🤖 Agent System"]
+            ORC[Orchestrator\nCentral Dispatcher]
+            QA[Question Agent\nSchool / College / Interview]
+            EA[Evaluator Agent\nScoring & Rubric]
+            FA[Followup Agent\nCross-questioning]
+            RA[Report Agent\nFinal Scorecard]
+            DA[Doubt Agent\nClarification]
+            IA[Intake Agent\nDocument Ingestion]
+        end
+
+        LLM[LLM Router\nGemini + Fallback]
+        RAG[RAG Pipeline\nPDF → Chunks → Context]
+        DB[(SQLite Database\nSessions / Questions\nAnswers / Evaluations)]
+    end
+
+    GEM[☁️ Google Gemini API]
+
+    LP -->|HTTP POST /sessions| REST
+    LP -->|HTTP POST /upload| REST
+    SR <-->|WebSocket| WS
+    RP -->|HTTP GET /report| REST
+
+    REST --> DB
+    WS --> ORC
+    ORC --> QA
+    ORC --> EA
+    ORC --> FA
+    ORC --> RA
+    ORC --> DA
+    IA --> RAG
+
+    QA --> LLM
+    EA --> LLM
+    FA --> LLM
+    RA --> LLM
+    DA --> LLM
+
+    LLM -->|Primary| GEM
+    LLM -->|Fallback| LLM
+
+    RAG --> DB
+    ORC --> DB
 ```
 
 ---
 
 ## 🔄 Data Flow Diagram
 
-```
-USER              FRONTEND              BACKEND               GEMINI AI
- │                    │                     │                     │
- │ 1. Select Mode     │                     │                     │
- │ (School/College/   │                     │                     │
- │  Interview)        │                     │                     │
- │───────────────────►│                     │                     │
- │                    │                     │                     │
- │ 2. Upload PDF or   │                     │                     │
- │    Enter Topic     │  POST /upload       │                     │
- │───────────────────►│────────────────────►│ Parse PDF           │
- │                    │                     │ Chunk text          │
- │                    │                     │ Store in DB         │
- │                    │◄─── document_id ────│                     │
- │                    │                     │                     │
- │ 3. Start Session   │  POST /sessions     │                     │
- │───────────────────►│────────────────────►│                     │
- │                    │◄─── session_id ─────│                     │
- │                    │                     │                     │
- │                    │  WS: CONNECT        │                     │
- │                    │────────────────────►│                     │
- │                    │  WS: {auth, token}  │                     │
- │                    │────────────────────►│ Verify JWT          │
- │                    │◄─── auth_ok ────────│                     │
- │                    │                     │                     │
- │                    │◄─── question_ready ─│──── Generate Q ────►│
- │                    │     + TTS speech    │◄─── Questions ──────│
- │ AI speaks question │                     │                     │
- │◄───────────────────│                     │                     │
- │                    │                     │                     │
- │ 4. Speak Answer    │  WS: stt_partial    │                     │
- │───────────────────►│────────────────────►│ (stream)            │
- │                    │                     │                     │
- │ 5. Submit Answer   │  WS: submit_answer  │                     │
- │───────────────────►│────────────────────►│                     │
- │                    │◄─── evaluating ─────│                     │
- │                    │                     │──── Evaluate ──────►│
- │                    │                     │◄─── Scores ─────────│
- │                    │◄── eval_result ─────│                     │
- │ Feedback shown     │                     │                     │
- │◄───────────────────│                     │                     │
- │                    │                     │                     │
- │                    │  (If follow-up due) │──── Follow-up Q ───►│
- │                    │◄── followup_question│◄─── Question ───────│
- │                    │                     │                     │
- │ 6. All Q Done      │                     │                     │
- │                    │◄── session_completed│──── Final Report ──►│
- │                    │                     │◄─── Report Data ────│
- │ 7. View Scorecard  │  GET /report/{id}   │                     │
- │◄───────────────────│────────────────────►│                     │
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as Frontend (Next.js)
+    participant BE as Backend (FastAPI)
+    participant GEM as Gemini AI
+
+    User->>FE: 1. Select Agent Mode (School / College / Interview)
+    User->>FE: 2. Upload PDF or enter Topic / Job Role
+    FE->>BE: POST /upload (PDF file)
+    BE->>BE: Parse PDF, chunk text, store in DB
+    BE-->>FE: { document_id }
+
+    User->>FE: 3. Start Session
+    FE->>BE: POST /sessions
+    BE-->>FE: { session_id }
+
+    FE->>BE: WS CONNECT /ws/session/{id}
+    FE->>BE: WS { type: "auth", token }
+    BE-->>FE: WS { type: "auth_ok" }
+
+    BE->>GEM: Generate questions (mode + context)
+    GEM-->>BE: Questions with reference answers
+    BE-->>FE: WS { type: "question_ready", question, speech }
+    FE->>User: AI speaks question aloud (TTS)
+
+    User->>FE: 4. Speak answer (microphone)
+    FE->>BE: WS { type: "stt_partial", transcript } (continuous)
+
+    User->>FE: 5. Submit answer
+    FE->>BE: WS { type: "submit_answer", transcript }
+    BE-->>FE: WS { type: "evaluating" }
+    BE->>GEM: Evaluate answer (rubric scoring)
+    GEM-->>BE: Scores + feedback
+    BE-->>FE: WS { type: "evaluation_result", evaluation }
+    FE->>User: Show scores + feedback
+
+    alt Follow-up triggered (College / Interview mode)
+        BE->>GEM: Generate follow-up question
+        GEM-->>BE: Follow-up question
+        BE-->>FE: WS { type: "followup_question", question, speech }
+        FE->>User: AI speaks follow-up aloud
+    end
+
+    Note over BE,GEM: Repeat for each question
+
+    BE->>GEM: Generate final report
+    GEM-->>BE: Report data
+    BE-->>FE: WS { type: "session_completed", report_id }
+    FE->>User: 6. Redirect to /report/{id}
+    FE->>BE: GET /report/{session_id}
+    BE-->>FE: Full scorecard data
 ```
 
 ---
@@ -226,7 +212,7 @@ The real-time session runs over a **persistent WebSocket** at `/ws/session/{sess
 | `skip_question` | `{}` | Skip to the next question |
 | `ask_doubt` | `{ doubt: string }` | Ask for clarification (no score penalty) |
 | `end_session` | `{}` | End interview and generate final report |
-| `retry_evaluation` | `{ question_id?: string }` | Re-evaluate last answer (max 2 retries) |
+| `retry_evaluation` | `{ question_id?: string }` | Re-evaluate last answer (max 2 retries/Q) |
 
 ### Server → Client Messages
 
@@ -234,10 +220,10 @@ The real-time session runs over a **persistent WebSocket** at `/ws/session/{sess
 |---|---|---|
 | `auth_ok` | — | Authentication successful |
 | `session_started` | `{ total_questions, language }` | Session initialized |
-| `question_ready` | `{ question, question_index, total_questions, speech }` | New question |
+| `question_ready` | `{ question, question_index, total_questions, speech }` | New question ready |
 | `followup_question` | `{ question, speech }` | AI-triggered follow-up probe |
 | `evaluating` | `{ message }` | Evaluation in progress |
-| `evaluation_result` | `{ evaluation }` | Scores + feedback |
+| `evaluation_result` | `{ evaluation }` | Scores + detailed feedback |
 | `doubt_answered` | `{ doubt: { explanation } }` | Clarification response |
 | `question_repeated` | `{ speech }` | Question audio replay |
 | `session_completing` | `{ message }` | Generating final report |
@@ -263,9 +249,7 @@ VIVORA/
 │   ├── alembic/                      # DB migrations
 │   └── app/
 │       ├── 📄 main.py                # FastAPI entry point + CORS
-│       │
-│       ├── agents/                   # AI Agent System
-│       │   ├── 📄 base.py            # Agent base class
+│       ├── agents/
 │       │   ├── 📄 orchestrator.py    # Central dispatcher
 │       │   ├── 📄 question_agent.py  # Q generation (all 3 modes)
 │       │   ├── 📄 evaluator_agent.py # Answer scoring & rubric
@@ -274,7 +258,6 @@ VIVORA/
 │       │   ├── 📄 intake_agent.py    # Document ingestion & RAG
 │       │   ├── 📄 doubt_agent.py     # Doubt/clarification handler
 │       │   └── 📄 report_agent.py    # Final scorecard generation
-│       │
 │       ├── api/
 │       │   ├── routes/
 │       │   │   ├── 📄 auth.py        # /auth/register, /auth/login
@@ -283,24 +266,18 @@ VIVORA/
 │       │   │   └── 📄 reports.py     # /report/{id}
 │       │   └── ws/
 │       │       └── 📄 interview_ws.py  # WebSocket session handler
-│       │
 │       ├── llm/
 │       │   ├── 📄 router.py          # LLM provider routing + fallback
 │       │   └── 📄 prompts.py         # Agent-specific prompt templates
-│       │
 │       ├── rag/
 │       │   └── 📄 retriever.py       # PDF chunking + context retrieval
-│       │
 │       ├── db/
 │       │   ├── 📄 database.py        # SQLAlchemy engine + session
 │       │   └── 📄 models.py          # ORM models
-│       │
 │       ├── schemas/
 │       │   └── 📄 ws_messages.py     # WebSocket message schemas
-│       │
 │       ├── services/
 │       │   └── 📄 session_service.py # Business logic layer
-│       │
 │       └── core/
 │           └── 📄 auth.py            # JWT creation & verification
 │
@@ -362,9 +339,9 @@ VIVORA/
 - **Node.js** ≥ 18
 - **Python** ≥ 3.11
 - **Git**
-- **Google Gemini API key** (free at [ai.google.dev](https://ai.google.dev))
+- **Google Gemini API key** — free at [ai.google.dev](https://ai.google.dev)
 
-### 1. Clone the Repository
+### 1. Clone
 
 ```bash
 git clone https://github.com/Anu7276/VIVORA.git
@@ -378,27 +355,23 @@ cd backend
 
 # Create and activate virtual environment
 python -m venv .venv
+.venv\Scripts\activate          # Windows
+source .venv/bin/activate       # macOS / Linux
 
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
 
-# Copy and fill in your environment variables
+# Configure environment
 cp .env.example .env
 # → Edit .env and add your GEMINI_API_KEY
 
-# Run database migrations
+# Run DB migrations
 alembic upgrade head
 
-# Start the backend server
+# Start server
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Backend: **`http://localhost:8000`** | Docs: **`http://localhost:8000/docs`**
+> API: `http://localhost:8000` | Docs: `http://localhost:8000/docs`
 
 ### 3. Frontend Setup
 
@@ -408,7 +381,7 @@ npm install
 npm run dev
 ```
 
-Frontend: **`http://localhost:3000`**
+> App: `http://localhost:3000`
 
 ### 4. Docker (All-in-One)
 
@@ -416,22 +389,15 @@ Frontend: **`http://localhost:3000`**
 docker-compose up --build
 ```
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:3000 |
-| Backend | http://localhost:8000 |
-
 ---
 
 ## 🔐 Environment Variables
 
-Create `backend/.env` from `.env.example`:
-
 ```env
-# LLM Provider
+# LLM
 GEMINI_API_KEY=your_google_gemini_api_key_here
 
-# JWT Auth
+# JWT
 SECRET_KEY=your_very_long_random_secret_key_here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -439,10 +405,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 # Database
 DATABASE_URL=sqlite:///./vivora.db
 
-# CORS (comma-separated allowed origins)
+# CORS
 ALLOWED_ORIGINS=http://localhost:3000
 
-# Session Defaults
+# Session
 DEFAULT_TIME_LIMIT_MIN=30
 MAX_QUESTIONS_PER_SESSION=9
 ```
@@ -451,198 +417,247 @@ MAX_QUESTIONS_PER_SESSION=9
 
 ## 📡 API Reference
 
-### Authentication
-
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/auth/register` | Register a new user |
 | `POST` | `/auth/login` | Login — returns JWT token |
 | `GET` | `/auth/me` | Get current user profile |
-
-### Sessions
-
-| Method | Endpoint | Description |
-|---|---|---|
 | `POST` | `/sessions` | Create a new viva session |
 | `GET` | `/sessions/{id}` | Get session + questions |
-| `GET` | `/sessions` | List user sessions |
-
-### Upload
-
-| Method | Endpoint | Description |
-|---|---|---|
+| `GET` | `/sessions` | List user's sessions |
 | `POST` | `/upload` | Upload PDF (resume / syllabus / Q&A) |
-
-### Reports
-
-| Method | Endpoint | Description |
-|---|---|---|
 | `GET` | `/report/{session_id}` | Get final scorecard report |
-
-### WebSocket
-
-| Protocol | Endpoint | Description |
-|---|---|---|
 | `WS` | `/ws/session/{session_id}` | Live real-time session room |
 
 ---
 
 ## 🗄 Database Schema
 
-```
-users ──────────────────────────────── documents
-  │ id, email, name, hashed_password     │ id, user_id, title, doc_type,
-  │                                      │ extracted_text
-  │                                      │
-  └──────────► sessions ◄───────────────┘
-                │ id, user_id, document_id, mode,
-                │ title, status, job_role, experience_level,
-                │ current_question_no, awaiting_followup,
-                │ active_followup_id, time_limit_min
-                │
-                └──────────► questions
-                               │ id, session_id, parent_question_id,
-                               │ order_no, question_text, topic,
-                               │ difficulty, origin, reference_answer,
-                               │ followup_question, followup_answer
-                               │
-                               └──────────► answers
-                                             │ id, question_id, transcript,
-                                             │ duration_sec, filler_count,
-                                             │ answered_at
-                                             │
-                                             └──────────► evaluations
-                                                           id, answer_id,
-                                                           correctness_score,
-                                                           depth_score,
-                                                           clarity_score,
-                                                           overall_score,
-                                                           feedback,
-                                                           missing_concepts,
-                                                           model_answer
+```mermaid
+erDiagram
+    users {
+        string id PK
+        string email
+        string name
+        string hashed_password
+        datetime created_at
+    }
 
-sessions ──────────────────────────────────► reports
-                                              id, session_id, overall_score,
-                                              strengths, improvements,
-                                              revision_plan,
-                                              communication_feedback
+    documents {
+        string id PK
+        string user_id FK
+        string title
+        string doc_type
+        text extracted_text
+        datetime created_at
+    }
+
+    sessions {
+        string id PK
+        string user_id FK
+        string document_id FK
+        string title
+        string mode
+        string status
+        string job_role
+        string experience_level
+        int current_question_no
+        bool awaiting_followup
+        string active_followup_id
+        int time_limit_min
+        int time_used_sec
+        datetime started_at
+        datetime completed_at
+    }
+
+    questions {
+        string id PK
+        string session_id FK
+        string parent_question_id FK
+        int order_no
+        text question_text
+        string topic
+        string difficulty
+        string origin
+        text reference_answer
+        text followup_question
+        text followup_answer
+    }
+
+    answers {
+        string id PK
+        string question_id FK
+        text transcript
+        int duration_sec
+        int filler_count
+        datetime answered_at
+    }
+
+    evaluations {
+        string id PK
+        string answer_id FK
+        float correctness_score
+        float depth_score
+        float clarity_score
+        float overall_score
+        text feedback
+        text missing_concepts
+        text model_answer
+        string provider
+    }
+
+    reports {
+        string id PK
+        string session_id FK
+        float overall_score
+        text strengths
+        text improvements
+        text revision_plan
+        text communication_feedback
+        string scoring_note
+        datetime created_at
+    }
+
+    users ||--o{ sessions : "has"
+    users ||--o{ documents : "uploads"
+    documents ||--o{ sessions : "used in"
+    sessions ||--o{ questions : "contains"
+    questions ||--o| questions : "parent_of"
+    questions ||--o| answers : "has"
+    answers ||--o| evaluations : "scored by"
+    sessions ||--o| reports : "generates"
 ```
 
 ---
 
-## 🧠 AI Agent Details
+## 🧠 AI Agent Routing
 
-### Agent Routing
+```mermaid
+flowchart TD
+    REQ([Incoming Request]) --> ORC[Orchestrator]
 
+    ORC --> MODE{Session Mode?}
+
+    MODE -->|school| QA_S[QuestionAgent\nSchool Strategy\nSimple recall Qs\nFrom Q&A / topic keywords]
+    MODE -->|college| QA_C[QuestionAgent\nCollege Strategy\nConceptual + application Qs\nFrom syllabus/PDF context]
+    MODE -->|interview| QA_I[QuestionAgent\nInterview Strategy\nResume-driven Qs\nRole-specific probing]
+
+    QA_S --> LLM[LLM Router]
+    QA_C --> LLM
+    QA_I --> LLM
+
+    LLM --> QS[Questions Generated]
+    QS --> ANS([User Answers])
+    ANS --> EVAL[EvaluatorAgent\nCorrectness / Depth / Clarity]
+    EVAL --> FU{Follow-up\nTriggered?}
+
+    FU -->|school mode| NO_FU[No Follow-up\nNext question]
+    FU -->|college - selective| FA_C[FollowupAgent\nConceptual probing\nWhy this? Why not X?]
+    FU -->|interview - targeted| FA_I[FollowupAgent\nResume cross-examination\nYou claimed X — prove it]
+
+    FA_C --> LLM
+    FA_I --> LLM
+
+    NO_FU --> NEXT[Next Question]
+    FA_C --> NEXT
+    FA_I --> NEXT
+
+    NEXT -->|all done| REPORT[ReportAgent\nFinal Scorecard]
+    REPORT --> LLM
 ```
-QuestionAgent
-  ├── mode = "school"    → Simple recall Qs (definitions, processes)
-  ├── mode = "college"   → Conceptual + application Qs (from syllabus/PDF)
-  └── mode = "interview" → Resume-driven + role-specific Qs
 
-FollowupAgent
-  ├── mode = "school"    → DISABLED (no cross-questioning)
-  ├── mode = "college"   → Selective probing on important concepts
-  │                         "Why this? What if X fails?"
-  └── mode = "interview" → Targeted cross-examination on resume claims
-                           "You mentioned Redis — how did you handle
-                            cache invalidation at scale?"
+---
 
-EvaluatorAgent
-  ├── Correctness score (0–10): Factual accuracy
-  ├── Depth score       (0–10): Conceptual completeness
-  ├── Clarity score     (0–10): Communication quality
-  └── Overall score     (0–10): Weighted composite
+## ⚡ LLM Router & Fallback
 
-ReportAgent
-  └── Final scorecard: overall score, strengths, gaps,
-      revision plan, communication feedback
-```
+```mermaid
+flowchart LR
+    REQ([Agent Request]) --> ROUTER[LLM Router]
 
-### LLM Router & Fallback
+    ROUTER -->|Primary| GEMINI[☁️ Google Gemini API]
+    GEMINI -->|Success| RESULT([Result])
+    GEMINI -->|Rate limit / Error| FB
 
-```
-Request
-  │
-  ▼
-LLMRouter
-  ├── Try Google Gemini API ──────────────────► Success → Return
-  │         │
-  │    Rate limited / API error
-  │         │
-  └── SmartRuleFallbackProvider ─────────────► Mode-specific mock data
-                                               (sessions still work offline)
+    ROUTER -->|Automatic fallback| FB[SmartRuleFallbackProvider\nMode-specific mock data\nSessions stay functional]
+    FB --> RESULT
 ```
 
 ---
 
 ## 📚 RAG Pipeline
 
-```
-PDF Upload
-  ↓
-pypdf text extraction
-  ↓
-Text chunking (overlapping windows)
-  ↓
-Chunk storage in DB
-  ↓
-Question generation request
-  ↓
-Top-K chunk retrieval (context)
-  ↓
-Prompt = System Instructions + Mode + Retrieved Context
-  ↓
-Gemini generates questions with reference answers
-```
+```mermaid
+flowchart TD
+    PDF([📄 PDF Upload]) --> EXT[pypdf Extraction\nRaw text]
+    EXT --> CHUNK[Text Chunking\nOverlapping windows]
+    CHUNK --> STORE[(Chunk Storage\nDatabase)]
 
-| Mode | doc_type | Content |
-|---|---|---|
-| School | `questions` | Q&A pairs, study notes, topics |
-| College | `syllabus` | Textbook chapters, lab manuals |
-| Interview | `resume` | Candidate resume / CV |
+    QR([Question Generation Request]) --> RET[Context Retrieval\nTop-K relevant chunks]
+    STORE --> RET
+
+    RET --> PROMPT[Prompt Assembly\nSystem Instructions\n+ Mode Strategy\n+ Retrieved Context]
+    PROMPT --> GEM[☁️ Gemini API]
+    GEM --> QS([Generated Questions\n+ Reference Answers])
+
+    subgraph doc_types["Document Types by Mode"]
+        S[🏫 School → doc_type: questions\nQ&A pairs, study notes]
+        C[🎓 College → doc_type: syllabus\nTextbook chapters, lab manuals]
+        I[💼 Interview → doc_type: resume\nCandidate CV / Resume]
+    end
+```
 
 ---
 
 ## 🎙 Voice System
 
-```
-BrowserVoiceClient (browser-native, no external SDK)
-  │
-  ├── STT: Web Speech API (SpeechRecognition)
-  │     Continuous listening mode
-  │     onPartialTranscript → WS stt_partial (live stream)
-  │     onFinalTranscript   → stored for submit_answer
-  │
-  └── TTS: SpeechSynthesisUtterance
-        AI questions read aloud automatically
-        Rate: 0.95 | Pitch: 1.0 | Lang: en-IN
-        Mic auto-starts after AI finishes speaking
+```mermaid
+flowchart TD
+    subgraph STT["🎤 Speech-to-Text (STT)"]
+        MIC([Microphone Input]) --> WSR[Web Speech API\nSpeechRecognition]
+        WSR -->|partial| PT[onPartialTranscript\nWS: stt_partial]
+        WSR -->|final| FT[onFinalTranscript\nStored locally]
+    end
+
+    subgraph TTS["🔊 Text-to-Speech (TTS)"]
+        Q([AI Question Text]) --> SSU[SpeechSynthesisUtterance\nRate: 0.95 Pitch: 1.0\nLang: en-IN]
+        SSU --> AUD([Spoken Aloud])
+        SSU -->|onEnd| AUTO[Auto-start Microphone]
+    end
+
+    PT -->|live stream| BE[Backend WS]
+    FT -->|on submit| BE
 ```
 
-**Browser compatibility:** Chrome ✅ | Edge ✅ | Safari ✅ | Firefox ⚠️ (text fallback available)
+> **Browser support:** Chrome ✅ | Edge ✅ | Safari ✅ | Firefox ⚠️ *(text fallback available)*
 
 ---
 
 ## 📊 Session State Machine
 
-```
-         CREATED
-            │ WS connect + auth
-            ▼
-           LIVE ◄─────────────────────────────────┐
-            │ submit_answer                        │
-            ▼                                      │
-       EVALUATING ──── follow-up triggered? ──► FOLLOW-UP Q
-            │ no follow-up (or after follow-up)    │
-            ▼                                      │
-         NEXT Q ─── more questions? ───────────────┘
-            │ all done / end_session / timeout
-            ▼
-       COMPLETING (generating report)
-            │
-            ▼
-        COMPLETED → redirect to /report/{id}
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED : Session created via POST /sessions
+
+    CREATED --> LIVE : WebSocket connected + auth_ok\nFirst question sent
+
+    LIVE --> EVALUATING : submit_answer received
+
+    EVALUATING --> FOLLOWUP : Follow-up triggered\n(College / Interview mode)
+    EVALUATING --> LIVE : No follow-up\nNext question sent
+
+    FOLLOWUP --> EVALUATING : Follow-up answer submitted
+
+    LIVE --> COMPLETING : All questions answered\nor end_session sent\nor session_timeout
+
+    COMPLETING --> COMPLETED : Final report generated
+
+    COMPLETED --> [*] : Redirect to /report/{id}
+
+    note right of FOLLOWUP
+        School mode: follow-ups disabled
+        College mode: selective probing
+        Interview mode: targeted cross-exam
+    end note
 ```
 
 ---
@@ -667,10 +682,10 @@ npm run build && npm start
 
 ### Production Notes
 
-- Replace SQLite with **PostgreSQL** by updating `DATABASE_URL`
-- Use `wss://` (TLS) for WebSocket in production
+- Replace SQLite with **PostgreSQL**: update `DATABASE_URL`
+- Use `wss://` for WebSocket (TLS required in production)
 - Set `ALLOWED_ORIGINS` to your actual domain
-- Store `SECRET_KEY` and `GEMINI_API_KEY` in a secrets manager
+- Store secrets in a secrets manager (not in `.env`)
 
 ---
 
