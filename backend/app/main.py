@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure backend root is on sys.path so 'app.*' imports work from anywhere
+backend_dir = Path(__file__).resolve().parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import logging
 import uuid
 import time
@@ -170,3 +178,9 @@ if _is_dev:
 @app.get(f"{settings.API_V1_STR}/health")
 def health():
     return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+

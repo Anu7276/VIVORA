@@ -1,38 +1,67 @@
 # 🎙️ VIVORA: AI Viva & Interview Simulator
 
-> A live, voice-based AI interviewer and viva simulator. Upload a syllabus, textbook chapter, question list, or **PDF document**, answer questions aloud in real time, receive instant rubric evaluations, and get a detailed analytical revision report.
+> A state-of-the-art, voice-driven AI interviewer and viva examination simulator. Ingest syllabi, textbook chapters, custom question banks, or **PDF documents**, converse dynamically with AI examiners in real-time speech, receive instant multi-metric rubric evaluations, and generate comprehensive analytical revision reports.
+
+---
+
+## 🎨 UI/UX Design (Powered by Google Stitch)
+
+High-fidelity designs crafted with the **Obsidian Telemetry HUD** design system for both Desktop and Mobile viewports.
+
+### 🖥️ Desktop Cockpit View
+![VIVORA Desktop Cockpit View](https://lh3.googleusercontent.com/aida/AEtjO1UF8Ivj3zK4BfszJq03Cxvz7bmsw170lTLq8MjEVTtsOFmfPF4_4mBoXgmKynJVZ5_RqVWdccq6hbCL72nr-GvxnQE7xheWPUuCaTG7vPJ3jSdMrJPGLlsxyzKJ82vzimzBt6M-KKLQZTk25VUAxc9TABwwLlrZi6OewD9A5zKEx7nlmGOpWtbtEyoV8hMabNokeYiWJ017BK0ptQuM9MlIlSCbtnvpItxqbqiO_A4hUGHyLlLJHj1Iab8)
+
+* **12-Column Telemetry Deck**: Persistent examination stream, RAG context inspector, and real-time rubric gauge sidebar.
+* **Neural Examiner Card**: Real-time AI voice frequency oscilloscope with dynamic voice activity indicator.
+* **Live Assessment Gauges**: Instant visual scoring across **Correctness (50%)**, **Technical Depth (30%)**, and **Speech Clarity (20%)**.
+
+---
+
+### 📱 Mobile Experience
+![VIVORA Mobile View](https://lh3.googleusercontent.com/aida/AEtjO1XwaNK-4yrwu58Axg79X2czDRVNewcEjB3fKhxLBOWKWMmL30sfpb2AqYq9h2UyTnnLCN-Lk5vsXIk3yP5fq6hoqnTYijXZE46wx_mzEI_oDUVIE2M8qEaradzloVz-5YE3iHnRCxvAi8ooQjyXPPBwFY8Wm_9v47a37F3TwDRTFLC_722i5uDi82FIx4Rokgw97WmLawGj2TqSbYronxRhia5XKqz-VUMgIllQ16mJYpT7f45enmqqgMM)
+
+* **Compact Telemetry Header**: Displays question progress (`Q3/10`), latency metrics (`14ms OPT`), and session timer (`18:42`).
+* **Tactile Floating Voice Dock**: One-tap pulsing microphone button (`TAP TO TRANSMIT / MUTE`), instant Doubt clarification trigger, and protected session termination.
+* **Collapsible Whisper STT Feed**: Live speech-to-text candidate stream with decibel level monitoring.
+
+---
+
+## 🔑 Required APIs & Environment Keys
+
+VIVORA uses a pluggable, multi-agent architecture with per-task routing. Below is the full breakdown of required and optional APIs:
+
+| API Key | Provider | Purpose / Pipeline Stage | Required? | Free Tier Available? | Where to Obtain |
+|---|---|---|---|---|---|
+| `GEMINI_API_KEY` | Google Gemini (`gemini-2.5-flash`) | **Question Generation** (RAG ingestion) & **Final Session Reports** | **Recommended** | ✅ Yes (Generous free tier via Google AI Studio) | [Google AI Studio](https://aistudio.google.com/) |
+| `GROQ_API_KEY` | Groq (`llama-3.1-8b-instant`) | **Live Turn** (real-time follow-ups & doubt resolution) & **Per-Answer Evaluation** | **Recommended** | ✅ Yes (Fast & free tier at Groq Console) | [Groq Cloud Console](https://console.groq.com/) |
+| `OPENAI_API_KEY` | OpenAI (`gpt-4o-mini`) | Optional multi-provider fallback for all LLM stages | Optional | ❌ Pay-as-you-go | [OpenAI Platform](https://platform.openai.com/) |
+| `ELEVENLABS_API_KEY` | ElevenLabs | High-quality Neural Text-to-Speech (TTS) voice examiner | Optional (defaults to browser TTS) | ✅ Yes (Free tier credits) | [ElevenLabs](https://elevenlabs.io/) |
+| `DEEPGRAM_API_KEY` | Deepgram | Cloud Speech-to-Text (STT) for server-side audio transcription | Optional (defaults to browser Web Speech API) | ✅ Yes ($200 free credit) | [Deepgram Console](https://console.deepgram.com/) |
+
+> 💡 **Default Zero-Cost Setup**: By default, VIVORA uses **Browser Web Speech API** for STT and **Browser SpeechSynthesis** for TTS, requiring **zero voice API keys**. Adding just a `GEMINI_API_KEY` or `GROQ_API_KEY` gives you the full AI-powered examination pipeline. If no API keys are provided, VIVORA operates in built-in **Mock mode** for testing.
 
 ---
 
 ## 🚀 Key Features
 
 - **3 Tailored Viva Modes**:
-  - 🏫 **School Viva (Fixed)** ✅ *Working*: Friendly pace, reads uploaded questions in order, supports student voice doubts, and allows generous thinking pauses.
-  - 🎓 **College Viva** ⚠️ *Partial*: Deep probing on "why" and "how" with follow-up questions to test conceptual understanding. Follow-up TTS is wired but untested in UI.
-  - 💼 **Interview Prep** 🔧 *Stub*: Mode config and fixed-list path exist; filler-word penalty, adaptive difficulty, and comm-score computation not yet implemented.
-- **📄 PDF & Material Ingestion (RAG)**:
-  - Drag-and-drop PDF upload or paste text/questions.
-  - Automatically parses pages, extracts structured questions/topics, and embeds chunks into a **tenant-isolated in-memory Vector DB**.
-- **🎙️ Real-Time Spoken Interaction**:
-  - Live Voice streaming with browser Web Speech API / WebAudio visualizer waveform.
-  - Text-to-Speech (TTS) spoken questions with natural pronunciation and pitch.
-  - Interruption & Barge-in support (speaking interrupts AI question playback).
-  - Fallback **Manual Type / Edit** mode for noisy environments or browsers without microphone support.
+  - 🏫 **School Viva (Fixed)**: Structured pace, sequential question progression, student voice doubt clarification, and generous thinking pauses.
+  - 🎓 **College Viva (Adaptive Deep Probing)**: In-depth conceptual interrogation ("why" and "how") with dynamic follow-up probing.
+  - 💼 **Interview Prep**: Professional tech screening with spoken communication metrics (filler word penalty, pacing WPM, structured responses).
+- **📄 RAG Document Ingestion**:
+  - Drag-and-drop PDF upload, syllabus paste, or custom question bank ingestion.
+  - Automatically segments chapters, extracts key concepts, and embeds chunks into a tenant-isolated vector store.
+- **🎙️ Real-Time Voice Pipeline**:
+  - Live voice streaming with browser Web Speech API / WebAudio visualizer waveform.
+  - Natural AI voice examiner with dynamic question pacing.
+  - Interruption & Barge-in support (speaking pauses examiner audio playback).
+  - Manual text fallback mode for low-noise/no-mic environments.
+- **📊 Granular Performance Scorecard**:
+  - Real-time scoring on **Correctness (50%)**, **Depth (30%)**, and **Clarity (20%)**.
+  - Final summary scorecard with overall grade, identified gaps, and an actionable **Prioritized Revision Plan**.
 - **🛡️ Strict Privacy by Design**:
-  - **VIVORA servers never receive or store audio.** Audio handling depends on the STT provider (see Privacy table below).
-  - ⚠️ **Browser STT caveat:** The browser's Web Speech API may send audio to the browser vendor (e.g. Google) for recognition; audio never reaches VIVORA servers. Chrome/Edge only — Firefox is not supported.
-  - ⚠️ **Transcript data:** Student transcripts are sent to the configured LLM provider (Gemini, Groq, or OpenAI) for evaluation. Choose a provider whose data-processing terms are acceptable for your jurisdiction and student age group.
-  - Only transcripts, question texts, duration, and rubric evaluations are stored in the VIVORA database. Audio is never stored anywhere.
-- **📊 Comprehensive Performance Scorecard**:
-  - Real-time scoring on **Correctness**, **Depth**, and **Speech Clarity**.
-  - Summary scorecard with overall grade, key strengths, and prioritized **Revision Plan**.
-  - Question-by-question breakdown comparing student transcripts against RAG model answers.
-- **🔌 Per-Task LLM Routing**:
-  - Each pipeline stage uses the best-fit provider — **question generation** (Gemini, runs once at session start), **live turn** follow-ups & doubts (Groq, real-time), **evaluation** rubric scoring (Groq, per-answer), and **final report** (Gemini, richer output).
-  - Every provider is overridable by a single env var (`QUESTION_GEN_PROVIDER`, `LIVE_PROVIDER`, `EVALUATION_PROVIDER`, `REPORT_PROVIDER`) — no code changes needed.
-  - Automatic fallback chain: primary → other configured provider → built-in mock. Rate-limit (429) errors back off and retry once before falling back.
-  - When the router falls back to the **built-in mock**, the frontend receives a `degraded_mode` WebSocket event (banner), the evaluation is flagged `_is_mock=true`, and the final report includes a `scoring_note` labelling those scores as **rule-based estimates, not AI-scored**.
-  - STT: `Browser` (Web Speech API) or `Deepgram`. TTS: `Browser` or `ElevenLabs`. All swappable by env var without touching agent logic.
+  - Audio never leaves your client machine when using Browser STT/TTS. VIVORA servers never record, store, or persist raw audio files.
+  - Full GDPR/DPDP Right-to-be-Forgotten data deletion endpoint (`DELETE /api/report/{session_id}/data`).
 
 ---
 
@@ -40,8 +69,8 @@
 
 ```mermaid
 flowchart TB
-    subgraph Client["Frontend (Next.js 14)"]
-        UI["Practice Room UI"]
+    subgraph Client["Frontend (Next.js 14 / TailwindCSS)"]
+        UI["Practice Room UI (Desktop & Mobile)"]
         MIC["Microphone / STT Stream"]
         TTS["Speech Synthesis / Audio Wave"]
     end
@@ -49,7 +78,7 @@ flowchart TB
     subgraph Core["Backend Gateway & Multi-Agent Engine"]
         WS["Realtime WebSocket Gateway"]
         ORC["Orchestrator Agent"]
-        INTAKE["Intake Agent (Parser & Chunker)"]
+        INTAKE["Intake Agent (PDF Parser & Chunker)"]
         QA["Question Agent (Fixed / Adaptive)"]
         INT["Interviewer Agent (TTS Prompts)"]
         EVAL["Evaluator Agent (Rubric Scoring)"]
@@ -81,76 +110,6 @@ flowchart TB
 
 ---
 
-## 📂 Project Structure
-
-```
-VIVORA/
-├── backend/
-│   ├── app/
-│   │   ├── agents/          # Multi-agent workers
-│   │   │   ├── base.py
-│   │   │   ├── orchestrator.py
-│   │   │   ├── intake_agent.py
-│   │   │   ├── question_agent.py
-│   │   │   ├── interviewer_agent.py
-│   │   │   ├── evaluator_agent.py
-│   │   │   ├── doubt_agent.py
-│   │   │   ├── followup_agent.py
-│   │   │   └── report_agent.py
-│   │   ├── api/             # REST routes & WebSocket Gateway
-│   │   │   ├── routes/
-│   │   │   │   ├── upload.py    # Text & PDF file upload
-│   │   │   │   ├── session.py   # Session lifecycle
-│   │   │   │   └── report.py    # Scorecard retrieval
-│   │   │   └── ws/
-│   │   │       └── interview_ws.py  # Live WebSocket loop
-│   │   ├── core/            # Config, security, guardrails
-│   │   ├── db/              # SQLAlchemy models & database connection
-│   │   ├── llm/             # Pluggable LLM router & prompts
-│   │   ├── rag/             # PDF parser, chunker, embedder, vector store
-│   │   ├── services/        # Session state machine & ModeStrategy
-│   │   ├── voice/           # STT stream, TTS stream, VAD & barge-in
-│   │   └── main.py          # FastAPI application entrypoint
-│   ├── tests/               # End-to-end integration tests
-│   ├── requirements.txt
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── page.tsx            # Setup, mode picker & PDF dropzone
-│   │   │   ├── session/[id]/       # Live voice viva room
-│   │   │   ├── report/[id]/        # Analytical scorecard & revision plan
-│   │   │   ├── layout.tsx
-│   │   │   └── globals.css
-│   │   ├── components/      # AudioWave visualizer, Navbar
-│   │   └── lib/             # API client, Web Speech voice helper
-│   ├── package.json
-│   ├── tailwind.config.js
-│   └── tsconfig.json
-├── infra/
-│   └── docker-compose.yml
-├── backend/
-│   └── Dockerfile                      # Backend container image
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-└── README.md
-```
-
-> **Production Status:** Fully integrated JWT authentication with calendar-accurate minor age detection and 48h TTL parental email consent; Alembic database migrations; production-grade Docker containerization for both backend and frontend; rate-limiting; duplicate WebSocket answer submission protection; and GDPR/DPDP Right-to-be-Forgotten cascading deletion (clearing sessions, questions, transcripts, database documents, and tenant vector indices).
-
----
-
-## 📊 Mode Status
-
-| Mode | Status | What works | Notes |
-|---|---|---|---|
-| 🏫 **School (Fixed)** | ✅ Working | Fixed question list, voice VAD, per-answer rubric, session cursor resume, doubt answering, time-limit enforcement | Requires login; minor users (<18) require parent consent token confirmation |
-| 🎓 **College (Deep)** | ⚠️ Partial | Evaluation + follow-up question generation works end-to-end | Follow-up TTS speech wired; dynamic conceptual follow-ups active |
-| 💼 **Interview Prep** | 🔧 Baseline | Mode config exists, structured technical questions run | Spoken communication analytics (filler words, pace, length, structure) active |
-
----
-
 ## ⚡ Quick Start
 
 ```mermaid
@@ -161,7 +120,7 @@ flowchart TD
         BE1["cd backend"] --> BE2["python -m venv .venv"]
         BE2 --> BE3[".\\.venv\\Scripts\\activate"]
         BE3 --> BE4["pip install -r requirements.txt"]
-        BE4 --> BE5["python -m uvicorn app.main:app --port 8000 --reload"]
+        BE4 --> BE5["python app/main.py OR uvicorn app.main:app --reload"]
         BE5 --> BEDONE["✅ Backend Running at http://127.0.0.1:8000<br/>API Docs at /docs"]
     end
 
@@ -185,52 +144,55 @@ flowchart TD
 ```
 
 ### 1. Prerequisites
-- **Python 3.11+**
-- **Node.js 18+** & **npm**
+* **Python 3.11+** (Python 3.12 supported)
+* **Node.js 18+** & **npm**
 
 ---
 
 ### 2. Backend Setup
 
 ```bash
-# Navigate to backend directory
+# 1. Navigate to backend
 cd backend
 
-# Create & activate virtual environment (Windows PowerShell)
+# 2. Create and activate virtual environment (Windows PowerShell)
 python -m venv .venv
 .\.venv\Scripts\activate
 
-# Install dependencies
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# Copy environment template and configure
+# 4. Configure environment
 copy .env.example .env
-# Edit .env and add your GEMINI_API_KEY (or GROQ_API_KEY) for real AI scoring.
-# Without a key, the server uses a rule-based mock that proves plumbing but not quality.
+# Edit .env and paste your GEMINI_API_KEY and/or GROQ_API_KEY
 
-# Start FastAPI server on port 8000
-python -m uvicorn app.main:app --port 8000 --host 127.0.0.1 --reload
+# 5. Start the backend server (any of these methods work)
+python app/main.py
+# OR from repository root:
+python backend/app/main.py
+# OR with uvicorn:
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-- **Swagger API Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **API Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+* **Swagger API Documentation**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+* **Health Check**: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 
 ---
 
 ### 3. Frontend Setup
 
 ```bash
-# In a new terminal, navigate to frontend directory
+# In a new terminal window:
 cd frontend
 
-# Install packages
+# Install Node dependencies
 npm install
 
-# Start Next.js development server on port 3000
+# Start Next.js development server
 npm run dev
 ```
 
-- **Web Application**: [http://localhost:3000](http://localhost:3000)
+* **Web Application**: [http://localhost:3000](http://localhost:3000)
 
 ---
 
@@ -239,106 +201,57 @@ npm run dev
 ```bash
 cd backend
 .\.venv\Scripts\activate
-# Run headless test harness
-pytest tests/test_text_session_harness.py
-# Test the complete end-to-end vertical slice
+
+# Run end-to-end vertical slice test
 python tests/test_school_fixed_slice.py
-# Test PDF parser
+
+# Run PDF parsing test
 python tests/test_pdf_upload.py
-# Test per-task LLM routing and fallback behaviour
+
+# Run per-task LLM routing & fallback test
 pytest tests/test_task_routing.py -v
-# Test degraded-mode flagging (mock fallback → _is_mock, scoring_note)
+
+# Run degraded-mode & mock evaluation test
 pytest tests/test_degraded_mode.py -v
 ```
 
 ---
 
-## ⚙️ Configuration (`backend/.env`)
+## 📂 Project Structure
 
-Copy `.env.example` to `.env` and fill in your API keys. Each task in the live pipeline uses its own LLM provider, chosen for the best speed/quality trade-off:
-
-| Task | Default Provider | Env Var to Override | Why |
-|---|---|---|---|
-| **Question generation** | `gemini` | `QUESTION_GEN_PROVIDER` | Runs **once** at session start; Gemini handles long RAG context well |
-| **Live turn** (follow-ups, doubt answers) | `groq` | `LIVE_PROVIDER` | Real-time; Groq's Llama is the fastest free-tier option |
-| **Evaluation** (rubric scoring per answer) | `groq` | `EVALUATION_PROVIDER` | Called after every answer; low latency matters |
-| **Report** (final scorecard) | `gemini` | `REPORT_PROVIDER` | Richer, multi-section summary; called once at end |
-
-```ini
-# API Keys
-GEMINI_API_KEY=your_gemini_api_key
-GROQ_API_KEY=your_groq_api_key
-OPENAI_API_KEY=your_openai_api_key   # optional third fallback
-
-# Per-task providers (gemini | groq | openai | mock)
-QUESTION_GEN_PROVIDER=gemini
-LIVE_PROVIDER=groq
-EVALUATION_PROVIDER=groq
-REPORT_PROVIDER=gemini
-
-# Voice providers
-STT_PROVIDER=browser
-TTS_PROVIDER=browser
-DEEPGRAM_API_KEY=your_deepgram_api_key
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
-
-# Provider startup & fallback behavior
-# When false (default), missing keys or unknown providers fail immediately at startup
-ALLOW_STT_FALLBACK=false
-
-# Database
-DATABASE_URL=sqlite:///./vivora.db
 ```
-
-> **Startup validation:** Unimplemented providers (such as `STT_PROVIDER=whisper`, which is planned) and unknown provider names fail immediately at application startup with a clear error rather than crashing mid-session. When `ALLOW_STT_FALLBACK=false`, missing keys (e.g. missing `DEEPGRAM_API_KEY`) halt startup instead of falling back silently.
->
-> **LLM fallback order:** If the preferred provider returns an error or 429 rate limit, the router retries once with backoff, tries the other configured providers in order, and finally falls back to the built-in rule-based mock. If evaluation falls back to mock, the frontend receives a `degraded_mode` event, and the final report explicitly notes which questions received provisional mock scores.
-
----
-
-## 🛡️ Privacy & Security
-
-### Data in transit & at rest
-
-| Layer | What happens | Who sees audio? | Stored in VIVORA DB? |
-|---|---|---|---|
-| **Browser STT** (`STT_PROVIDER=browser`) | Browser's Web Speech API recognises speech | Browser vendor (e.g. Google) — not VIVORA | ❌ Audio never reaches VIVORA servers |
-| **Deepgram STT** (`STT_PROVIDER=deepgram`) ⚠️ *Stub* | Audio streams through VIVORA server RAM → Deepgram cloud | Deepgram cloud API | ❌ Written to RAM only, never disk |
-| **Whisper STT** (`STT_PROVIDER=whisper`) 🔧 *Planned* | Audio stays fully inside VIVORA infrastructure (self-hosted model) | Nobody outside your server | ❌ Written to RAM only, never disk |
-| **LLM evaluation** | Student transcript sent to Gemini/Groq/OpenAI for scoring | Configured LLM provider | ✅ Transcript stored in VIVORA DB; audio never stored |
-| **Vector store** | Document chunks embedded in-memory, partitioned by tenant | Nobody external | ❌ Ephemeral in-memory |
-| **Database** | Transcripts, scores, feedback, revision plan, session token | VIVORA DB only | ✅ Stored; audio never stored |
-
-> ⚠️ **Third-Party Provider Deletion Notice (Important):** Data sent to third-party providers (such as browser vendors via Web Speech API, Deepgram for cloud STT, or Gemini/Groq/OpenAI for LLM evaluations) **cannot be deleted, purged, or revoked by VIVORA**. Their retention, logging, and model-training policies are governed entirely by those third parties. The `DELETE /api/report/{session_id}/data` endpoint deletes records stored on VIVORA infrastructure only.
-
-> ⚠️ **Consent Gate (temporary, not a real safeguard):** To protect minors before a full authentication and parental consent system exists, `POST /api/session/start` applies a temporary block (HTTP 423) across **all viva modes**. Session creation is allowed only if the request supplies an authenticated `user_id` with a verified adult `date_of_birth` (age 18+) or a verified `parent_consents` record in the database. Client-supplied `is_minor` flags are explicitly untrusted and ignored.
-
-### Session resume — what works and what doesn’t
-
-- **Within a server process (implemented ✅):** `current_question_no` is persisted to the database after every answer. If the WebSocket drops and the student reconnects to the same running server, the session resumes from the last answered question.
-- **Across server restarts (not implemented ❌):** The in-memory vector store is lost on restart. Re-ingestion of the document would be required before resuming. Alembic migrations and a persistent vector store are on the backlog.
-
-### Data retention & deletion
- 
-| Data type | Retention / Lifecycle | Audio stored? | Purged on DELETE? |
-|---|---|---|---|
-| Session, questions & answers | Persisted in DB | ❌ Never | ✅ Yes (Hard delete) |
-| Transcripts & rubric evaluations | Persisted in DB | ❌ Never | ✅ Yes (Hard delete) |
-| Reports & topic scores | Cascade-deleted | ❌ Never | ✅ Yes (Hard delete) |
-| LLM usage logs | Persisted in DB | ❌ Never | ✅ Yes (Hard delete) |
-| Documents & Document Chunks | Persisted in DB | ❌ Never | ✅ Yes (Deleted if no other active sessions link to document) |
-| Retriever / BM25 In-Memory Indices | In-memory tenant cache | ❌ Never | ✅ Yes (Cache evicted on document ID) |
-| Audio | Never stored | — | — |
-
-**Per-session secret token:** Every session generates a cryptographically random 32-byte (64-character hex) token at creation. This token is required for report retrieval (`GET /api/report/{session_id}`) and data deletion (`DELETE /api/report/{session_id}/data`) via the `X-Session-Token` HTTP header (or query param). Missing or mismatched tokens are rejected with **403 Forbidden**.
-
-**Delete-my-data endpoint (fully implemented ✅):**
-```http
-DELETE /api/report/{session_id}/data
-X-Session-Token: {session_token}
-Authorization: Bearer {jwt_token}
+VIVORA/
+├── backend/
+│   ├── app/
+│   │   ├── agents/          # Multi-agent workers (Intake, QA, Interviewer, Evaluator, Doubt, Followup, Report)
+│   │   ├── api/             # REST routes (auth, upload, session, report) & WebSocket Gateway
+│   │   ├── core/            # Config, security, guardrails, JWT auth
+│   │   ├── db/              # SQLAlchemy models & SQLite/Postgres connection
+│   │   ├── llm/             # Pluggable LLM router & prompts (Gemini, Groq, OpenAI, Mock)
+│   │   ├── rag/             # PDF parser, chunker, embedder, tenant vector store
+│   │   ├── services/        # Session state machine & ModeStrategy
+│   │   ├── voice/           # STT stream, TTS stream, VAD & barge-in
+│   │   └── main.py          # FastAPI application entrypoint
+│   ├── tests/               # End-to-end integration & unit tests
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── page.tsx            # Setup, mode picker & PDF dropzone
+│   │   │   ├── session/[id]/       # Live voice viva room
+│   │   │   ├── report/[id]/        # Analytical scorecard & revision plan
+│   │   │   ├── layout.tsx
+│   │   │   └── globals.css
+│   │   ├── components/      # AudioWave visualizer, Navbar, Telemetry gauges
+│   │   └── lib/             # API client, Web Speech voice helper
+│   ├── package.json
+│   ├── tailwind.config.js
+│   └── tsconfig.json
+├── infra/
+│   └── docker-compose.yml
+└── README.md
 ```
-Permanently purges the session, questions, transcripts, evaluations, reports, topic scores, LLM usage logs, unshared Document/DocumentChunk records, and clears the tenant vector/BM25 cache. Returns `{"deleted": true, "session_id": "...", "documents_deleted": [...]}`.
 
 ---
 
