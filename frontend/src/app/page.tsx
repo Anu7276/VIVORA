@@ -59,6 +59,17 @@ export default function VIVORAEditorialHomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Scroll listener for subtle nature parallax
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   // Load user profile on mount
   useEffect(() => {
     const stored = getStoredUser();
@@ -225,13 +236,26 @@ export default function VIVORAEditorialHomePage() {
       {/* ── HERO SECTION ────────────────────────────────────────────────────── */}
       <section className="pt-32 md:pt-40 pb-16 md:pb-24 px-6 relative overflow-hidden">
         
-        {/* Soft atmospheric landscape gradient aura */}
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[700px] md:w-[1000px] h-[450px] bg-gradient-to-b from-[#e8e4d3]/40 via-[#e0ddd0]/20 to-transparent blur-3xl pointer-events-none rounded-full" />
+        {/* Atmospheric Nature Memory Fragment 01 (Misty Forest & Mountain Ridge) */}
+        <div 
+          className="nature-memory-layer nature-mask-organic-hero animate-nature-drift inset-0 -top-28 h-[850px] w-full"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1600&auto=format&fit=crop')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center 35%',
+            opacity: 0.16,
+            transform: `translate3d(0, ${scrollY * 0.08}px, 0)`,
+          }}
+        />
+        
+        {/* Soft atmospheric ivory wash & gradient aura */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F5]/40 via-transparent to-[#FAF9F5] pointer-events-none z-0" />
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[700px] md:w-[1000px] h-[450px] bg-gradient-to-b from-[#e8e4d3]/30 via-[#e0ddd0]/15 to-transparent blur-3xl pointer-events-none rounded-full z-0" />
 
         <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-6 relative z-10">
           
           {/* Announcement pill */}
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[#F2EFE6] border border-[#E5E0D4] text-[12px] font-medium text-[#4a5043] shadow-2xs">
+          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[#F2EFE6]/90 backdrop-blur-xs border border-[#E5E0D4] text-[12px] font-medium text-[#4a5043] shadow-2xs">
             <span>✦</span>
             <span>Meet Vivora AI</span>
           </div>
@@ -268,7 +292,7 @@ export default function VIVORAEditorialHomePage() {
         </div>
 
         {/* ── HERO PRODUCT VISUAL (ELEVATED REALISTIC WORKSPACE) ─────────────── */}
-        <div id="product" className="max-w-5xl mx-auto mt-14 md:mt-20 relative">
+        <div id="product" className="max-w-5xl mx-auto mt-14 md:mt-20 relative z-10">
           
           {/* Main Floating Product Deck */}
           <div className="bg-white rounded-3xl border border-[#E5E0D4] shadow-[0_20px_50px_-10px_rgba(40,45,35,0.08),0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden transition-all">
@@ -411,8 +435,21 @@ export default function VIVORAEditorialHomePage() {
       </section>
 
       {/* ── SECTION 2: PRODUCT VALUE ────────────────────────────────────────── */}
-      <section className="py-20 md:py-28 px-6 border-t border-[#EBE7DD] bg-white">
-        <div className="max-w-5xl mx-auto space-y-16">
+      <section className="py-20 md:py-28 px-6 border-t border-[#EBE7DD] bg-[#FAF9F5] relative overflow-hidden">
+        
+        {/* Atmospheric Nature Memory Fragment 02 (Sunlight Through Woodland Foliage) */}
+        <div 
+          className="nature-memory-layer nature-mask-organic-right animate-nature-drift-reverse -right-24 top-10 w-[700px] h-[750px]"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=80&w=1400&auto=format&fit=crop')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center right',
+            opacity: 0.14,
+            transform: `translate3d(0, ${(scrollY - 400) * 0.05}px, 0)`,
+          }}
+        />
+
+        <div className="max-w-5xl mx-auto space-y-16 relative z-10">
           
           <div className="max-w-2xl space-y-3">
             <span className="text-xs font-mono text-[#2d4a3e] uppercase tracking-wider font-semibold">
@@ -430,7 +467,7 @@ export default function VIVORAEditorialHomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             
             {/* 01 - Learn */}
-            <div className="bg-[#FAF9F5] border border-[#E5E0D4] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover">
+            <div className="bg-white border border-[#E5E0D4] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover shadow-2xs">
               <div className="space-y-4">
                 <span className="font-mono text-xs text-[#8c9099] font-semibold">01 — LEARN</span>
                 <h3 className="text-2xl font-serif font-normal text-[#1a1b1e] leading-snug">
@@ -441,7 +478,7 @@ export default function VIVORAEditorialHomePage() {
                 </p>
               </div>
 
-              <div className="bg-white p-4 rounded-2xl border border-[#EBE7DD] shadow-2xs space-y-2">
+              <div className="bg-[#FAF9F5] p-4 rounded-2xl border border-[#EBE7DD] shadow-2xs space-y-2">
                 <div className="flex items-center space-x-2 text-xs font-medium text-[#1a1b1e]">
                   <FileText className="w-4 h-4 text-[#2d4a3e]" />
                   <span>Textbook Chapter 04.pdf</span>
@@ -451,7 +488,7 @@ export default function VIVORAEditorialHomePage() {
             </div>
 
             {/* 02 - Practice */}
-            <div className="bg-[#FAF9F5] border border-[#E5E0D4] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover">
+            <div className="bg-white border border-[#E5E0D4] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover shadow-2xs">
               <div className="space-y-4">
                 <span className="font-mono text-xs text-[#2d4a3e] font-semibold">02 — PRACTICE</span>
                 <h3 className="text-2xl font-serif font-normal text-[#1a1b1e] leading-snug">
@@ -462,7 +499,7 @@ export default function VIVORAEditorialHomePage() {
                 </p>
               </div>
 
-              <div className="bg-white p-4 rounded-2xl border border-[#EBE7DD] shadow-2xs space-y-2">
+              <div className="bg-[#FAF9F5] p-4 rounded-2xl border border-[#EBE7DD] shadow-2xs space-y-2">
                 <div className="flex items-center space-x-2 text-xs font-medium text-[#1a1b1e]">
                   <Volume2 className="w-4 h-4 text-[#2d4a3e]" />
                   <span>Real-time Voice Examiner</span>
@@ -472,7 +509,7 @@ export default function VIVORAEditorialHomePage() {
             </div>
 
             {/* 03 - Improve */}
-            <div className="bg-[#FAF9F5] border border-[#E5E0D4] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover">
+            <div className="bg-white border border-[#E5E0D4] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover shadow-2xs">
               <div className="space-y-4">
                 <span className="font-mono text-xs text-[#8c9099] font-semibold">03 — IMPROVE</span>
                 <h3 className="text-2xl font-serif font-normal text-[#1a1b1e] leading-snug">
@@ -483,7 +520,7 @@ export default function VIVORAEditorialHomePage() {
                 </p>
               </div>
 
-              <div className="bg-white p-4 rounded-2xl border border-[#EBE7DD] shadow-2xs space-y-2">
+              <div className="bg-[#FAF9F5] p-4 rounded-2xl border border-[#EBE7DD] shadow-2xs space-y-2">
                 <div className="flex items-center space-x-2 text-xs font-medium text-[#1a1b1e]">
                   <Award className="w-4 h-4 text-[#2d4a3e]" />
                   <span>Multi-Metric Scorecard</span>
@@ -496,8 +533,21 @@ export default function VIVORAEditorialHomePage() {
       </section>
 
       {/* ── SECTION 3: AI VIVA EXPERIENCE ────────────────────────────────────── */}
-      <section className="py-20 md:py-28 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD]">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <section className="py-20 md:py-28 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
+        
+        {/* Atmospheric Nature Memory Fragment 03 (Misty Morning Alpine Lake & Mountain Silhouettes) */}
+        <div 
+          className="nature-memory-layer nature-mask-radial animate-nature-drift -left-28 top-1/2 -translate-y-1/2 w-[800px] h-[650px]"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1600&auto=format&fit=crop')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.15,
+            transform: `translate3d(0, ${(scrollY - 1000) * 0.05}px, 0)`,
+          }}
+        />
+
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
           
           <div className="lg:col-span-5 space-y-6">
             <span className="text-xs font-mono text-[#2d4a3e] uppercase tracking-wider font-semibold">
@@ -611,8 +661,21 @@ export default function VIVORAEditorialHomePage() {
       </section>
 
       {/* ── SECTION 5: PERFORMANCE & INSIGHTS ────────────────────────────────── */}
-      <section id="insights" className="py-20 md:py-28 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD]">
-        <div className="max-w-5xl mx-auto space-y-14">
+      <section id="insights" className="py-20 md:py-28 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
+        
+        {/* Atmospheric Nature Memory Fragment 04 (Soft Mountain Cloudscape & Ridges) */}
+        <div 
+          className="nature-memory-layer nature-mask-organic-left animate-nature-drift-reverse -left-20 bottom-0 w-[700px] h-[600px]"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1400&auto=format&fit=crop')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'left center',
+            opacity: 0.12,
+            transform: `translate3d(0, ${(scrollY - 2000) * 0.05}px, 0)`,
+          }}
+        />
+
+        <div className="max-w-5xl mx-auto space-y-14 relative z-10">
           
           <div className="max-w-2xl space-y-3">
             <span className="text-xs font-mono text-[#2d4a3e] uppercase tracking-wider font-semibold">
@@ -807,7 +870,20 @@ export default function VIVORAEditorialHomePage() {
 
       {/* ── SECTION 8: FINAL CINEMATIC CTA ──────────────────────────────────── */}
       <section className="py-24 md:py-32 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#f0ece1]/50 via-transparent to-transparent pointer-events-none" />
+        
+        {/* Atmospheric Nature Memory Fragment 05 (Emerald Forest Haze & Sunlight Rays) */}
+        <div 
+          className="nature-memory-layer nature-mask-fade-down animate-nature-drift inset-0 h-full w-full"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1518495973542-4542c06a5843?q=80&w=1600&auto=format&fit=crop')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center 45%',
+            opacity: 0.22,
+            transform: `translate3d(0, ${(scrollY - 3000) * 0.04}px, 0)`,
+          }}
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-[#FAF9F5] via-[#FAF9F5]/70 to-[#FAF9F5]/30 pointer-events-none" />
 
         <div className="max-w-3xl mx-auto text-center space-y-6 relative z-10">
           <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-normal text-[#1a1b1e] tracking-tight leading-tight">
