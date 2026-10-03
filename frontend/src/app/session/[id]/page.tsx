@@ -458,7 +458,7 @@ export default function SessionRoomPage() {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-[#0b0c10] text-[#e2e8f0] font-sans select-none overflow-hidden">
-      {/* ── TOP HEADER BAR (HackerRank / Obsidian Telemetry HUD) ──────────────── */}
+      {/* ── TOP HEADER BAR (VIVORA Telemetry HUD) ──────────────── */}
       <header className="h-14 bg-[#0d0e14] border-b border-[#202230] px-4 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center space-x-3">
           {/* Logo Mark */}

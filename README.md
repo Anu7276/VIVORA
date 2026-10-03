@@ -8,7 +8,7 @@
 
 High-fidelity designs crafted in Stitch for both **Live System Design Mock Interviews** and the **Serene Academic AI Study Home Dashboard**.
 
-### 💻 1. Live AI Technical Interview & Whiteboard (HackerRank Theme)
+### 💻 1. VIVORA Live Technical Interview & Whiteboard Cockpit
 ![VIVORA Live Interview & Whiteboard](https://lh3.googleusercontent.com/aida/AEtjO1VHod31GUxDL4NOpMUVLbKtigbZZU7Ral-tqVsr1nx6fjw5-w3ugqYB05g28C9nZsElRXBomsmOSlq3oAxkbgqtrUeUUtVmOYo3yMOT2425JOm_V1UuT3HQyyAg7HKQj7vbsSYmp6VUZ-VC7UyN6WPbTbE8Wvag71KqnuE65JipW4nKhfOqszkFh4mtsDiB2glOALaEmKA7wr4nGZzSGNXorOgqij9QWZ_rGGbtaeUFkjWHixOo5tk9ujI)
 
 * **Top Telemetry Header**: Session tracking, live countdown timer (`59:39 mins`), and red `End Interview` action button.

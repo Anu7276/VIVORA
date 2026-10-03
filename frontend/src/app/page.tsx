@@ -349,7 +349,7 @@ export default function HomePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white text-sm group-hover:text-[#00ea64] transition-colors">
-                    HackerRank Live Interview
+                    VIVORA Live Technical Interview
                   </h3>
                   <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
                     Interactive whiteboard canvas, real-time candidate webcam, and AI examiner speech stream.
