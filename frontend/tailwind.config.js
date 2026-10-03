@@ -6,7 +6,11 @@ module.exports = {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {
+      fontFamily: {
+        serif: ['var(--font-serif)', 'Newsreader', 'Georgia', 'serif'],
+        sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'JetBrains Mono', 'monospace'],
+      },
       colors: {
         background: "#090D16",
         surface: "#111827",

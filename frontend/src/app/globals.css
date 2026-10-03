@@ -77,15 +77,15 @@ body {
   position: absolute;
   pointer-events: none;
   user-select: none;
-  opacity: 0.65;
-  filter: saturate(0.88) brightness(1.02);
+  opacity: 0.88;
+  filter: saturate(0.92) contrast(1.02) brightness(1.02);
   will-change: transform, opacity;
   transition: opacity 0.5s ease;
 }
 
 .nature-mask-hero {
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0.3) 75%, rgba(0,0,0,0) 100%);
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0.3) 75%, rgba(0,0,0,0) 100%);
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 55%, rgba(0,0,0,0.35) 82%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 55%, rgba(0,0,0,0.35) 82%, rgba(0,0,0,0) 100%);
 }
 
 .nature-mask-section {

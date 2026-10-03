@@ -238,19 +238,19 @@ export default function VIVORAEditorialHomePage() {
         
         {/* Atmospheric Mountain Background (Cinematic Misty Valley & Morning Ridge) */}
         <div 
-          className="nature-memory-layer nature-mask-hero animate-nature-drift inset-0 top-0 h-[720px] md:h-[820px] w-full"
+          className="nature-memory-layer nature-mask-hero animate-nature-drift inset-0 top-0 h-[760px] md:h-[860px] w-full"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2400&q=85')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2400&q=90')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center 28%',
-            opacity: 0.78,
-            transform: `translate3d(0, ${scrollY * 0.06}px, 0)`,
+            backgroundPosition: 'center 22%',
+            opacity: 0.92,
+            transform: `translate3d(0, ${scrollY * 0.05}px, 0)`,
           }}
         />
         
-        {/* Soft atmospheric gradient wash ensuring contrast */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F5]/30 via-transparent to-[#FAF9F5] pointer-events-none z-0" />
-        <div className="absolute bottom-0 inset-x-0 h-44 bg-gradient-to-t from-[#FAF9F5] via-[#FAF9F5]/80 to-transparent pointer-events-none z-0" />
+        {/* Soft atmospheric gradient wash ensuring flawless text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F5]/20 via-transparent to-[#FAF9F5] pointer-events-none z-0" />
+        <div className="absolute bottom-0 inset-x-0 h-48 bg-gradient-to-t from-[#FAF9F5] via-[#FAF9F5]/85 to-transparent pointer-events-none z-0" />
 
         <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-6 relative z-10 pt-4">
           
