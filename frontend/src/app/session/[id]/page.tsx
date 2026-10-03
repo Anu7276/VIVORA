@@ -455,220 +455,493 @@ export default function SessionRoomPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#f8fafc] text-[#1e293b] font-sans select-none overflow-hidden">
+    <div className="flex flex-col h-screen w-screen bg-[#F9F8F5] text-[#1a1b1e] font-sans select-none overflow-hidden">
       
-      {/* ── TOP HEADER BAR (Light Studio Theme) ──────────────────────────────── */}
-      <header className="h-14 bg-white border-b border-[#e2e8f0] px-5 flex items-center justify-between z-20 shrink-0 shadow-sm">
-        <div className="flex items-center space-x-3">
-          {/* Logo Mark */}
-          <div className="flex items-center space-x-2">
-            <div className="h-6 w-6 rounded bg-[#0f766e] flex items-center justify-center font-mono font-bold text-white text-xs shadow-sm">
-              V
+      {/* ── TOP HEADER BAR ─────────────────────────────────────────────────── */}
+      <header className="h-16 bg-white border-b border-[#E8E4DA] px-6 flex items-center justify-between z-20 shrink-0 shadow-2xs">
+        {/* Brand & Topic Section */}
+        <div className="flex items-center space-x-3.5">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#1C1C1E] flex items-center justify-center text-white text-xs font-mono font-medium shadow-xs">
+              ✦
             </div>
-            <span className="font-mono font-bold text-[#0f172a] tracking-wider text-sm">
-              VIVORA<span className="text-[#0f766e]">.AI</span>
+            <span className="font-serif italic text-xl text-[#1a1b1e] font-semibold tracking-tight">
+              vivora
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-[#7D9F68]/15 text-[#2d4a3e] border border-[#7D9F68]/30 uppercase">
+              AI VIVA
             </span>
           </div>
 
-          <span className="text-[#cbd5e1] font-light">|</span>
+          <div className="h-4 w-px bg-[#E2DED4]" />
 
-          {/* Session Title */}
+          {/* Mode & Topic Badge */}
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-semibold text-[#334155]">
-              {session?.mode ? `${session.mode.toUpperCase()} Viva & Technical Studio` : "System Design Mock Interview & Viva"}
+            <span className="text-xs font-semibold text-[#1a1b1e] uppercase tracking-wide">
+              {session?.mode ? `${session.mode} Studio` : "Technical Viva"}
             </span>
-            <span className="px-2 py-0.5 rounded bg-[#f0fdf4] text-[11px] font-mono font-bold text-[#0f766e] border border-[#bbf7d0]">
-              Q{questionIndex + 1}/{totalQuestions}
+            <span className="text-xs text-[#8c9099]">•</span>
+            <span className="text-xs text-[#555850] font-medium max-w-[220px] md:max-w-xs truncate">
+              {currentQuestion?.topic || (session as any)?.title || "Oral Technical Examination"}
             </span>
           </div>
         </div>
 
-        {/* Right Header Area: Timer + End Action */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 font-mono text-sm text-[#475569] bg-[#f1f5f9] px-3 py-1.5 rounded-lg border border-[#e2e8f0]">
-            <TimerIcon className="w-4 h-4 text-[#0f766e] animate-pulse" />
+        {/* Center: Question Progress Stepper */}
+        <div className="hidden lg:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#FAF9F5] border border-[#E8E4DA]">
+          <span className="text-[11px] font-mono font-semibold uppercase text-[#7D9F68] tracking-wider mr-1">
+            Question
+          </span>
+          {Array.from({ length: totalQuestions }).map((_, idx) => (
+            <div
+              key={idx}
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-mono font-bold transition-all ${
+                idx === questionIndex
+                  ? "bg-[#2D4A3E] text-white shadow-xs scale-105"
+                  : idx < questionIndex
+                  ? "bg-[#E8F3E5] text-[#2D4A3E] border border-[#7D9F68]/40"
+                  : "bg-white text-[#94a3b8] border border-[#E2DED4]"
+              }`}
+            >
+              {idx < questionIndex ? "✓" : idx + 1}
+            </div>
+          ))}
+          <span className="text-[11px] font-mono text-[#8c9099] ml-1">
+            of {totalQuestions}
+          </span>
+        </div>
+
+        {/* Right Header Area: Latency + Timer + End Action */}
+        <div className="flex items-center space-x-3">
+          <div className="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#F0FDF4] border border-[#BBF7D0] text-[11px] font-mono text-[#244B34] font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#34C759] animate-pulse" />
+            <span>14ms Latency</span>
+          </div>
+
+          <div className="flex items-center space-x-2 font-mono text-xs text-[#475569] bg-[#FAF9F5] px-3 py-1.5 rounded-full border border-[#E8E4DA] shadow-2xs">
+            <TimerIcon className="w-3.5 h-3.5 text-[#7D9F68] animate-pulse" />
             <span>{formatTimer(remainingSeconds)}</span>
           </div>
 
           <button
             onClick={() => setShowEndModal(true)}
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold font-mono uppercase bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-all"
+            className="px-3.5 py-1.5 rounded-full text-xs font-semibold font-mono text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors flex items-center space-x-1.5"
           >
-            End Interview
+            <span>End Session</span>
           </button>
         </div>
       </header>
 
-      {/* ── MAIN CONTENT (2-COLUMN SPLIT) ─────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden relative">
+      {/* ── MAIN STUDIO CONTENT ────────────────────────────────────────────── */}
+      <div className="flex-1 flex overflow-hidden p-4 md:p-5 gap-5">
         
-        {/* ── LEFT PANE: AI EXAMINER & LIVE TRANSCRIPT ───────────────────────── */}
-        <aside className="w-80 md:w-96 lg:w-[420px] bg-white border-r border-[#e2e8f0] flex flex-col justify-between p-4 z-10 shrink-0 shadow-sm">
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+        {/* ── LEFT/CENTER STAGE: VIRTUAL INTERVIEW ROOM + QUESTION ARENA ────── */}
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0 pr-1">
+          
+          {/* 1. DUAL VIDEO STAGE: EXAMINER & CANDIDATE TILES */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[250px] md:h-[280px] shrink-0">
             
-            {/* AI Examiner Dialogue Card */}
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-xs font-mono text-[#64748b]">
-                <div className="w-2 h-2 rounded-full bg-[#10b981]" />
-                <span className="uppercase tracking-wider font-semibold text-[#334155]">AI Examiner (Dr. Aris)</span>
-                {isAISpeaking && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#eef2ff] text-[#4f46e5] border border-[#c7d2fe] font-bold animate-pulse">
-                    Speaking
+            {/* Tile A: AI Examiner (Dr. Aris) */}
+            <div className="bg-[#0e1014] border border-neutral-800 rounded-2xl relative overflow-hidden flex flex-col justify-between p-4 shadow-md">
+              {/* Top Bar inside Examiner Tile */}
+              <div className="flex items-center justify-between z-10">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-mono text-xs font-semibold text-neutral-200">
+                    Dr. Aris
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700/60 uppercase">
+                    AI Examiner
+                  </span>
+                </div>
+
+                {isAISpeaking ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10px] font-mono font-bold text-emerald-300 flex items-center space-x-1.5 shadow-[0_0_12px_rgba(52,211,153,0.3)] animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Speaking Question</span>
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-400">
+                    Listening
                   </span>
                 )}
               </div>
 
-              <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-4 shadow-sm relative group">
-                <p className="text-sm md:text-base text-[#0f172a] leading-relaxed font-sans font-medium">
-                  {currentQuestion?.question_text ||
-                    "Hey, nice to meet you! Good on you for taking this mock interview today. I am your AI interviewer. Before we dive into the technical problem, could you give me a quick intro about yourself and your background?"}
-                </p>
+              {/* Center Animated Voice Orb / Wave Presence */}
+              <div className="flex-1 flex flex-col items-center justify-center relative">
+                {/* Concentric Sonic Rings */}
+                <div className="relative flex items-center justify-center">
+                  {isAISpeaking && (
+                    <>
+                      <div className="absolute w-28 h-28 rounded-full border border-emerald-500/30 animate-ping opacity-60 pointer-events-none" />
+                      <div className="absolute w-36 h-36 rounded-full border border-emerald-500/20 animate-pulse pointer-events-none" />
+                    </>
+                  )}
+                  <div className={`w-20 h-20 rounded-full bg-gradient-to-br from-neutral-800 via-neutral-900 to-black border-2 flex items-center justify-center shadow-xl transition-all ${
+                    isAISpeaking ? "border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] scale-105" : "border-neutral-700"
+                  }`}>
+                    <span className="text-2xl font-serif font-bold text-emerald-400">✦</span>
+                  </div>
+                </div>
 
-                <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-[#e2e8f0]">
+                <div className="mt-3 text-center">
+                  <p className="text-xs font-sans text-neutral-300 font-medium">
+                    {isAISpeaking ? "Dr. Aris is articulating question..." : "Attentively analyzing your defense"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom Examiner Audio Strip */}
+              <div className="flex items-center justify-between z-10 pt-2 border-t border-neutral-800/80 text-[11px] font-mono text-neutral-400">
+                <div className="flex items-center space-x-1.5">
+                  <div className={`w-1 h-3 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
+                  <div className={`w-1 h-5 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
+                  <div className={`w-1 h-2 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
+                  <div className={`w-1 h-4 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
+                  <span className="ml-1 text-[10px] text-neutral-400">Voice Synthesis Engine</span>
+                </div>
+
+                <button
+                  onClick={handleReplayQuestion}
+                  className="px-2.5 py-1 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white transition-colors flex items-center space-x-1 text-[11px]"
+                >
+                  <Volume2 className="w-3 h-3 text-emerald-400" />
+                  <span>Replay</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Tile B: Candidate Video Feed (You) */}
+            <div className="bg-[#0e1014] border border-neutral-800 rounded-2xl relative overflow-hidden flex flex-col justify-between p-4 shadow-md">
+              {/* Live Video Camera Stream */}
+              {isCameraActive ? (
+                <video
+                  ref={(el) => {
+                    videoRef.current = el;
+                    if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
+                      el.srcObject = mediaStreamRef.current;
+                      el.play().catch(console.warn);
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ transform: "scaleX(-1)" }}
+                />
+              ) : (
+                <div className="absolute inset-0 bg-[#12151a] flex flex-col items-center justify-center space-y-2 text-neutral-400">
+                  <div className="w-16 h-16 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-400">
+                    <Camera className="w-7 h-7 opacity-50" />
+                  </div>
+                  <span className="text-xs font-mono text-neutral-400">Camera Paused</span>
+                </div>
+              )}
+
+              {/* Overlaid Top Bar inside Candidate Tile */}
+              <div className="flex items-center justify-between z-10">
+                <div className="flex items-center space-x-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-xs font-mono">
+                  <div className={`w-2 h-2 rounded-full ${isCameraActive ? "bg-[#34C759] animate-pulse" : "bg-neutral-500"}`} />
+                  <span className="text-white font-medium">You (Candidate)</span>
+                </div>
+
+                <div className="flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-[10px] font-mono text-emerald-400 font-bold">
+                  <span>LIVE HD</span>
+                </div>
+              </div>
+
+              {/* Overlaid Bottom Bar with Quick Camera & Mic Toggles */}
+              <div className="flex items-center justify-between z-10 pt-2">
+                <div className="flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-[10px] font-mono text-neutral-300">
+                  <div className={`w-1.5 h-1.5 rounded-full ${isMicActive ? "bg-[#34C759] animate-pulse" : "bg-amber-400"}`} />
+                  <span>{isMicActive ? "Mic Listening" : "Mic Muted"}</span>
+                </div>
+
+                <div className="flex items-center space-x-2">
                   <button
-                    onClick={handleReplayQuestion}
-                    className="flex items-center space-x-1.5 text-xs text-[#475569] hover:text-[#0f766e] font-medium transition-colors"
+                    onClick={handleToggleMic}
+                    className={`p-2 rounded-xl backdrop-blur-md border transition-all ${
+                      isMicActive
+                        ? "bg-[#2D4A3E]/90 border-emerald-500/40 text-emerald-300"
+                        : "bg-black/60 border-white/10 text-neutral-300 hover:text-white"
+                    }`}
+                    title={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
                   >
-                    <Volume2 className="w-3.5 h-3.5 text-[#0f766e]" />
-                    <span>Replay Audio</span>
+                    {isMicActive ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
                   </button>
 
                   <button
-                    onClick={() => setShowDoubtModal(true)}
-                    className="flex items-center space-x-1.5 text-xs text-[#4f46e5] hover:text-[#3730a3] font-medium transition-colors"
+                    onClick={() => setIsCameraActive(!isCameraActive)}
+                    className={`p-2 rounded-xl backdrop-blur-md border transition-all ${
+                      isCameraActive
+                        ? "bg-[#2D4A3E]/90 border-emerald-500/40 text-emerald-300"
+                        : "bg-black/60 border-white/10 text-neutral-300 hover:text-white"
+                    }`}
+                    title={isCameraActive ? "Turn Off Camera" : "Turn On Camera"}
                   >
-                    <HelpCircle className="w-3.5 h-3.5 text-[#4f46e5]" />
-                    <span>Ask Doubt</span>
+                    {isCameraActive ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Live Listening Pulse Status */}
-            <div className="flex items-center space-x-2 py-0.5">
-              <div className={`w-2.5 h-2.5 rounded-full ${isMicActive ? "bg-[#10b981] animate-ping" : "bg-[#94a3b8]"}`} />
-              <span className={`text-xs font-mono font-medium tracking-wide ${isMicActive ? "text-[#0f766e]" : "text-[#64748b]"}`}>
-                {isMicActive ? "🟢 I'm listening to your voice..." : "Microphone Muted (Tap mic to speak)"}
-              </span>
-            </div>
-
-            {/* Realtime Candidate Transcript Stream Card */}
-            <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#64748b]">
-                <span className="uppercase tracking-wider font-semibold">Candidate Transcript</span>
-                <span className="text-[#0f766e] font-bold">STT: Whisper / Web Speech</span>
+          {/* 2. CURRENT QUESTION SHOWCASE ARENA */}
+          <div className="bg-white border border-[#E8E4DA] rounded-2xl p-5 shadow-xs space-y-3 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#2D4A3E]">
+                  Question {questionIndex + 1} of {totalQuestions}
+                </span>
+                <span className="text-xs text-[#8c9099]">•</span>
+                <span className="text-xs font-mono text-[#555850]">Oral Evaluation</span>
               </div>
 
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleReplayQuestion}
+                  className="flex items-center space-x-1 px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-xs font-mono text-[#555850] transition-colors"
+                >
+                  <Volume2 className="w-3 h-3 text-[#7D9F68]" />
+                  <span>Replay Audio</span>
+                </button>
+
+                <button
+                  onClick={() => setShowDoubtModal(true)}
+                  className="flex items-center space-x-1 px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-xs font-mono text-[#4f46e5] transition-colors"
+                >
+                  <HelpCircle className="w-3 h-3 text-[#4f46e5]" />
+                  <span>Ask Doubt</span>
+                </button>
+              </div>
+            </div>
+
+            <p className="text-lg md:text-xl font-serif text-[#1a1b1e] font-medium leading-relaxed">
+              "{currentQuestion?.question_text ||
+                (session?.questions?.[0]?.question_text || "Welcome to your Viva! Could you introduce your technical approach and how you would design this system for scale?")}"
+            </p>
+          </div>
+
+          {/* 3. CANDIDATE LIVE SPOKEN ANSWER & TRANSCRIPT BAR */}
+          <div className="bg-white border border-[#E8E4DA] rounded-2xl p-5 shadow-xs flex-1 flex flex-col justify-between space-y-3 min-h-[190px]">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center space-x-2 text-[#555850]">
+                  <span className="font-semibold uppercase tracking-wider">Candidate Response</span>
+                  {isMicActive ? (
+                    <span className="flex items-center space-x-1.5 text-[#2D4A3E] font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#34C759] animate-ping" />
+                      <span>Live Speech Recognition</span>
+                    </span>
+                  ) : (
+                    <span className="text-[#8c9099] italic">Microphone Paused</span>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setManualInput(!manualInput)}
+                  className="text-[11px] text-[#555850] hover:text-[#1a1b1e] underline underline-offset-2 transition-colors"
+                >
+                  {manualInput ? "Switch to Voice Mode" : "Switch to Text Input"}
+                </button>
+              </div>
+
+              {/* Dynamic Answer Box (Voice stream or Textarea) */}
               {manualInput ? (
                 <textarea
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
-                  placeholder="Type your response here..."
-                  className="w-full h-24 bg-white border border-[#cbd5e1] rounded-lg p-2.5 text-sm text-[#1e293b] focus:outline-none focus:border-[#0f766e] resize-none font-sans"
+                  placeholder="Type your structured technical response here..."
+                  className="w-full h-24 bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-3 text-sm text-[#1a1b1e] focus:outline-none focus:border-[#2D4A3E] resize-none font-sans"
                 />
               ) : (
-                <div className="min-h-[75px] max-h-32 overflow-y-auto text-sm text-[#334155] font-sans leading-relaxed">
+                <div className="min-h-[75px] max-h-36 overflow-y-auto bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-3 text-sm text-[#1a1b1e] font-sans leading-relaxed">
                   {transcript ? (
-                    <span className="font-medium">{transcript}</span>
+                    <span className="font-medium text-[#1a1b1e]">{transcript}</span>
                   ) : (
-                    <span className="text-[#94a3b8] italic">
-                      Your spoken response will appear here in real-time as you speak...
+                    <span className="text-[#8c9099] italic">
+                      {isMicActive
+                        ? "Listening to your voice... Speak clearly and articulate your reasoning."
+                        : "Click 'Start Speaking' to dictate your answer or switch to text input above."}
                     </span>
                   )}
                 </div>
               )}
 
               {micNotice && (
-                <div className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-start space-x-1.5">
+                <div className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 flex items-start space-x-2">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
                   <span>{micNotice}</span>
                 </div>
               )}
-
-              {/* Action Buttons for Answer Submission */}
-              <div className="flex items-center justify-between pt-2 border-t border-[#e2e8f0]">
-                <button
-                  onClick={() => setManualInput(!manualInput)}
-                  className="text-[11px] text-[#64748b] hover:text-[#0f172a] font-medium transition-colors"
-                >
-                  {manualInput ? "Switch to Voice" : "Switch to Text"}
-                </button>
-
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={handleSubmitAnswer}
-                    disabled={isEvaluating || !transcript.trim()}
-                    className="px-3.5 py-1.5 rounded-lg bg-[#0f766e] hover:bg-[#115e59] disabled:opacity-40 text-white font-mono font-bold text-xs flex items-center space-x-1.5 shadow-sm transition-all"
-                  >
-                    {isEvaluating ? (
-                      <>
-                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Scoring...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Submit Answer</span>
-                        <Send className="w-3 h-3" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
             </div>
 
-            {/* Rubric Evaluation Feed */}
-            {latestEval && (
-              <div className="bg-white border border-[#cbd5e1] rounded-xl p-3.5 space-y-3 shadow-md animate-fadeIn">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono uppercase tracking-wider text-[#334155] font-bold flex items-center space-x-1.5">
-                    <Award className="w-3.5 h-3.5 text-[#0f766e]" />
-                    <span>Real-time Rubric Evaluation</span>
-                  </span>
-                  <span className="text-xs font-mono font-bold text-[#0f766e] bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0]">
-                    Score: {latestEval.score_total || latestEval.score}/100
-                  </span>
-                </div>
+            {/* Action Bar */}
+            <div className="flex items-center justify-between pt-2 border-t border-[#E8E4DA]">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleToggleMic}
+                  className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold transition-all flex items-center space-x-2 ${
+                    isMicActive
+                      ? "bg-red-50 text-red-600 border border-red-200 shadow-xs"
+                      : "bg-[#2D4A3E] text-white hover:bg-[#395e4f] shadow-xs"
+                  }`}
+                >
+                  {isMicActive ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                  <span>{isMicActive ? "Pause Mic" : "Start Speaking"}</span>
+                </button>
 
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-[#f8fafc] p-2 rounded-lg border border-[#e2e8f0]">
-                    <div className="text-[10px] font-mono text-[#64748b]">Correctness</div>
-                    <div className="text-xs font-bold font-mono text-[#0f766e]">
-                      {latestEval.correctness_score ?? 85}%
-                    </div>
+                {isMicActive && (
+                  <div className="flex items-center space-x-1 px-2.5 py-1.5 bg-[#FAF9F5] rounded-lg border border-[#E8E4DA]">
+                    <div className="w-1 h-3 rounded-full bg-[#34C759] animate-pulse" />
+                    <div className="w-1 h-5 rounded-full bg-[#34C759] animate-pulse" />
+                    <div className="w-1 h-2 rounded-full bg-[#34C759] animate-pulse" />
                   </div>
-                  <div className="bg-[#f8fafc] p-2 rounded-lg border border-[#e2e8f0]">
-                    <div className="text-[10px] font-mono text-[#64748b]">Depth</div>
-                    <div className="text-xs font-bold font-mono text-[#0284c7]">
-                      {latestEval.depth_score ?? 80}%
-                    </div>
-                  </div>
-                  <div className="bg-[#f8fafc] p-2 rounded-lg border border-[#e2e8f0]">
-                    <div className="text-[10px] font-mono text-[#64748b]">Clarity</div>
-                    <div className="text-xs font-bold font-mono text-[#7c3aed]">
-                      {latestEval.clarity_score ?? 90}%
-                    </div>
-                  </div>
-                </div>
-
-                {latestEval.feedback && (
-                  <p className="text-xs text-[#334155] bg-[#f8fafc] p-2 rounded border border-[#e2e8f0] leading-relaxed">
-                    {latestEval.feedback}
-                  </p>
                 )}
+              </div>
+
+              <button
+                onClick={handleSubmitAnswer}
+                disabled={isEvaluating || !transcript.trim()}
+                className="px-6 py-2.5 rounded-xl bg-[#20211E] hover:bg-[#343631] disabled:opacity-40 text-white font-mono font-bold text-xs flex items-center space-x-2 shadow-sm transition-all"
+              >
+                {isEvaluating ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Scoring Answer...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Submit Answer</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── RIGHT SIDEBAR: VIVA INTELLIGENCE & EVALUATION ─────────────────── */}
+        <aside className="w-80 md:w-96 shrink-0 bg-white border border-[#E8E4DA] rounded-2xl p-5 shadow-xs flex flex-col justify-between overflow-y-auto space-y-4">
+          <div className="space-y-4">
+            {/* Sidebar Title */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#E8E4DA]">
+              <div className="flex items-center space-x-2">
+                <Award className="w-4 h-4 text-[#7D9F68]" />
+                <span className="font-mono text-xs font-bold text-[#1a1b1e] uppercase tracking-wider">
+                  Viva Intelligence
+                </span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#FAF9F5] border border-[#DDD9CF] text-[#555850]">
+                Real-time
+              </span>
+            </div>
+
+            {/* Rubric Evaluation Result (When available) */}
+            {latestEval ? (
+              <div className="space-y-4 animate-fadeIn">
+                <div className="bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono uppercase tracking-wider text-[#555850] font-bold">
+                      Question Score
+                    </span>
+                    <span className="text-sm font-mono font-bold text-[#2D4A3E] bg-[#E8F3E5] px-2.5 py-0.5 rounded-full border border-[#7D9F68]/30">
+                      {latestEval.score_total || latestEval.score}/100
+                    </span>
+                  </div>
+
+                  {/* 3 Metric Progress Bars */}
+                  <div className="space-y-2.5 pt-1">
+                    <div>
+                      <div className="flex justify-between text-[11px] font-mono text-[#555850] mb-1">
+                        <span>Correctness</span>
+                        <span className="font-bold text-[#2D4A3E]">{latestEval.correctness_score ?? 85}%</span>
+                      </div>
+                      <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#2D4A3E] h-full rounded-full transition-all"
+                          style={{ width: `${latestEval.correctness_score ?? 85}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] font-mono text-[#555850] mb-1">
+                        <span>Depth & Reasoning</span>
+                        <span className="font-bold text-[#0284c7]">{latestEval.depth_score ?? 80}%</span>
+                      </div>
+                      <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#0284c7] h-full rounded-full transition-all"
+                          style={{ width: `${latestEval.depth_score ?? 80}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[11px] font-mono text-[#555850] mb-1">
+                        <span>Communication Clarity</span>
+                        <span className="font-bold text-[#7c3aed]">{latestEval.clarity_score ?? 90}%</span>
+                      </div>
+                      <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#7c3aed] h-full rounded-full transition-all"
+                          style={{ width: `${latestEval.clarity_score ?? 90}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feedback Note */}
+                  {latestEval.feedback && (
+                    <div className="pt-2 text-xs text-[#334155] leading-relaxed border-t border-[#E8E4DA]">
+                      <span className="font-semibold font-mono text-[10px] text-[#7D9F68] uppercase block mb-1">
+                        Examiner Note
+                      </span>
+                      {latestEval.feedback}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={handleNextQuestion}
-                  className="w-full py-2 rounded-lg bg-[#0f766e] hover:bg-[#115e59] text-white font-mono text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm transition-all"
+                  className="w-full py-2.5 rounded-xl bg-[#2D4A3E] hover:bg-[#395e4f] text-white font-mono text-xs font-bold flex items-center justify-center space-x-2 shadow-sm transition-all"
                 >
                   <span>Proceed to Next Question</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
+            ) : (
+              /* Rubric Evaluation Guide when waiting for answer */
+              <div className="bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-4 space-y-3">
+                <span className="text-xs font-mono uppercase tracking-wider text-[#555850] font-bold block">
+                  Scoring Criteria
+                </span>
+                <p className="text-xs text-[#555850] leading-relaxed">
+                  Your spoken or written answers are evaluated in real-time across three key academic pillars:
+                </p>
+
+                <ul className="space-y-2 text-xs text-[#334155]">
+                  <li className="flex items-start space-x-2">
+                    <span className="text-[#2D4A3E] font-bold">1.</span>
+                    <span><strong>Conceptual Correctness:</strong> Accuracy of facts, definitions, and theories.</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <span className="text-[#0284c7] font-bold">2.</span>
+                    <span><strong>Technical Depth:</strong> Ability to justify trade-offs and edge-cases.</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <span className="text-[#7c3aed] font-bold">3.</span>
+                    <span><strong>Verbal Clarity:</strong> Articulation, composure, and confidence under pressure.</span>
+                  </li>
+                </ul>
+              </div>
             )}
 
             {/* Doubt Explanation Card */}
             {doubtExplanation && (
-              <div className="bg-[#f5f3ff] border border-[#ddd6fe] rounded-xl p-3 space-y-1.5 animate-fadeIn">
+              <div className="bg-[#f5f3ff] border border-[#ddd6fe] rounded-xl p-3.5 space-y-1.5 animate-fadeIn">
                 <div className="flex items-center space-x-1.5 text-xs font-mono font-bold text-[#6d28d9]">
                   <HelpCircle className="w-3.5 h-3.5 text-[#6d28d9]" />
                   <span>Doubt Clarification</span>
@@ -678,208 +951,18 @@ export default function SessionRoomPage() {
             )}
           </div>
 
-          {/* ── BOTTOM LEFT CONTROL DOCK (Mic, Camera, Screen Share) ─────────── */}
-          <div className="pt-3 border-t border-[#e2e8f0] flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleToggleMic}
-                className={`p-2.5 rounded-xl border transition-all ${
-                  isMicActive
-                    ? "bg-[#f0fdf4] border-[#0f766e] text-[#0f766e] shadow-sm font-bold"
-                    : "bg-[#f8fafc] border-[#cbd5e1] text-[#64748b] hover:text-[#0f172a]"
-                }`}
-                title={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
-              >
-                {isMicActive ? <Mic className="w-4 h-4 text-[#0f766e]" /> : <MicOff className="w-4 h-4" />}
-              </button>
-
-              <button
-                onClick={() => setIsCameraActive(!isCameraActive)}
-                className={`p-2.5 rounded-xl border transition-all ${
-                  isCameraActive
-                    ? "bg-[#f0fdf4] border-[#0f766e] text-[#0f766e] shadow-sm font-bold"
-                    : "bg-[#f8fafc] border-[#cbd5e1] text-[#64748b] hover:text-[#0f172a]"
-                }`}
-                title={isCameraActive ? "Turn Off Camera" : "Turn On Camera"}
-              >
-                {isCameraActive ? <Video className="w-4 h-4 text-[#0f766e]" /> : <VideoOff className="w-4 h-4" />}
-              </button>
-
-              <button
-                className="p-2.5 rounded-xl bg-[#f8fafc] border border-[#cbd5e1] text-[#64748b] hover:text-[#0f172a] transition-colors"
-                title="Screen Share"
-              >
-                <Monitor className="w-4 h-4" />
-              </button>
+          {/* Bottom Security & Engine Info */}
+          <div className="pt-3 border-t border-[#E8E4DA] text-[11px] font-mono text-[#8c9099] space-y-1">
+            <div className="flex items-center justify-between">
+              <span>Privacy Guard</span>
+              <span className="text-[#2D4A3E] font-semibold">Zero Audio Stored</span>
             </div>
-
-            {/* Audio Wave Equalizer Bars */}
-            <div className="flex items-center space-x-1 px-2.5 py-1.5 bg-[#f1f5f9] rounded-lg border border-[#e2e8f0]">
-              <div className={`w-1 h-3 rounded-full bg-[#0f766e] ${isMicActive ? "animate-pulse" : "opacity-30"}`} />
-              <div className={`w-1 h-5 rounded-full bg-[#0f766e] ${isMicActive ? "animate-pulse" : "opacity-30"}`} />
-              <div className={`w-1 h-2.5 rounded-full bg-[#0f766e] ${isMicActive ? "animate-pulse" : "opacity-30"}`} />
+            <div className="flex items-center justify-between">
+              <span>Speech Engine</span>
+              <span>Fast Whisper / Web Speech</span>
             </div>
           </div>
         </aside>
-
-        {/* ── RIGHT MAIN STAGE: WHITEBOARD & FLOATING CANDIDATE PIP ────────── */}
-        <main className="flex-1 bg-[#fbfbf9] flex flex-col relative overflow-hidden">
-          
-
-
-          {/* ── TOP FLOATING LIVE QUESTION & CANDIDATE SPEECH HUD BANNER ──────── */}
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 w-[94%] max-w-3xl space-y-2 pointer-events-auto">
-            
-            {/* 1. What AI Examiner Dr. Aris is Saying */}
-            <div className="glass-card-elevated rounded-2xl p-4 shadow-xl border border-[#DDD9CF] space-y-2 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-[#7D9F68] animate-ping" />
-                  <span className="font-mono text-[11px] uppercase tracking-wider font-bold text-[#20211E]">
-                    AI EXAMINER (DR. ARIS) • QUESTION {questionIndex + 1}/{totalQuestions}
-                  </span>
-                  {isAISpeaking && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#7D9F68]/15 text-[#3a582b] font-mono font-bold animate-pulse">
-                      🎙️ Speaking Question
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={handleReplayQuestion}
-                    className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-[11px] font-mono text-[#555850] transition-colors"
-                  >
-                    <Volume2 className="w-3 h-3 text-[#7D9F68]" />
-                    <span>Replay Audio</span>
-                  </button>
-
-                  <button
-                    onClick={() => setShowDoubtModal(true)}
-                    className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-[11px] font-mono text-[#4f46e5] transition-colors"
-                  >
-                    <HelpCircle className="w-3 h-3 text-[#4f46e5]" />
-                    <span>Ask Doubt</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Spoken Question Text */}
-              <p className="text-sm md:text-base font-serif text-[#20211E] font-normal leading-relaxed">
-                "{currentQuestion?.question_text ||
-                  (session?.questions?.[0]?.question_text || "Welcome to your Viva! Could you introduce your technical approach and how you would design this system for scale?")}"
-              </p>
-            </div>
-
-            {/* 2. What User Is Answering (Live Spoken Transcript Bar) */}
-            <div className="glass-card rounded-2xl p-3 shadow-md border border-[#DDD9CF] flex items-center justify-between gap-3">
-              <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-                <div className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${isMicActive ? "bg-[#7D9F68] text-white animate-pulse" : "bg-[#FAF9F5] text-[#8c9099] border border-[#DDD9CF]"}`}>
-                  <Mic className="w-4 h-4" />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-mono uppercase font-bold text-[#7D9F68]">
-                      {isMicActive ? "Live Speech Transcript" : "Your Answer"}
-                    </span>
-                    {isMicActive && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#7D9F68] animate-ping" />
-                    )}
-                  </div>
-                  <p className="text-xs sm:text-sm text-[#20211E] truncate font-sans">
-                    {transcript ? (
-                      <span className="font-medium text-[#20211E]">{transcript}</span>
-                    ) : (
-                      <span className="text-[#8c9099] italic">
-                        {isMicActive ? "Listening to your voice... Speak your answer now." : "Microphone paused. Click mic to speak or use left pane to type."}
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Quick Action Button */}
-              <div className="flex items-center space-x-2 shrink-0">
-                <button
-                  onClick={handleToggleMic}
-                  className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-medium transition-all ${
-                    isMicActive
-                      ? "bg-[#FAF9F5] text-[#7D9F68] border-[#7D9F68]"
-                      : "bg-[#20211E] text-white border-[#20211E]"
-                  }`}
-                >
-                  {isMicActive ? "Mute Mic" : "Start Mic"}
-                </button>
-
-                <button
-                  onClick={handleSubmitAnswer}
-                  disabled={isEvaluating || !transcript.trim()}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#20211E] hover:bg-[#343631] disabled:opacity-40 text-white font-mono font-bold text-xs flex items-center space-x-1.5 shadow-sm transition-all"
-                >
-                  {isEvaluating ? (
-                    <>
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Scoring...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Submit</span>
-                      <Send className="w-3 h-3" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Clean background area */}
-          <div className="flex-1 w-full h-full bg-[#FAF9F5]" />
-
-
-
-          {/* ── FLOATING CANDIDATE PIP WEBCAM FEED (Bottom-Right) ─────────────── */}
-          <div className="absolute bottom-5 right-5 z-20 w-56 sm:w-64 md:w-72 h-36 sm:h-44 md:h-48 rounded-2xl overflow-hidden shadow-2xl border-2 border-white bg-[#0f172a] transition-all hover:ring-2 hover:ring-[#7D9F68]">
-            {isCameraActive ? (
-              <video
-                ref={(el) => {
-                  videoRef.current = el;
-                  if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
-                    el.srcObject = mediaStreamRef.current;
-                    el.play().catch(console.warn);
-                  }
-                }}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-                style={{ transform: "scaleX(-1)" }}
-              />
-            ) : (
-              <div className="w-full h-full bg-[#1e293b] flex flex-col items-center justify-center space-y-2 text-[#94a3b8]">
-                <Camera className="w-8 h-8 opacity-40" />
-                <span className="text-[11px] font-mono">Camera Disabled</span>
-              </div>
-            )}
-
-            {/* Overlaid Badges on Camera Feed */}
-            <div className="absolute top-2.5 left-2.5 flex items-center space-x-1.5 bg-black/75 backdrop-blur-sm px-2 py-0.5 rounded-full border border-white/10 text-[10px] font-mono">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-              <span className="text-white font-medium">LIVE HD</span>
-            </div>
-
-            <div className="absolute bottom-2.5 left-2.5 bg-black/75 backdrop-blur-sm px-2 py-0.5 rounded text-[11px] font-sans font-medium text-white border border-white/10">
-              You (Candidate)
-            </div>
-
-            {/* Mic indicator bars on bottom right of camera */}
-            <div className="absolute bottom-2.5 right-2.5 flex items-center space-x-1 bg-black/75 px-1.5 py-1 rounded">
-              <div className={`w-0.5 h-2 rounded-full bg-[#10b981] ${isMicActive ? "animate-pulse" : "opacity-30"}`} />
-              <div className={`w-0.5 h-3.5 rounded-full bg-[#10b981] ${isMicActive ? "animate-pulse" : "opacity-30"}`} />
-              <div className={`w-0.5 h-1.5 rounded-full bg-[#10b981] ${isMicActive ? "animate-pulse" : "opacity-30"}`} />
-            </div>
-          </div>
-        </main>
       </div>
 
       {/* ── ASK DOUBT MODAL ─────────────────────────────────────────────────── */}
