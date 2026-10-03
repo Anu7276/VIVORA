@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getReport, ReportData } from "@/lib/api";
+import { getReport, deleteSessionData, ReportData } from "@/lib/api";
 import {
   Trophy,
   CheckCircle,
@@ -20,7 +20,8 @@ import {
   FileCheck2,
   Layers,
   Activity,
-  MessageSquare
+  MessageSquare,
+  Trash2
 } from "lucide-react";
 
 export default function ReportPage() {
@@ -30,6 +31,7 @@ export default function ReportPage() {
 
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,6 +46,21 @@ export default function ReportPage() {
         setLoading(false);
       });
   }, [sessionId]);
+
+  const handleDeleteData = async () => {
+    if (!confirm("Are you sure you want to delete all personal study data, questions, answers, and documents for this session? This action cannot be undone.")) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteSessionData(sessionId);
+      alert("All data and documents associated with this session have been permanently deleted.");
+      router.push("/");
+    } catch (err: any) {
+      alert("Failed to delete data: " + (err.message || "Unknown error"));
+      setDeleting(false);
+    }
+  };
 
   const handlePrint = () => {
     if (typeof window !== "undefined") {
@@ -94,13 +111,20 @@ export default function ReportPage() {
           <span>Back to Home</span>
         </button>
 
-        <div className="flex items-center gap-3">
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200 text-xs font-medium border border-white/10 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export / Print PDF</span>
+          </button>
+          <button
+            onClick={handleDeleteData}
+            disabled={deleting}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-medium border border-rose-500/30 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>{deleting ? "Purging Data..." : "Delete My Data (GDPR)"}</span>
           </button>
           <button
             onClick={() => router.push("/")}

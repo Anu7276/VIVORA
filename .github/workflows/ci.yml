@@ -18,13 +18,21 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
+          pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Run Database Migrations Check
+        run: |
+          cd backend
+          alembic upgrade head
       - name: Run Backend Pytest Suite
         run: |
           cd backend
-          pytest tests -q
+          pytest tests -v
+        env:
+          ENV: test
+          JWT_SECRET_KEY: test_jwt_secret_key_for_ci_pipeline_only_32_bytes_long
 
-  frontend-build:
+  frontend-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,8 +40,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install dependencies & Build
+      - name: Install dependencies
         run: |
           cd frontend
-          npm install
+          npm ci
+      - name: Production Security Audit
+        run: |
+          cd frontend
+          npm audit --omit=dev
+      - name: Build Next.js Application
+        run: |
+          cd frontend
           npm run build
+

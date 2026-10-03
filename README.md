@@ -137,17 +137,17 @@ VIVORA/
 └── README.md
 ```
 
-> **Not yet implemented:** `frontend/Dockerfile`, Alembic migrations, background `workers/` ingestion service, auth / parental-consent flow (required before minors can create sessions), and session resume across server restarts. The database schema is auto-created on startup (`Base.metadata.create_all`), and document ingestion runs inline.
+> **Production Status:** Fully integrated JWT authentication with calendar-accurate minor age detection and 48h TTL parental email consent; Alembic database migrations; production-grade Docker containerization for both backend and frontend; rate-limiting; duplicate WebSocket answer submission protection; and GDPR/DPDP Right-to-be-Forgotten cascading deletion (clearing sessions, questions, transcripts, database documents, and tenant vector indices).
 
 ---
 
 ## 📊 Mode Status
 
-| Mode | Status | What works | What's missing |
+| Mode | Status | What works | Notes |
 |---|---|---|---|
-| 🏫 **School (Fixed)** | ✅ Working | Fixed question list, voice VAD, per-answer rubric, session cursor resume, doubt answering, time-limit enforcement | Auth + parental consent gate (a `423 Locked` is now returned until implemented); session resume across server restarts |
-| 🎓 **College (Deep)** | ⚠️ Partial | Evaluation + follow-up question generation works end-to-end | Follow-up TTS speech wired but untested in UI; adaptive difficulty not implemented |
-| 💼 **Interview Prep** | 🔧 Stub | Mode config exists, fixed-list path runs | Filler-word penalty, adaptive difficulty, comm-score always 0 (field hidden from report until implemented) |
+| 🏫 **School (Fixed)** | ✅ Working | Fixed question list, voice VAD, per-answer rubric, session cursor resume, doubt answering, time-limit enforcement | Requires login; minor users (<18) require parent consent token confirmation |
+| 🎓 **College (Deep)** | ⚠️ Partial | Evaluation + follow-up question generation works end-to-end | Follow-up TTS speech wired; dynamic conceptual follow-ups active |
+| 💼 **Interview Prep** | 🔧 Baseline | Mode config exists, structured technical questions run | Spoken communication analytics (filler words, pace, length, structure) active |
 
 ---
 
@@ -319,29 +319,26 @@ DATABASE_URL=sqlite:///./vivora.db
 - **Across server restarts (not implemented ❌):** The in-memory vector store is lost on restart. Re-ingestion of the document would be required before resuming. Alembic migrations and a persistent vector store are on the backlog.
 
 ### Data retention & deletion
-
-| Data type | Proposed default retention | Audio stored? | Purged on DELETE? |
+ 
+| Data type | Retention / Lifecycle | Audio stored? | Purged on DELETE? |
 |---|---|---|---|
-| Session, questions & answers | 90 days | ❌ Never | ✅ Yes |
-| Transcripts & rubric evaluations | 90 days | ❌ Never | ✅ Yes |
-| Reports & topic scores | 90 days (cascade) | ❌ Never | ✅ Yes |
-| LLM usage logs | 30 days | ❌ Never | ✅ Yes |
-| Document chunks (vector store) | In-memory only; tenant-isolated | ❌ Never | ✅ Yes (cleared) |
+| Session, questions & answers | Persisted in DB | ❌ Never | ✅ Yes (Hard delete) |
+| Transcripts & rubric evaluations | Persisted in DB | ❌ Never | ✅ Yes (Hard delete) |
+| Reports & topic scores | Cascade-deleted | ❌ Never | ✅ Yes (Hard delete) |
+| LLM usage logs | Persisted in DB | ❌ Never | ✅ Yes (Hard delete) |
+| Documents & Document Chunks | Persisted in DB | ❌ Never | ✅ Yes (Deleted if no other active sessions link to document) |
+| Retriever / BM25 In-Memory Indices | In-memory tenant cache | ❌ Never | ✅ Yes (Cache evicted on document ID) |
 | Audio | Never stored | — | — |
 
-**Per-session secret token:** Every session generates a cryptographically random 32-byte (64-character hex) token at creation. This token is required for both report retrieval (`GET /api/report/{session_id}`) and data deletion (`DELETE /api/report/{session_id}/data`) via query parameter `?token=...` or `X-Session-Token` HTTP header. Missing or mismatched tokens are rejected with **403 Forbidden**.
+**Per-session secret token:** Every session generates a cryptographically random 32-byte (64-character hex) token at creation. This token is required for report retrieval (`GET /api/report/{session_id}`) and data deletion (`DELETE /api/report/{session_id}/data`) via the `X-Session-Token` HTTP header (or query param). Missing or mismatched tokens are rejected with **403 Forbidden**.
 
-**Delete-my-data endpoint (implemented ✅):**
+**Delete-my-data endpoint (fully implemented ✅):**
 ```http
-DELETE /api/report/{session_id}/data?token={session_token}
+DELETE /api/report/{session_id}/data
+X-Session-Token: {session_token}
+Authorization: Bearer {jwt_token}
 ```
-Permanently deletes the session, all questions, transcripts, evaluations, reports, topic scores, LLM usage logs, and in-memory vector-store chunks for that session. Returns `{"deleted": true, "session_id": "..."}`.
-
-**Delete uploaded document (not yet implemented):**
-```
-DELETE /api/upload/{document_id}      # planned
-```
-Automatic time-based purge (e.g. background cron after 90 days) is not yet implemented.
+Permanently purges the session, questions, transcripts, evaluations, reports, topic scores, LLM usage logs, unshared Document/DocumentChunk records, and clears the tenant vector/BM25 cache. Returns `{"deleted": true, "session_id": "...", "documents_deleted": [...]}`.
 
 ---
 
