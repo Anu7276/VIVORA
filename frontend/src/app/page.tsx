@@ -28,11 +28,14 @@ import {
   GraduationCap, 
   School, 
   Briefcase, 
-  ChevronRight, 
+  ShieldCheck, 
   MessageSquare, 
-  X,
   HelpCircle,
-  Play
+  Play,
+  Award,
+  Zap,
+  Clock,
+  ChevronRight
 } from "lucide-react";
 
 export default function HomePage() {
@@ -41,7 +44,7 @@ export default function HomePage() {
   const [promptText, setPromptText] = useState("");
   const [mode, setMode] = useState<"interview" | "college" | "school">("interview");
   const [title, setTitle] = useState("System Design Mock Interview & Technical Viva");
-  const [contentText, setContentText] = useState("System Architecture, Microservices, Load Balancers, Distributed Caching, Consensus, CAP Theorem");
+  const [contentText, setContentText] = useState("System Architecture, Microservices, Load Balancer, Distributed Caching, Consensus, CAP Theorem");
   
   // PDF Upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -128,36 +131,36 @@ export default function HomePage() {
   const userName = user?.name?.split(" ")[0] || "Candidate";
 
   return (
-    <div className="min-h-screen bg-[#090b10] text-[#e2e8f0] flex flex-col selection:bg-[#00ea64]/30 selection:text-[#00ea64]">
+    <div className="min-h-screen bg-[#fcfbf9] text-[#1e293b] flex flex-col antialiased">
       
-      {/* ── TOP NAVIGATION BAR ──────────────────────────────────────────────── */}
-      <header className="h-16 border-b border-[#1f2232] bg-[#0d0f17]/90 backdrop-blur-md px-6 md:px-12 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center space-x-4">
+      {/* ── TOP HEADER NAVIGATION (Professional Light Editorial Theme) ───────── */}
+      <header className="h-16 border-b border-[#e2e8f0] bg-white/90 backdrop-blur-md px-6 md:px-12 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+        <div className="flex items-center space-x-6">
           <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-[#00ea64] flex items-center justify-center font-mono font-bold text-[#090b10] text-sm shadow-[0_0_12px_rgba(0,234,100,0.4)] group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-lg bg-[#0f766e] flex items-center justify-center font-mono font-bold text-white text-sm shadow-sm group-hover:scale-105 transition-transform">
               V
             </div>
             <div className="flex flex-col">
-              <span className="font-mono font-bold text-white text-base tracking-wider leading-none">
-                VIVORA<span className="text-[#00ea64]">.AI</span>
+              <span className="font-mono font-bold text-[#0f172a] text-base tracking-wider leading-none">
+                VIVORA<span className="text-[#0f766e]">.AI</span>
               </span>
               <span className="text-[10px] font-mono text-[#64748b]">AI Viva & Interview Simulator</span>
             </div>
           </Link>
         </div>
 
-        {/* Center Mode Badges */}
-        <div className="hidden md:flex items-center bg-[#151724] p-1 rounded-xl border border-[#23273a] text-xs font-medium space-x-1">
+        {/* Center Mode Selector Pills */}
+        <div className="hidden md:flex items-center bg-[#f1f5f9] p-1 rounded-xl border border-[#e2e8f0] text-xs font-medium space-x-1">
           <button
             onClick={() => {
               setMode("interview");
               setTitle("System Design Mock Interview & Technical Viva");
-              setContentText("System Architecture, Microservices, Load Balancer, Distributed Cache, Consensus");
+              setContentText("System Architecture, Microservices, Load Balancers, Distributed Caching, Consensus");
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
               mode === "interview"
-                ? "bg-[#00ea64] text-[#090b10] font-bold shadow-[0_0_10px_rgba(0,234,100,0.3)]"
-                : "text-[#94a3b8] hover:text-white"
+                ? "bg-white text-[#0f766e] font-bold shadow-sm border border-[#cbd5e1]"
+                : "text-[#64748b] hover:text-[#0f172a]"
             }`}
           >
             <Briefcase className="w-3.5 h-3.5" />
@@ -169,10 +172,10 @@ export default function HomePage() {
               setTitle("University Viva Voce: Distributed Systems");
               setContentText("PBFT, Raft Consensus, Byzantine Fault Tolerance, CAP Theorem");
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
               mode === "college"
-                ? "bg-[#00ea64] text-[#090b10] font-bold shadow-[0_0_10px_rgba(0,234,100,0.3)]"
-                : "text-[#94a3b8] hover:text-white"
+                ? "bg-white text-[#0f766e] font-bold shadow-sm border border-[#cbd5e1]"
+                : "text-[#64748b] hover:text-[#0f172a]"
             }`}
           >
             <GraduationCap className="w-3.5 h-3.5" />
@@ -184,10 +187,10 @@ export default function HomePage() {
               setTitle("Class 10 Biology: Life Processes Viva");
               setContentText("Q1: What is photosynthesis?\nAns: Process of converting light energy to chemical energy.\n\nQ2: What is hemoglobin?\nAns: Oxygen-carrying pigment in blood.");
             }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
               mode === "school"
-                ? "bg-[#00ea64] text-[#090b10] font-bold shadow-[0_0_10px_rgba(0,234,100,0.3)]"
-                : "text-[#94a3b8] hover:text-white"
+                ? "bg-white text-[#0f766e] font-bold shadow-sm border border-[#cbd5e1]"
+                : "text-[#64748b] hover:text-[#0f172a]"
             }`}
           >
             <School className="w-3.5 h-3.5" />
@@ -197,14 +200,14 @@ export default function HomePage() {
 
         {/* Right Nav Action */}
         <div className="flex items-center space-x-4">
-          <div className="hidden sm:flex items-center space-x-1.5 text-xs font-mono text-[#00ea64] bg-[#00ea64]/10 px-2.5 py-1 rounded-full border border-[#00ea64]/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00ea64] animate-ping" />
-            <span>Webcam & Voice AI Active</span>
+          <div className="hidden sm:flex items-center space-x-1.5 text-xs font-mono text-[#0f766e] bg-[#f0fdf4] px-3 py-1 rounded-full border border-[#bbf7d0]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-ping" />
+            <span>Voice & Webcam Ready</span>
           </div>
 
           {user ? (
-            <div className="flex items-center space-x-2.5">
-              <span className="text-xs font-medium text-[#cbd5e1] hidden sm:inline">{user.name}</span>
+            <div className="flex items-center space-x-3">
+              <span className="text-xs font-medium text-[#334155] hidden sm:inline">{user.name}</span>
               <button
                 onClick={() => {
                   clearAuthToken();
@@ -218,7 +221,7 @@ export default function HomePage() {
           ) : (
             <Link
               href="/login"
-              className="px-3.5 py-1.5 rounded-lg bg-[#191c2b] hover:bg-[#23273c] text-xs font-semibold text-white border border-[#2c3048] transition-all"
+              className="px-4 py-1.5 rounded-lg bg-[#0f766e] hover:bg-[#115e59] text-xs font-semibold text-white shadow-sm transition-all"
             >
               Sign In
             </Link>
@@ -227,49 +230,47 @@ export default function HomePage() {
       </header>
 
       {/* ── HERO SECTION ────────────────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-10 relative overflow-hidden">
-        
-        {/* Ambient background glow elements */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-[#00ea64]/10 via-[#6366f1]/10 to-transparent blur-3xl pointer-events-none rounded-full" />
-
-        <div className="w-full max-w-3xl flex flex-col items-center space-y-6 relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+        <div className="w-full max-w-4xl flex flex-col items-center space-y-8">
           
-          {/* Headline */}
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#161926] border border-[#262a3f] text-xs font-mono text-[#00ea64] mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#00ea64]" />
-              <span>Next-Gen Voice AI Examiner</span>
+          {/* Top Badge & Headline */}
+          <div className="text-center space-y-3 max-w-2xl">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#f0fdf4] border border-[#bbf7d0] text-xs font-mono font-medium text-[#0f766e]">
+              <Sparkles className="w-3.5 h-3.5 text-[#10b981]" />
+              <span>Real-Time Voice AI Examiner</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-white tracking-tight leading-tight">
-              What do you want to prepare, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ea64] to-[#38bdf8]">{userName}</span>?
+
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-[#0f172a] tracking-tight leading-tight">
+              Master Your Oral Viva & Technical Interview
             </h1>
-            <p className="text-sm md:text-base text-[#94a3b8] max-w-xl mx-auto leading-relaxed">
-              Rehearse live technical system design interviews and oral defense vivas with an intelligent, voice-driven AI examiner and interactive whiteboard.
+
+            <p className="text-sm md:text-base text-[#64748b] leading-relaxed">
+              Rehearse live system design architecture interviews, university thesis defenses, and school oral drills with interactive whiteboard canvases and real-time AI examiners.
             </p>
           </div>
 
-          {/* Elevated Central Console Card */}
-          <div className="w-full bg-[#12141e]/90 border border-[#23273a] hover:border-[#00ea64]/50 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur-xl transition-all focus-within:border-[#00ea64] focus-within:shadow-[0_0_30px_rgba(0,234,100,0.12)] space-y-3">
+          {/* ── CENTRAL CONSOLE CARD ─────────────────────────────────────────── */}
+          <div className="w-full bg-white border border-[#e2e8f0] rounded-2xl p-5 md:p-6 shadow-xl space-y-4 transition-all focus-within:border-[#0f766e] focus-within:ring-2 focus-within:ring-[#0f766e]/10">
             
             <textarea
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              placeholder="Enter your interview topic, syllabus chapter, or specific technical questions (e.g. Design a distributed message queue like Kafka with partition replication and leader election)..."
+              placeholder="What topic or syllabus would you like to prepare? (e.g. System Design: Scalable URL Shortener with Redis Cache, Distributed Rate Limiter, and Sharding)..."
               rows={3}
-              className="w-full bg-transparent text-sm md:text-base text-[#f1f5f9] placeholder-[#64748b] resize-none focus:outline-none font-sans leading-relaxed"
+              className="w-full bg-transparent text-sm md:text-base text-[#1e293b] placeholder-[#94a3b8] resize-none focus:outline-none font-sans leading-relaxed"
             />
 
-            {/* Bottom tools row */}
-            <div className="flex items-center justify-between pt-3 border-t border-[#1e2233]">
+            {/* Bottom Tools & Start CTA */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#f1f5f9]">
               <div className="flex items-center space-x-2">
-                <label className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#181a27] hover:bg-[#202334] text-xs text-[#94a3b8] hover:text-white cursor-pointer border border-[#2b2f44] transition-all">
-                  <UploadCloud className="w-3.5 h-3.5 text-[#00ea64]" />
-                  <span>{pdfParsing ? "Parsing PDF..." : "Attach PDF"}</span>
+                <label className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#f8fafc] hover:bg-[#f1f5f9] text-xs font-medium text-[#475569] hover:text-[#0f172a] cursor-pointer border border-[#e2e8f0] transition-all">
+                  <UploadCloud className="w-3.5 h-3.5 text-[#0f766e]" />
+                  <span>{pdfParsing ? "Parsing PDF..." : "Attach PDF / Notes"}</span>
                   <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
                 </label>
 
                 {selectedFile && (
-                  <span className="text-xs bg-[#00ea64]/10 text-[#00ea64] px-2.5 py-1 rounded-md font-mono truncate max-w-[180px] border border-[#00ea64]/30">
+                  <span className="text-xs bg-[#f0fdf4] text-[#0f766e] px-2.5 py-1 rounded-md font-mono truncate max-w-[180px] border border-[#bbf7d0]">
                     📄 {selectedFile.name}
                   </span>
                 )}
@@ -279,11 +280,11 @@ export default function HomePage() {
                 <button
                   onClick={() => handleStartSession(promptText || title, promptText || contentText, mode)}
                   disabled={loading}
-                  className="px-5 py-2 rounded-xl bg-[#00ea64] hover:bg-[#10b981] text-[#090b10] font-mono font-bold text-xs flex items-center space-x-2 shadow-[0_0_16px_rgba(0,234,100,0.35)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-[#0f766e] hover:bg-[#115e59] text-white font-mono font-bold text-xs flex items-center space-x-2 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-[#090b10] border-t-transparent rounded-full animate-spin" />
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Initializing Room...</span>
                     </>
                   ) : (
@@ -297,9 +298,9 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Quick Preset Pills */}
+          {/* ── 1-CLICK CURATED PRESET PILLS ─────────────────────────────────── */}
           <div className="w-full flex flex-wrap items-center justify-center gap-2 pt-1 text-xs">
-            <span className="text-[#64748b] font-mono text-[11px] mr-1">Quick Presets:</span>
+            <span className="text-[#64748b] font-mono text-[11px] mr-1">Popular Presets:</span>
             <button
               onClick={() => {
                 setMode("interview");
@@ -307,7 +308,7 @@ export default function HomePage() {
                 setContentText("Cache-Aside, Write-Through, Consistency, LRU Eviction, Redis Cluster Sharding");
                 handleStartSession("System Design: Distributed Cache & Redis", "Cache-Aside, Write-Through, Consistency, LRU Eviction, Redis Cluster Sharding", "interview");
               }}
-              className="px-3 py-1 rounded-lg bg-[#141622] hover:bg-[#1f2235] text-[#cbd5e1] border border-[#23273c] hover:border-[#00ea64] transition-all flex items-center space-x-1"
+              className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-[#f8fafc] text-[#334155] border border-[#e2e8f0] hover:border-[#0f766e] shadow-sm transition-all flex items-center space-x-1.5"
             >
               <span>💻 Distributed Cache Design</span>
             </button>
@@ -318,7 +319,7 @@ export default function HomePage() {
                 setContentText("Virtual Memory, Paging, Page Table, TLB, Page Fault Handler, Thrashing");
                 handleStartSession("Operating Systems: Virtual Memory & Page Faults", "Virtual Memory, Paging, Page Table, TLB, Page Fault Handler, Thrashing", "college");
               }}
-              className="px-3 py-1 rounded-lg bg-[#141622] hover:bg-[#1f2235] text-[#cbd5e1] border border-[#23273c] hover:border-[#00ea64] transition-all flex items-center space-x-1"
+              className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-[#f8fafc] text-[#334155] border border-[#e2e8f0] hover:border-[#0f766e] shadow-sm transition-all flex items-center space-x-1.5"
             >
               <span>🎓 OS Virtual Memory Viva</span>
             </button>
@@ -329,66 +330,100 @@ export default function HomePage() {
                 setContentText("Photosynthesis, Respiration, Hemoglobin, Circulation, Excretion");
                 handleStartSession("CBSE Class 10 Biology: Life Processes", "Photosynthesis, Respiration, Hemoglobin, Circulation, Excretion", "school");
               }}
-              className="px-3 py-1 rounded-lg bg-[#141622] hover:bg-[#1f2235] text-[#cbd5e1] border border-[#23273c] hover:border-[#00ea64] transition-all flex items-center space-x-1"
+              className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-[#f8fafc] text-[#334155] border border-[#e2e8f0] hover:border-[#0f766e] shadow-sm transition-all flex items-center space-x-1.5"
             >
               <span>🏫 Class 10 Biology Viva</span>
             </button>
           </div>
 
-          {/* ── WORKSPACE ACTION CARDS GRID ───────────────────────────────────── */}
-          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-4">
+          {/* ── WORKSPACE PREVIEW CARDS ───────────────────────────────────────── */}
+          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
             
-            {/* Card 1: Live System Design Interview Room */}
+            {/* Mode 1: Technical Architecture & System Design */}
             <div
               onClick={() => handleStartSession("System Design Mock Interview & Viva", contentText, "interview")}
-              className="bg-[#12141e] hover:bg-[#171926] border border-[#23273a] hover:border-[#00ea64] rounded-2xl p-4 flex items-start justify-between cursor-pointer transition-all shadow-lg group"
+              className="bg-white hover:bg-[#f8fafc] border border-[#e2e8f0] hover:border-[#0f766e] rounded-2xl p-5 flex flex-col justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group"
             >
-              <div className="flex items-start space-x-3">
-                <div className="p-2.5 rounded-xl bg-[#00ea64]/10 text-[#00ea64] border border-[#00ea64]/20 group-hover:scale-105 transition-transform">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#f0fdf4] text-[#0f766e] flex items-center justify-center border border-[#bbf7d0]">
                   <Video className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white text-sm group-hover:text-[#00ea64] transition-colors">
+                  <h3 className="font-semibold text-[#0f172a] text-sm group-hover:text-[#0f766e] transition-colors">
                     VIVORA Live Technical Interview
                   </h3>
-                  <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
-                    Interactive whiteboard canvas, real-time candidate webcam, and AI examiner speech stream.
+                  <p className="text-xs text-[#64748b] mt-1.5 leading-relaxed">
+                    Interactive whiteboard canvas, live candidate webcam stream, and real-time AI examiner speech.
                   </p>
                 </div>
               </div>
-              <ArrowRight className="w-4 h-4 text-[#64748b] group-hover:text-[#00ea64] group-hover:translate-x-1 transition-all mt-1" />
+              <div className="pt-4 flex items-center text-xs font-semibold text-[#0f766e] space-x-1">
+                <span>Enter Studio</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
 
-            {/* Card 2: University Viva Voce */}
+            {/* Mode 2: University Oral Defense */}
             <div
               onClick={() => handleStartSession("University Oral Defense Viva", contentText, "college")}
-              className="bg-[#12141e] hover:bg-[#171926] border border-[#23273a] hover:border-[#6366f1] rounded-2xl p-4 flex items-start justify-between cursor-pointer transition-all shadow-lg group"
+              className="bg-white hover:bg-[#f8fafc] border border-[#e2e8f0] hover:border-[#4f46e5] rounded-2xl p-5 flex flex-col justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group"
             >
-              <div className="flex items-start space-x-3">
-                <div className="p-2.5 rounded-xl bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/20 group-hover:scale-105 transition-transform">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#eef2ff] text-[#4f46e5] flex items-center justify-center border border-[#c7d2fe]">
                   <GraduationCap className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white text-sm group-hover:text-[#a5b4fc] transition-colors">
-                    College Viva Voce
+                  <h3 className="font-semibold text-[#0f172a] text-sm group-hover:text-[#4f46e5] transition-colors">
+                    University Oral Defense
                   </h3>
-                  <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
-                    Rigorous conceptual interrogation with dynamic follow-ups on thesis and lab experiments.
+                  <p className="text-xs text-[#64748b] mt-1.5 leading-relaxed">
+                    Deep conceptual interrogation ("why" and "how") with adaptive difficulty and thesis analysis.
                   </p>
                 </div>
               </div>
-              <ArrowRight className="w-4 h-4 text-[#64748b] group-hover:text-[#6366f1] group-hover:translate-x-1 transition-all mt-1" />
+              <div className="pt-4 flex items-center text-xs font-semibold text-[#4f46e5] space-x-1">
+                <span>Start Defense</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* Mode 3: School Concepts Drill */}
+            <div
+              onClick={() => handleStartSession("School Chapter Concepts Viva", undefined, "school")}
+              className="bg-white hover:bg-[#f8fafc] border border-[#e2e8f0] hover:border-[#0284c7] rounded-2xl p-5 flex flex-col justify-between cursor-pointer transition-all shadow-sm hover:shadow-md group"
+            >
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#f0f9ff] text-[#0284c7] flex items-center justify-center border border-[#bae6fd]">
+                  <School className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#0f172a] text-sm group-hover:text-[#0284c7] transition-colors">
+                    School Chapter Drill
+                  </h3>
+                  <p className="text-xs text-[#64748b] mt-1.5 leading-relaxed">
+                    Sequential question progression, voice doubt clarification, and generous thinking pauses.
+                  </p>
+                </div>
+              </div>
+              <div className="pt-4 flex items-center text-xs font-semibold text-[#0284c7] space-x-1">
+                <span>Start Practice</span>
+                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
           </div>
 
           {error && (
-            <div className="w-full p-3.5 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#f87171] text-xs text-center font-mono">
+            <div className="w-full p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center font-mono">
               {error}
             </div>
           )}
         </div>
       </main>
+
+      {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
+      <footer className="border-t border-[#e2e8f0] bg-white py-6 px-6 text-center text-xs text-[#64748b]">
+        <p>© 2026 VIVORA AI. Intelligent Viva & Technical Interview Simulator. Audio processed in memory only — no audio is stored.</p>
+      </footer>
     </div>
   );
 }
-

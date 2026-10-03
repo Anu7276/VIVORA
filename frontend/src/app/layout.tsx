@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "VIVORA | AI Viva & Technical Interview Simulator",
-  description: "Real-time voice-driven AI interviewer and oral examination simulator with instant rubric scoring, interactive system design canvas, and live candidate video.",
+  description: "Live voice-driven AI interviewer and oral examination simulator with instant rubric scoring, interactive whiteboard canvas, and real-time speech analytics.",
 };
 
 export default function RootLayout({
@@ -31,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${plusJakarta.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} dark`}>
-      <body className="bg-[#090b10] text-[#e2e8f0] font-sans min-h-screen antialiased selection:bg-[#00ea64]/30 selection:text-[#00ea64] overflow-x-hidden">
+    <html lang="en" className={`${plusJakarta.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <body className="bg-[#fcfbf9] text-[#1e293b] font-sans min-h-screen antialiased selection:bg-[#10b981]/20 selection:text-[#047857] overflow-x-hidden">
         {children}
       </body>
     </html>
