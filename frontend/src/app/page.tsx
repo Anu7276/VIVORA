@@ -437,16 +437,16 @@ export default function VIVORAEditorialHomePage() {
       </section>
 
       {/* ── SECTION 2: PRODUCT VALUE ────────────────────────────────────────── */}
-      <section className="py-20 md:py-28 px-6 border-t border-[#EBE7DD] bg-[#FAF9F5] relative overflow-hidden">
+      <section className="py-24 md:py-32 px-6 border-t border-[#EBE7DD] bg-[#FAF9F5] relative overflow-hidden">
         
-        {/* Atmospheric Nature Layer (Morning Canopy & Golden Rays) */}
+        {/* Atmospheric Nature Layer (Morning Forest Canopy & Sunbeams) */}
         <div 
-          className="nature-memory-layer nature-mask-organic-right animate-nature-drift-reverse -right-20 top-6 w-[760px] h-[800px]"
+          className="nature-memory-layer nature-mask-full animate-nature-drift-reverse inset-0 w-full h-full"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=2000&q=80')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=2400&q=85')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center right',
-            opacity: 0.45,
+            backgroundPosition: 'center 30%',
+            opacity: 0.58,
             transform: `translate3d(0, ${(scrollY - 400) * 0.04}px, 0)`,
           }}
         />
@@ -460,7 +460,7 @@ export default function VIVORAEditorialHomePage() {
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-normal text-[#20211E] tracking-tight leading-tight">
               Everything you need to prepare. Nothing you don't.
             </h2>
-            <p className="text-base text-[#6F7069] leading-relaxed">
+            <p className="text-base text-[#555850] leading-relaxed">
               VIVORA brings preparation, practice, feedback, and confidence into one intelligent workspace.
             </p>
           </div>
@@ -469,7 +469,7 @@ export default function VIVORAEditorialHomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             
             {/* 01 - Learn */}
-            <div className="bg-white border border-[#DDD9CF] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover shadow-2xs">
+            <div className="glass-card rounded-3xl p-7 space-y-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300">
               <div className="space-y-4">
                 <span className="font-mono text-xs text-[#8c9099] font-semibold">01 — LEARN</span>
                 <h3 className="text-2xl font-serif font-normal text-[#20211E] leading-snug">
@@ -490,7 +490,7 @@ export default function VIVORAEditorialHomePage() {
             </div>
 
             {/* 02 - Practice */}
-            <div className="bg-white border border-[#DDD9CF] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover shadow-2xs">
+            <div className="glass-card rounded-3xl p-7 space-y-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300">
               <div className="space-y-4">
                 <span className="font-mono text-xs text-[#7D9F68] font-semibold">02 — PRACTICE</span>
                 <h3 className="text-2xl font-serif font-normal text-[#20211E] leading-snug">
@@ -511,7 +511,7 @@ export default function VIVORAEditorialHomePage() {
             </div>
 
             {/* 03 - Improve */}
-            <div className="bg-white border border-[#DDD9CF] rounded-3xl p-7 space-y-6 flex flex-col justify-between surface-hover shadow-2xs">
+            <div className="glass-card rounded-3xl p-7 space-y-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300">
               <div className="space-y-4">
                 <span className="font-mono text-xs text-[#8c9099] font-semibold">03 — IMPROVE</span>
                 <h3 className="text-2xl font-serif font-normal text-[#20211E] leading-snug">
@@ -535,16 +535,16 @@ export default function VIVORAEditorialHomePage() {
       </section>
 
       {/* ── SECTION 3: AI VIVA EXPERIENCE ────────────────────────────────────── */}
-      <section className="py-20 md:py-28 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
+      <section className="py-24 md:py-32 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
         
         {/* Atmospheric Nature Layer (Misty Mountain Forest & Quiet Mist) */}
         <div 
-          className="nature-memory-layer nature-mask-radial animate-nature-drift -left-20 top-1/2 -translate-y-1/2 w-[860px] h-[720px]"
+          className="nature-memory-layer nature-mask-full animate-nature-drift inset-0 w-full h-full"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1511497584788-87676104235f?auto=format&fit=crop&w=2000&q=80')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1511497584788-87676104235f?auto=format&fit=crop&w=2400&q=85')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            opacity: 0.45,
+            backgroundPosition: 'center 45%',
+            opacity: 0.62,
             transform: `translate3d(0, ${(scrollY - 1000) * 0.04}px, 0)`,
           }}
         />
@@ -663,58 +663,87 @@ export default function VIVORAEditorialHomePage() {
       </section>
 
       {/* ── SECTION 5: PERFORMANCE & INSIGHTS ────────────────────────────────── */}
-      <section id="insights" className="py-20 md:py-28 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
+      <section id="insights" className="py-24 md:py-32 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
         
-        {/* Atmospheric Nature Memory Fragment 04 (Soft Mountain Cloudscape & Ridges) */}
+        {/* Full-Bleed Atmospheric Mountain Ridge Background */}
         <div 
-          className="nature-memory-layer nature-mask-organic-left animate-nature-drift-reverse -left-20 bottom-0 w-[700px] h-[600px]"
+          className="nature-memory-layer nature-mask-full animate-nature-drift-reverse inset-0 w-full h-full"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1400&auto=format&fit=crop')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=85')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'left center',
-            opacity: 0.12,
-            transform: `translate3d(0, ${(scrollY - 2000) * 0.05}px, 0)`,
+            backgroundPosition: 'center 40%',
+            opacity: 0.65,
+            transform: `translate3d(0, ${(scrollY - 2000) * 0.04}px, 0)`,
           }}
         />
+
+        {/* Ambient atmospheric gradient wash */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#FAF9F5]/70 via-transparent to-[#FAF9F5]/60 pointer-events-none z-0" />
+        <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-[#FAF9F5] to-transparent pointer-events-none z-0" />
 
         <div className="max-w-5xl mx-auto space-y-14 relative z-10">
           
           <div className="max-w-2xl space-y-3">
-            <span className="text-xs font-mono text-[#7D9F68] uppercase tracking-wider font-semibold">
-              Analytics & Readiness
+            <span className="text-xs font-mono text-[#7D9F68] uppercase tracking-wider font-semibold flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-[#7D9F68] animate-pulse" />
+              <span>Analytics & Readiness</span>
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-normal text-[#20211E] tracking-tight leading-tight">
               From "I think I know it"<br />
               <span className="italic text-[#7D9F68]">to "I can explain it."</span>
             </h2>
-            <p className="text-base text-[#6F7069] leading-relaxed">
+            <p className="text-base text-[#555850] leading-relaxed">
               Understand where your verbal explanations falter and bridge gaps before stepping in front of professors or interview panels.
             </p>
           </div>
 
-          {/* Metric Cards Grid */}
+          {/* Glassmorphic Metric Cards Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white border border-[#DDD9CF] p-5 rounded-2xl shadow-2xs space-y-2">
-              <div className="text-xs font-mono text-[#8c9099]">CONCEPT MASTERY</div>
+            <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+                <span>CONCEPT MASTERY</span>
+                <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
+              </div>
               <div className="text-3xl font-serif font-bold text-[#20211E]">94%</div>
+              <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
+                <div className="bg-[#20211E] h-full rounded-full w-[94%]" />
+              </div>
               <p className="text-[11px] text-[#6F7069]">Invariants & definitions verified</p>
             </div>
 
-            <div className="bg-white border border-[#DDD9CF] p-5 rounded-2xl shadow-2xs space-y-2">
-              <div className="text-xs font-mono text-[#8c9099]">VIVA READINESS</div>
+            <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+                <span>VIVA READINESS</span>
+                <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
+              </div>
               <div className="text-3xl font-serif font-bold text-[#7D9F68]">High (88%)</div>
+              <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
+                <div className="bg-[#7D9F68] h-full rounded-full w-[88%]" />
+              </div>
               <p className="text-[11px] text-[#6F7069]">Confidence across 14 modules</p>
             </div>
 
-            <div className="bg-white border border-[#DDD9CF] p-5 rounded-2xl shadow-2xs space-y-2">
-              <div className="text-xs font-mono text-[#8c9099]">SPEAKING CLARITY</div>
+            <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+                <span>SPEAKING CLARITY</span>
+                <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
+              </div>
               <div className="text-3xl font-serif font-bold text-[#20211E]">91%</div>
+              <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
+                <div className="bg-[#20211E] h-full rounded-full w-[91%]" />
+              </div>
               <p className="text-[11px] text-[#6F7069]">Pacing (142 WPM) & minimal fillers</p>
             </div>
 
-            <div className="bg-white border border-[#DDD9CF] p-5 rounded-2xl shadow-2xs space-y-2">
-              <div className="text-xs font-mono text-[#8c9099]">PRACTICE STREAK</div>
+            <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+                <span>PRACTICE STREAK</span>
+                <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
+              </div>
               <div className="text-3xl font-serif font-bold text-[#7D9F68]">6 Days</div>
+              <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
+                <div className="bg-[#7D9F68] h-full rounded-full w-[60%]" />
+              </div>
               <p className="text-[11px] text-[#6F7069]">Exam in 12 days</p>
             </div>
           </div>
@@ -871,39 +900,53 @@ export default function VIVORAEditorialHomePage() {
       </section>
 
       {/* ── SECTION 8: FINAL CINEMATIC CTA ──────────────────────────────────── */}
-      <section className="py-24 md:py-32 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
+      <section className="py-28 md:py-36 px-6 bg-[#FAF9F5] border-t border-[#EBE7DD] relative overflow-hidden">
         
-        {/* Atmospheric Nature Layer (Alpine Morning Light & Misty Horizon) */}
+        {/* Atmospheric Nature Layer (Grand Alpine Sunrise & Morning Mist) */}
         <div 
-          className="nature-memory-layer nature-mask-fade-down animate-nature-drift inset-0 h-full w-full"
+          className="nature-memory-layer nature-mask-cta animate-nature-drift inset-0 h-full w-full"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=2400&q=85')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?auto=format&fit=crop&w=2400&q=90')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center 40%',
-            opacity: 0.55,
+            backgroundPosition: 'center 38%',
+            opacity: 0.82,
             transform: `translate3d(0, ${(scrollY - 2800) * 0.04}px, 0)`,
           }}
         />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-[#FAF9F5] via-[#FAF9F5]/70 to-[#FAF9F5]/30 pointer-events-none" />
+        {/* Ambient atmospheric warm glow */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#FAF9F5]/40 via-transparent to-[#FAF9F5]/30 pointer-events-none z-0" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] md:w-[800px] h-[350px] bg-gradient-to-r from-[#FAF9F5]/80 via-[#FAF9F5]/50 to-[#FAF9F5]/80 blur-2xl pointer-events-none rounded-full z-0" />
 
         <div className="max-w-3xl mx-auto text-center space-y-6 relative z-10">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-normal text-[#20211E] tracking-tight leading-tight">
-            Your next answer starts here.
+          
+          {/* Announcement pill */}
+          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/90 backdrop-blur-md border border-[#DDD9CF] text-[11px] font-mono uppercase tracking-widest text-[#4a5043] shadow-xs">
+            <span className="text-[#7D9F68]">✦</span>
+            <span>BECOME UNSTOPPABLE IN YOUR NEXT VIVA</span>
+          </div>
+
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-serif font-normal text-[#20211E] tracking-tight leading-[1.08]">
+            Your next answer<br />
+            <span className="italic">starts here.</span>
           </h2>
 
-          <p className="text-sm md:text-base font-serif italic text-[#6F7069]">
+          <p className="text-base sm:text-lg font-serif italic text-[#4a4d45]">
             Study. Practice. Speak. Improve.
           </p>
 
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={() => setShowSetupModal(true)}
-              className="px-8 py-3.5 rounded-full bg-[#20211E] hover:bg-[#343631] text-white text-sm font-medium shadow-md transition-all flex items-center space-x-2"
+              className="px-8 py-3.5 rounded-full bg-[#20211E] hover:bg-[#343631] text-white text-sm font-medium shadow-[0_10px_30px_rgba(32,33,30,0.25)] hover:shadow-[0_15px_35px_rgba(32,33,30,0.35)] transition-all flex items-center space-x-2 group"
             >
               <span>Try VIVORA free</span>
-              <span>→</span>
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
+          </div>
+
+          <div className="pt-2 text-[11px] font-mono text-[#6F7069]">
+            Free practice sessions included • No payment required
           </div>
         </div>
       </section>
