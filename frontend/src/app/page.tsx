@@ -49,7 +49,6 @@ export default function HomePage() {
   const [uploadedDocumentId, setUploadedDocumentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showSurvey, setShowSurvey] = useState(true);
 
   // Load user profile on mount
   useEffect(() => {
@@ -388,37 +387,8 @@ export default function HomePage() {
             </div>
           )}
         </div>
-
-        {/* ── FLOATING SURVEY TOAST (Bottom-Right) ────────────────────────────── */}
-        {showSurvey && (
-          <div className="fixed bottom-6 right-6 z-30 bg-[#141622] border border-[#26293c] rounded-2xl p-4 shadow-2xl max-w-xs space-y-3 animate-fadeIn">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-2 rounded-xl bg-[#00ea64]/10 text-[#00ea64]">
-                  <HelpCircle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Help us improve VIVORA</h4>
-                  <p className="text-[11px] text-[#94a3b8]">Quick 1-minute feedback on AI voice examination.</p>
-                </div>
-              </div>
-              <button onClick={() => setShowSurvey(false)} className="text-[#64748b] hover:text-white">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <button
-              onClick={() => {
-                alert("Thank you for your feedback!");
-                setShowSurvey(false);
-              }}
-              className="w-full py-2 rounded-xl bg-[#00ea64] hover:bg-[#10b981] text-[#090b10] font-mono font-bold text-xs transition-all shadow-[0_0_10px_rgba(0,234,100,0.2)]"
-            >
-              Take Survey
-            </button>
-          </div>
-        )}
       </main>
     </div>
   );
 }
+
