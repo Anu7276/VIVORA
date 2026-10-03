@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getSession, SessionData } from "@/lib/api";
+import { getSession, SessionData, getAuthToken } from "@/lib/api";
 import { BrowserVoiceClient } from "@/lib/voice";
 import { getSessionWebSocketUrl } from "@/lib/wsClient";
 import AudioWave from "@/components/AudioWave";
@@ -93,6 +93,10 @@ export default function SessionRoomPage() {
 
     ws.onopen = () => {
       console.log("WebSocket connected to Viva session room");
+      const token = getAuthToken();
+      if (token) {
+        ws.send(JSON.stringify({ type: "auth", token }));
+      }
     };
 
     ws.onmessage = (event) => {
@@ -258,6 +262,7 @@ export default function SessionRoomPage() {
     wsRef.current.send(
       JSON.stringify({
         type: "submit_answer",
+        question_id: currentQuestion?.id,
         transcript: spokenText,
         duration_sec: 10,
         filler_count: 0,

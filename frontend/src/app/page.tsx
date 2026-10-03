@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createSession, uploadFileMaterial, getDemoStudent, StudentProfile } from "@/lib/api";
+import { 
+  createSession, 
+  uploadFileMaterial, 
+  getCurrentUser, 
+  getStoredUser, 
+  getAuthToken, 
+  clearAuthToken, 
+  UserProfile 
+} from "@/lib/api";
+import Link from "next/link";
 import { 
   School, 
   GraduationCap, 
@@ -183,8 +192,8 @@ export default function HomePage() {
   // Bulk paste text state
   const [contentText, setContentText] = useState("");
 
-  // Student profile state
-  const [student, setStudent] = useState<StudentProfile | null>(null);
+  // User profile state
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   // PDF upload states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -202,7 +211,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: check browser speech recognition support and load verified student profile
+  // On mount: check browser speech recognition support and load user profile
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
@@ -212,9 +221,15 @@ export default function HomePage() {
       }
     }
 
-    getDemoStudent()
-      .then((data) => setStudent(data))
-      .catch((err) => console.warn("Demo student auto-fetch notice:", err));
+    const stored = getStoredUser();
+    if (stored) {
+      setUser(stored);
+    }
+    if (getAuthToken()) {
+      getCurrentUser()
+        .then((u) => setUser(u))
+        .catch(() => setUser(null));
+    }
   }, []);
 
   // Format QA pairs into structured text
@@ -259,6 +274,11 @@ export default function HomePage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!getAuthToken()) {
+      router.push("/login?redirect=/");
+      return;
+    }
 
     setSelectedFile(file);
     setPdfParsing(true);
@@ -328,6 +348,11 @@ export default function HomePage() {
   };
 
   const handleStartViva = async () => {
+    if (!getAuthToken()) {
+      router.push("/login?redirect=/");
+      return;
+    }
+
     let finalContent = "";
     if (mode === "school" && inputTab === "qa_builder") {
       const validPairs = qaPairs.filter((p) => p.question.trim().length > 0);
@@ -365,7 +390,6 @@ export default function HomePage() {
         content_text: finalContent,
         document_id: docIdToUse,
         question_source: mode === "school" ? "fixed" : "generated",
-        user_id: student?.user_id,
         job_role: mode === "interview" ? jobRole : undefined,
         tech_stack: mode === "interview" ? techStack : undefined,
         experience_level: mode === "interview" ? experienceLevel.split(" ")[0] : undefined,
@@ -378,20 +402,52 @@ export default function HomePage() {
     }
   };
 
+  const handleSignOut = () => {
+    clearAuthToken();
+    setUser(null);
+    router.refresh();
+  };
+
   return (
     <div className="space-y-10 py-4 max-w-5xl mx-auto">
-      {/* Verified Student Profile Top Bar */}
+      {/* User Profile & Auth Top Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 rounded-2xl bg-surfaceLight/40 border border-white/10 backdrop-blur-md">
-        <div className="flex items-center gap-2.5 text-xs text-gray-300">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-semibold text-white">Student:</span>
-          <span>{student ? `${student.name}` : "Aarav Sharma"}</span>
-          <span className="text-gray-500">•</span>
-          <div className="flex items-center gap-1 text-emerald-400 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Parent / Student Consent Verified</span>
+        {user ? (
+          <div className="flex items-center gap-2.5 text-xs text-gray-300">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-semibold text-white">{user.name}</span>
+            <span className="text-gray-500">•</span>
+            <span className="text-gray-400">{user.email}</span>
+            <span className="text-gray-500">•</span>
+            <div className="flex items-center gap-1 text-emerald-400 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{user.account_status === "active" ? "Active Account" : "Pending Consent"}</span>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="ml-2 text-xs text-rose-400 hover:text-rose-300 underline"
+            >
+              Sign Out
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-gray-400">Sign in to save practice sessions and view analytical reports:</span>
+            <Link
+              href="/login"
+              className="px-3 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 font-medium transition-all"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/signup"
+              className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 text-white font-medium transition-all"
+            >
+              Create Account
+            </Link>
+          </div>
+        )}
+
         <div className="flex items-center gap-3 text-[11px] text-gray-400">
           <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-2 py-1">
             <span className="text-gray-300 font-medium">Voice Accent:</span>
