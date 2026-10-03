@@ -13,94 +13,40 @@ import {
 } from "@/lib/api";
 import Link from "next/link";
 import { 
-  Home as HomeIcon,
-  BookOpen, 
-  MessageSquare, 
-  Calendar, 
-  Settings, 
-  HelpCircle, 
-  Plus, 
-  Sparkles, 
   Mic, 
-  ArrowUp, 
-  Layers, 
-  Bookmark, 
+  Video, 
+  Sparkles, 
+  ArrowRight, 
+  Plus, 
   FileText, 
-  Table, 
-  X, 
-  CheckCircle2, 
   UploadCloud, 
   LogOut, 
-  ClipboardCheck, 
-  ChevronRight,
-  School,
-  GraduationCap,
-  Briefcase,
-  Monitor,
-  Video,
-  ArrowRight
+  CheckCircle2, 
+  BookOpen, 
+  Layers, 
+  Cpu, 
+  GraduationCap, 
+  School, 
+  Briefcase, 
+  ChevronRight, 
+  MessageSquare, 
+  X,
+  HelpCircle,
+  Play
 } from "lucide-react";
-
-interface QAPair {
-  question: string;
-  answer: string;
-}
-
-const PRESET_SCHOOL_SETS: Record<string, { title: string; pairs: QAPair[] }> = {
-  biology: {
-    title: "CBSE Class 10 Biology: Life Processes Viva",
-    pairs: [
-      {
-        question: "What is photosynthesis and in which cell organelle does it take place?",
-        answer: "Photosynthesis is the process by which green plants synthesize glucose using sunlight, water, and carbon dioxide. It takes place inside chloroplasts containing chlorophyll."
-      },
-      {
-        question: "Why do herbivores have a longer small intestine than carnivores?",
-        answer: "Herbivores eat plant matter and cellulose, which takes a longer time to digest, hence requiring a longer small intestine. Carnivores eat meat which is easier to digest."
-      },
-      {
-        question: "What is the role of hemoglobin in human respiration?",
-        answer: "Hemoglobin is a respiratory pigment in red blood cells that has high affinity for oxygen, transporting it from the lungs to tissues throughout the body."
-      }
-    ]
-  },
-  physics: {
-    title: "CBSE Class 9 Physics: Force & Laws of Motion",
-    pairs: [
-      {
-        question: "State Newton's First Law of Motion and give a daily life example.",
-        answer: "An object continues in its state of rest or uniform motion in a straight line unless acted upon by an external unbalanced force. For example, passengers lean backward when a bus starts suddenly."
-      },
-      {
-        question: "Define momentum and state its SI unit.",
-        answer: "Momentum is the product of mass and velocity of an object (p = mv). Its SI unit is kilogram meter per second (kg·m/s)."
-      },
-      {
-        question: "Why does a cricket player pull his hands backward while catching a ball?",
-        answer: "Pulling hands back increases the time taken to stop the ball, which decreases the rate of change of momentum and thus reduces the impact force on the hands."
-      }
-    ]
-  }
-};
 
 export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [promptText, setPromptText] = useState("");
-  const [activeTab, setActiveTab] = useState<"learn" | "viva_modal" | "pdf_modal">("learn");
-
-  // Mode and session builder states
-  const [mode, setMode] = useState<"school" | "college" | "interview">("interview");
+  const [mode, setMode] = useState<"interview" | "college" | "school">("interview");
   const [title, setTitle] = useState("System Design Mock Interview & Technical Viva");
-  const [contentText, setContentText] = useState("System Architecture, Load Balancer, Caching, Sharding, Microservices, CAP Theorem");
-  const [qaPairs, setQaPairs] = useState<QAPair[]>(PRESET_SCHOOL_SETS.biology.pairs);
-  const [language, setLanguage] = useState("en-IN");
+  const [contentText, setContentText] = useState("System Architecture, Microservices, Load Balancers, Distributed Caching, Consensus, CAP Theorem");
   
-  // PDF upload
+  // PDF Upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [pdfParsing, setPdfParsing] = useState(false);
   const [uploadedDocumentId, setUploadedDocumentId] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSurvey, setShowSurvey] = useState(true);
@@ -118,16 +64,11 @@ export default function HomePage() {
     }
   }, []);
 
-  const handleQuickPill = (topic: string, modeType: "school" | "college" | "interview") => {
-    setMode(modeType);
-    setPromptText(topic);
-    setTitle(topic);
-    if (modeType === "interview") {
-      setContentText("Distributed Consensus, PBFT, Raft, Scalable Systems, Latency Optimization");
-    }
-  };
-
-  const handleStartSession = async (customTitle?: string, customContent?: string, customMode?: "school" | "college" | "interview") => {
+  const handleStartSession = async (
+    customTitle?: string,
+    customContent?: string,
+    customMode?: "interview" | "college" | "school"
+  ) => {
     setError(null);
     setLoading(true);
 
@@ -140,20 +81,12 @@ export default function HomePage() {
     try {
       const sessionTitle = customTitle || title || promptText || "System Design Mock Interview";
       const sessionMode = customMode || mode;
-      let finalContent = customContent || contentText || promptText;
-
-      if (sessionMode === "school" && qaPairs.length > 0 && !customContent) {
-        finalContent = qaPairs
-          .filter((p) => p.question.trim().length > 0)
-          .map((p, idx) => `Q${idx + 1}: ${p.question.trim()}\nAns: ${p.answer.trim()}`)
-          .join("\n\n");
-      }
+      const finalContent = customContent || contentText || promptText || "General Engineering Viva";
 
       const res = await createSession({
         title: sessionTitle,
         mode: sessionMode,
         content_text: finalContent,
-        language: language,
         document_id: uploadedDocumentId || undefined,
       });
 
@@ -193,114 +126,151 @@ export default function HomePage() {
     }
   };
 
-  const userName = user?.name?.split(" ")[0] || "Pramila";
+  const userName = user?.name?.split(" ")[0] || "Candidate";
 
   return (
-    <div className="flex h-screen w-screen bg-[#faf9f6] text-[#1f2937] font-sans antialiased overflow-hidden">
+    <div className="min-h-screen bg-[#090b10] text-[#e2e8f0] flex flex-col selection:bg-[#00ea64]/30 selection:text-[#00ea64]">
       
-      {/* ── LEFT SLIM NAVIGATION RAIL (Clean Minimalist Design) ───────────────── */}
-      <nav className="w-16 md:w-18 bg-[#faf9f6] border-r border-[#e8e6df] flex flex-col items-center justify-between py-6 z-20 shrink-0">
-        <div className="flex flex-col items-center space-y-7">
-          {/* Logo / Monogram */}
-          <div className="w-9 h-9 rounded-xl bg-[#4a7c59] text-white flex items-center justify-center font-serif font-bold text-lg shadow-sm hover:scale-105 transition-transform cursor-pointer">
-            V
-          </div>
-
-          {/* Navigation Icon Links */}
-          <div className="flex flex-col items-center space-y-4 text-[#6b7280]">
-            <button
-              onClick={() => setActiveTab("learn")}
-              className="p-2.5 rounded-xl bg-[#f0eee6] text-[#2d5a3f] hover:text-[#2d5a3f] transition-all"
-              title="Home"
-            >
-              <HomeIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => handleQuickPill("CBSE Class 10 Biology Viva", "school")}
-              className="p-2.5 rounded-xl hover:bg-[#f0eee6] hover:text-[#1f2937] transition-all"
-              title="Study Materials"
-            >
-              <BookOpen className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => handleStartSession("System Design Mock Interview", undefined, "interview")}
-              className="p-2.5 rounded-xl hover:bg-[#f0eee6] hover:text-[#1f2937] transition-all"
-              title="Live Voice Interview"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
-            <button
-              className="p-2.5 rounded-xl hover:bg-[#f0eee6] hover:text-[#1f2937] transition-all"
-              title="Schedule / Calendar"
-            >
-              <Calendar className="w-5 h-5" />
-            </button>
-          </div>
+      {/* ── TOP NAVIGATION BAR ──────────────────────────────────────────────── */}
+      <header className="h-16 border-b border-[#1f2232] bg-[#0d0f17]/90 backdrop-blur-md px-6 md:px-12 flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center space-x-4">
+          <Link href="/" className="flex items-center space-x-2.5 group">
+            <div className="w-8 h-8 rounded-lg bg-[#00ea64] flex items-center justify-center font-mono font-bold text-[#090b10] text-sm shadow-[0_0_12px_rgba(0,234,100,0.4)] group-hover:scale-105 transition-transform">
+              V
+            </div>
+            <div className="flex flex-col">
+              <span className="font-mono font-bold text-white text-base tracking-wider leading-none">
+                VIVORA<span className="text-[#00ea64]">.AI</span>
+              </span>
+              <span className="text-[10px] font-mono text-[#64748b]">AI Viva & Interview Simulator</span>
+            </div>
+          </Link>
         </div>
 
-        {/* Bottom Rail: Settings & Profile Avatar */}
-        <div className="flex flex-col items-center space-y-4">
+        {/* Center Mode Badges */}
+        <div className="hidden md:flex items-center bg-[#151724] p-1 rounded-xl border border-[#23273a] text-xs font-medium space-x-1">
+          <button
+            onClick={() => {
+              setMode("interview");
+              setTitle("System Design Mock Interview & Technical Viva");
+              setContentText("System Architecture, Microservices, Load Balancer, Distributed Cache, Consensus");
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+              mode === "interview"
+                ? "bg-[#00ea64] text-[#090b10] font-bold shadow-[0_0_10px_rgba(0,234,100,0.3)]"
+                : "text-[#94a3b8] hover:text-white"
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            <span>Tech Interview</span>
+          </button>
+          <button
+            onClick={() => {
+              setMode("college");
+              setTitle("University Viva Voce: Distributed Systems");
+              setContentText("PBFT, Raft Consensus, Byzantine Fault Tolerance, CAP Theorem");
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+              mode === "college"
+                ? "bg-[#00ea64] text-[#090b10] font-bold shadow-[0_0_10px_rgba(0,234,100,0.3)]"
+                : "text-[#94a3b8] hover:text-white"
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span>College Viva</span>
+          </button>
+          <button
+            onClick={() => {
+              setMode("school");
+              setTitle("Class 10 Biology: Life Processes Viva");
+              setContentText("Q1: What is photosynthesis?\nAns: Process of converting light energy to chemical energy.\n\nQ2: What is hemoglobin?\nAns: Oxygen-carrying pigment in blood.");
+            }}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+              mode === "school"
+                ? "bg-[#00ea64] text-[#090b10] font-bold shadow-[0_0_10px_rgba(0,234,100,0.3)]"
+                : "text-[#94a3b8] hover:text-white"
+            }`}
+          >
+            <School className="w-3.5 h-3.5" />
+            <span>School Viva</span>
+          </button>
+        </div>
+
+        {/* Right Nav Action */}
+        <div className="flex items-center space-x-4">
+          <div className="hidden sm:flex items-center space-x-1.5 text-xs font-mono text-[#00ea64] bg-[#00ea64]/10 px-2.5 py-1 rounded-full border border-[#00ea64]/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00ea64] animate-ping" />
+            <span>Webcam & Voice AI Active</span>
+          </div>
+
           {user ? (
-            <button
-              onClick={() => {
-                clearAuthToken();
-                setUser(null);
-              }}
-              title="Logout"
-              className="text-[#9ca3af] hover:text-[#ef4444] transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center space-x-2.5">
+              <span className="text-xs font-medium text-[#cbd5e1] hidden sm:inline">{user.name}</span>
+              <button
+                onClick={() => {
+                  clearAuthToken();
+                  setUser(null);
+                }}
+                className="text-xs font-mono text-[#ef4444] hover:underline"
+              >
+                Logout
+              </button>
+            </div>
           ) : (
             <Link
               href="/login"
-              className="text-xs font-medium text-[#4a7c59] hover:underline"
+              className="px-3.5 py-1.5 rounded-lg bg-[#191c2b] hover:bg-[#23273c] text-xs font-semibold text-white border border-[#2c3048] transition-all"
             >
-              Login
+              Sign In
             </Link>
           )}
-
-          {/* User Botanical Avatar */}
-          <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-[#4a7c59]/40 shadow-sm cursor-pointer hover:ring-2 hover:ring-[#4a7c59] transition-all">
-            <img
-              src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop"
-              alt="Profile"
-              className="w-full h-full object-cover"
-            />
-          </div>
         </div>
-      </nav>
+      </header>
 
-      {/* ── MAIN CONTENT AREA ─────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto px-6 md:px-12 lg:px-24 py-12 flex flex-col items-center relative">
-        <div className="w-full max-w-2xl lg:max-w-3xl flex flex-col items-center space-y-8 my-auto">
+      {/* ── HERO SECTION ────────────────────────────────────────────────────── */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-10 relative overflow-hidden">
+        
+        {/* Ambient background glow elements */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-[#00ea64]/10 via-[#6366f1]/10 to-transparent blur-3xl pointer-events-none rounded-full" />
+
+        <div className="w-full max-w-3xl flex flex-col items-center space-y-6 relative z-10">
           
-          {/* Main Literary Serif Heading (Matching Image 1) */}
-          <h1 className="text-3xl md:text-4xl lg:text-[42px] font-serif font-normal text-[#1e293b] text-center tracking-tight">
-            What do you want to learn, {userName}?
-          </h1>
+          {/* Headline */}
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#161926] border border-[#262a3f] text-xs font-mono text-[#00ea64] mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#00ea64]" />
+              <span>Next-Gen Voice AI Examiner</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-white tracking-tight leading-tight">
+              What do you want to prepare, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ea64] to-[#38bdf8]">{userName}</span>?
+            </h1>
+            <p className="text-sm md:text-base text-[#94a3b8] max-w-xl mx-auto leading-relaxed">
+              Rehearse live technical system design interviews and oral defense vivas with an intelligent, voice-driven AI examiner and interactive whiteboard.
+            </p>
+          </div>
 
-          {/* Elevated Rounded Prompt Console Card */}
-          <div className="w-full bg-white rounded-2xl border border-[#e5e0d4] shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-4 flex flex-col space-y-3 transition-all focus-within:border-[#4a7c59] focus-within:shadow-[0_8px_30px_rgba(74,124,89,0.08)]">
+          {/* Elevated Central Console Card */}
+          <div className="w-full bg-[#12141e]/90 border border-[#23273a] hover:border-[#00ea64]/50 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur-xl transition-all focus-within:border-[#00ea64] focus-within:shadow-[0_0_30px_rgba(0,234,100,0.12)] space-y-3">
             
             <textarea
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              placeholder="I want to study for math, biology viva, or system design interview..."
+              placeholder="Enter your interview topic, syllabus chapter, or specific technical questions (e.g. Design a distributed message queue like Kafka with partition replication and leader election)..."
               rows={3}
-              className="w-full bg-transparent text-base md:text-lg text-[#1f2937] placeholder-[#9ca3af] resize-none focus:outline-none font-sans leading-relaxed"
+              className="w-full bg-transparent text-sm md:text-base text-[#f1f5f9] placeholder-[#64748b] resize-none focus:outline-none font-sans leading-relaxed"
             />
 
-            {/* Bottom Inner Tools: Attachment + Mic + Submit Arrow Button */}
-            <div className="flex items-center justify-between pt-2 border-t border-[#f3f1ea]">
+            {/* Bottom tools row */}
+            <div className="flex items-center justify-between pt-3 border-t border-[#1e2233]">
               <div className="flex items-center space-x-2">
-                <label className="p-2 rounded-full hover:bg-[#f4f2eb] text-[#6b7280] hover:text-[#1f2937] cursor-pointer transition-colors">
-                  <Plus className="w-5 h-5" />
+                <label className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#181a27] hover:bg-[#202334] text-xs text-[#94a3b8] hover:text-white cursor-pointer border border-[#2b2f44] transition-all">
+                  <UploadCloud className="w-3.5 h-3.5 text-[#00ea64]" />
+                  <span>{pdfParsing ? "Parsing PDF..." : "Attach PDF"}</span>
                   <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" />
                 </label>
 
                 {selectedFile && (
-                  <span className="text-xs bg-[#eef2ed] text-[#345d41] px-2.5 py-1 rounded-full font-medium truncate max-w-[200px]">
+                  <span className="text-xs bg-[#00ea64]/10 text-[#00ea64] px-2.5 py-1 rounded-md font-mono truncate max-w-[180px] border border-[#00ea64]/30">
                     📄 {selectedFile.name}
                   </span>
                 )}
@@ -308,152 +278,131 @@ export default function HomePage() {
 
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => handleStartSession(promptText || "Voice Viva Practice", promptText, "interview")}
-                  className="p-2 rounded-full hover:bg-[#f4f2eb] text-[#6b7280] hover:text-[#4a7c59] transition-colors"
-                  title="Voice Mode"
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={() => handleStartSession(promptText || "System Design Mock Interview", promptText, mode)}
+                  onClick={() => handleStartSession(promptText || title, promptText || contentText, mode)}
                   disabled={loading}
-                  className="w-8 h-8 rounded-full bg-[#9ca3af] hover:bg-[#4a7c59] text-white flex items-center justify-center transition-all shadow-sm hover:scale-105 disabled:opacity-50"
-                  title="Submit / Start"
+                  className="px-5 py-2 rounded-xl bg-[#00ea64] hover:bg-[#10b981] text-[#090b10] font-mono font-bold text-xs flex items-center space-x-2 shadow-[0_0_16px_rgba(0,234,100,0.35)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                 >
                   {loading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-[#090b10] border-t-transparent rounded-full animate-spin" />
+                      <span>Initializing Room...</span>
+                    </>
                   ) : (
-                    <ArrowUp className="w-4 h-4" />
+                    <>
+                      <span>Start Voice Viva</span>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                    </>
                   )}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Micro Toolbar: "Type / to use commands" */}
-          <div className="w-full flex flex-col space-y-3">
-            <div className="bg-[#f0ece1]/70 border border-[#e5e0d4] rounded-xl px-4 py-2 flex items-center justify-between text-xs text-[#6b7280]">
-              <span className="font-medium text-[#4b5563]">Type / to use commands</span>
-              <div className="flex items-center space-x-2.5 text-[#9ca3af]">
-                <BookOpen className="w-3.5 h-3.5 hover:text-[#1f2937] cursor-pointer" />
-                <Layers className="w-3.5 h-3.5 hover:text-[#1f2937] cursor-pointer" />
-                <Bookmark className="w-3.5 h-3.5 hover:text-[#1f2937] cursor-pointer" />
-                <FileText className="w-3.5 h-3.5 hover:text-[#1f2937] cursor-pointer" />
-                <Table className="w-3.5 h-3.5 hover:text-[#1f2937] cursor-pointer" />
-                <X className="w-3.5 h-3.5 hover:text-[#1f2937] cursor-pointer" />
-              </div>
-            </div>
-
-            {/* Quick Action Pill Buttons (Matching Reference Image 1) */}
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-              <button
-                onClick={() => handleQuickPill("CBSE Class 10 Biology: Life Processes Quiz", "school")}
-                className="px-4 py-1.5 rounded-full bg-white border border-[#e5e0d4] hover:border-[#4a7c59] hover:bg-[#f7f5f0] text-xs font-medium text-[#374151] flex items-center space-x-1.5 shadow-sm transition-all"
-              >
-                <span>❓ Quiz me</span>
-              </button>
-              <button
-                onClick={() => handleQuickPill("Analyze my Class Notes on Operating Systems", "college")}
-                className="px-4 py-1.5 rounded-full bg-white border border-[#e5e0d4] hover:border-[#4a7c59] hover:bg-[#f7f5f0] text-xs font-medium text-[#374151] flex items-center space-x-1.5 shadow-sm transition-all"
-              >
-                <span>🔍 Analyze my notes</span>
-              </button>
-              <button
-                onClick={() => handleQuickPill("System Design Mock Interview (Live Whiteboard)", "interview")}
-                className="px-4 py-1.5 rounded-full bg-[#4a7c59] hover:bg-[#3d6849] text-white text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition-all"
-              >
-                <span>🎙️ Live System Design Interview</span>
-              </button>
-              <button
-                onClick={() => handleQuickPill("Distributed Systems & PBFT Viva", "college")}
-                className="px-4 py-1.5 rounded-full bg-white border border-[#e5e0d4] hover:border-[#4a7c59] hover:bg-[#f7f5f0] text-xs font-medium text-[#374151] flex items-center space-x-1.5 shadow-sm transition-all"
-              >
-                <span>... More</span>
-              </button>
-            </div>
+          {/* Quick Preset Pills */}
+          <div className="w-full flex flex-wrap items-center justify-center gap-2 pt-1 text-xs">
+            <span className="text-[#64748b] font-mono text-[11px] mr-1">Quick Presets:</span>
+            <button
+              onClick={() => {
+                setMode("interview");
+                setTitle("System Design: Distributed Cache & Redis");
+                setContentText("Cache-Aside, Write-Through, Consistency, LRU Eviction, Redis Cluster Sharding");
+                handleStartSession("System Design: Distributed Cache & Redis", "Cache-Aside, Write-Through, Consistency, LRU Eviction, Redis Cluster Sharding", "interview");
+              }}
+              className="px-3 py-1 rounded-lg bg-[#141622] hover:bg-[#1f2235] text-[#cbd5e1] border border-[#23273c] hover:border-[#00ea64] transition-all flex items-center space-x-1"
+            >
+              <span>💻 Distributed Cache Design</span>
+            </button>
+            <button
+              onClick={() => {
+                setMode("college");
+                setTitle("Operating Systems: Virtual Memory & Page Faults");
+                setContentText("Virtual Memory, Paging, Page Table, TLB, Page Fault Handler, Thrashing");
+                handleStartSession("Operating Systems: Virtual Memory & Page Faults", "Virtual Memory, Paging, Page Table, TLB, Page Fault Handler, Thrashing", "college");
+              }}
+              className="px-3 py-1 rounded-lg bg-[#141622] hover:bg-[#1f2235] text-[#cbd5e1] border border-[#23273c] hover:border-[#00ea64] transition-all flex items-center space-x-1"
+            >
+              <span>🎓 OS Virtual Memory Viva</span>
+            </button>
+            <button
+              onClick={() => {
+                setMode("school");
+                setTitle("CBSE Class 10 Biology: Life Processes");
+                setContentText("Photosynthesis, Respiration, Hemoglobin, Circulation, Excretion");
+                handleStartSession("CBSE Class 10 Biology: Life Processes", "Photosynthesis, Respiration, Hemoglobin, Circulation, Excretion", "school");
+              }}
+              className="px-3 py-1 rounded-lg bg-[#141622] hover:bg-[#1f2235] text-[#cbd5e1] border border-[#23273c] hover:border-[#00ea64] transition-all flex items-center space-x-1"
+            >
+              <span>🏫 Class 10 Biology Viva</span>
+            </button>
           </div>
 
-          {/* ── GET STARTED SECTION (Matching Reference Image 1) ──────────────── */}
-          <div className="w-full space-y-3 pt-6">
-            <div className="flex items-center space-x-2 text-xs text-[#6b7280]">
-              <span className="font-semibold uppercase tracking-wider text-[#374151]">Get started</span>
-              <span className="px-1.5 py-0.2 rounded bg-[#eef2ed] text-[#345d41] font-mono text-[10px] font-bold">
-                New
-              </span>
+          {/* ── WORKSPACE ACTION CARDS GRID ───────────────────────────────────── */}
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-4">
+            
+            {/* Card 1: Live System Design Interview Room */}
+            <div
+              onClick={() => handleStartSession("System Design Mock Interview & Viva", contentText, "interview")}
+              className="bg-[#12141e] hover:bg-[#171926] border border-[#23273a] hover:border-[#00ea64] rounded-2xl p-4 flex items-start justify-between cursor-pointer transition-all shadow-lg group"
+            >
+              <div className="flex items-start space-x-3">
+                <div className="p-2.5 rounded-xl bg-[#00ea64]/10 text-[#00ea64] border border-[#00ea64]/20 group-hover:scale-105 transition-transform">
+                  <Video className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-sm group-hover:text-[#00ea64] transition-colors">
+                    HackerRank Live Interview
+                  </h3>
+                  <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
+                    Interactive whiteboard canvas, real-time candidate webcam, and AI examiner speech stream.
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-[#64748b] group-hover:text-[#00ea64] group-hover:translate-x-1 transition-all mt-1" />
             </div>
 
-            {/* List Action Cards */}
-            <div className="space-y-2.5">
-              
-              {/* Card 1: Live System Design Interview with Video & Whiteboard */}
-              <div
-                onClick={() => handleStartSession("System Design Mock Interview", "High Level Design, Microservices, Load Balancer, Scalable Architecture", "interview")}
-                className="w-full bg-white hover:bg-[#fbf9f4] border border-[#e5e0d4] hover:border-[#4a7c59] rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all shadow-sm group"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#00ea64]/15 text-[#00ea64] flex items-center justify-center">
-                    <Video className="w-4 h-4 text-[#2d5a3f]" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-[#1f2937] group-hover:text-[#2d5a3f]">
-                      Start System Design Mock Interview (Live Whiteboard & Webcam)
-                    </h4>
-                    <p className="text-xs text-[#6b7280]">
-                      HackerRank style live viva with interactive canvas, AI examiner and candidate camera.
-                    </p>
-                  </div>
+            {/* Card 2: University Viva Voce */}
+            <div
+              onClick={() => handleStartSession("University Oral Defense Viva", contentText, "college")}
+              className="bg-[#12141e] hover:bg-[#171926] border border-[#23273a] hover:border-[#6366f1] rounded-2xl p-4 flex items-start justify-between cursor-pointer transition-all shadow-lg group"
+            >
+              <div className="flex items-start space-x-3">
+                <div className="p-2.5 rounded-xl bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/20 group-hover:scale-105 transition-transform">
+                  <GraduationCap className="w-5 h-5" />
                 </div>
-                <ArrowRight className="w-4 h-4 text-[#9ca3af] group-hover:text-[#2d5a3f] transition-transform group-hover:translate-x-0.5" />
+                <div>
+                  <h3 className="font-semibold text-white text-sm group-hover:text-[#a5b4fc] transition-colors">
+                    College Viva Voce
+                  </h3>
+                  <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
+                    Rigorous conceptual interrogation with dynamic follow-ups on thesis and lab experiments.
+                  </p>
+                </div>
               </div>
-
-              {/* Card 2: Create a study space */}
-              <div
-                onClick={() => handleStartSession("CBSE Class 10 Biology Viva", undefined, "school")}
-                className="w-full bg-white hover:bg-[#fbf9f4] border border-[#e5e0d4] rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-              >
-                <span className="text-sm font-medium text-[#374151]">Create a school / college viva class</span>
-                <Plus className="w-4 h-4 text-[#9ca3af]" />
-              </div>
-
-              {/* Card 3: Connect to Canvas */}
-              <div className="w-full bg-white hover:bg-[#fbf9f4] border border-[#e5e0d4] rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all shadow-sm">
-                <span className="text-sm font-medium text-[#374151]">Connect to Canvas / LMS</span>
-                <div className="w-3.5 h-3.5 rounded-full border-2 border-red-400 border-dashed" />
-              </div>
-
-              {/* Card 4: Set up Voice Viva with Vivora */}
-              <div
-                onClick={() => handleStartSession("General Engineering Viva", undefined, "college")}
-                className="w-full bg-white hover:bg-[#fbf9f4] border border-[#e5e0d4] rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all shadow-sm"
-              >
-                <span className="text-sm font-medium text-[#374151]">Set up real-time voice viva with Vivora</span>
-                <ChevronRight className="w-4 h-4 text-[#9ca3af]" />
-              </div>
+              <ArrowRight className="w-4 h-4 text-[#64748b] group-hover:text-[#6366f1] group-hover:translate-x-1 transition-all mt-1" />
             </div>
           </div>
 
           {error && (
-            <div className="w-full p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center">
+            <div className="w-full p-3.5 rounded-xl bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#f87171] text-xs text-center font-mono">
               {error}
             </div>
           )}
         </div>
 
-        {/* ── FLOATING SURVEY CARD (Matching Bottom Right of Image 1) ─────────── */}
+        {/* ── FLOATING SURVEY TOAST (Bottom-Right) ────────────────────────────── */}
         {showSurvey && (
-          <div className="fixed bottom-6 right-6 z-30 bg-white border border-[#e5e0d4] rounded-2xl p-4 shadow-xl max-w-xs space-y-3 animate-fadeIn">
+          <div className="fixed bottom-6 right-6 z-30 bg-[#141622] border border-[#26293c] rounded-2xl p-4 shadow-2xl max-w-xs space-y-3 animate-fadeIn">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-2.5">
-                <div className="p-2 rounded-xl bg-[#f0eee6] text-[#4a7c59]">
-                  <ClipboardCheck className="w-5 h-5" />
+                <div className="p-2 rounded-xl bg-[#00ea64]/10 text-[#00ea64]">
+                  <HelpCircle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#1f2937]">Help us by taking a quick survey</h4>
-                  <p className="text-[11px] text-[#6b7280]">Don't worry, it takes less than a minute.</p>
+                  <h4 className="text-xs font-bold text-white">Help us improve VIVORA</h4>
+                  <p className="text-[11px] text-[#94a3b8]">Quick 1-minute feedback on AI voice examination.</p>
                 </div>
               </div>
-              <button onClick={() => setShowSurvey(false)} className="text-[#9ca3af] hover:text-[#1f2937]">
+              <button onClick={() => setShowSurvey(false)} className="text-[#64748b] hover:text-white">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -463,7 +412,7 @@ export default function HomePage() {
                 alert("Thank you for your feedback!");
                 setShowSurvey(false);
               }}
-              className="w-full py-2 rounded-xl bg-[#6b8e76] hover:bg-[#577761] text-white text-xs font-semibold font-sans transition-all shadow-sm"
+              className="w-full py-2 rounded-xl bg-[#00ea64] hover:bg-[#10b981] text-[#090b10] font-mono font-bold text-xs transition-all shadow-[0_0_10px_rgba(0,234,100,0.2)]"
             >
               Take Survey
             </button>

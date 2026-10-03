@@ -1,10 +1,28 @@
 import type { Metadata } from "next";
-import Navbar from "@/components/Navbar";
+import { Plus_Jakarta_Sans, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "VIVORA | AI Viva & Voice Interview Simulator",
-  description: "Live voice-based AI interviewer. Upload your syllabus or questions, answer by voice, and get real-time evaluation and revision plans.",
+  title: "VIVORA | AI Viva & Technical Interview Simulator",
+  description: "Real-time voice-driven AI interviewer and oral examination simulator with instant rubric scoring, interactive system design canvas, and live candidate video.",
 };
 
 export default function RootLayout({
@@ -13,15 +31,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-background text-gray-100 min-h-screen flex flex-col selection:bg-primary-500/30">
-        <Navbar />
-        <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
-          {children}
-        </main>
-        <footer className="border-t border-white/5 py-6 text-center text-xs text-gray-500">
-          <p>© 2026 VIVORA AI. Live Voice Viva Engine. Audio processed in memory only — no audio is stored.</p>
-        </footer>
+    <html lang="en" className={`${plusJakarta.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} dark`}>
+      <body className="bg-[#090b10] text-[#e2e8f0] font-sans min-h-screen antialiased selection:bg-[#00ea64]/30 selection:text-[#00ea64] overflow-x-hidden">
+        {children}
       </body>
     </html>
   );
