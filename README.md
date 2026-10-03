@@ -44,8 +44,6 @@
 
 **VIVORA** is a full-stack, real-time AI viva and interview preparation platform. It simulates the experience of sitting in front of an examiner — asking questions, listening to your spoken answers, evaluating your responses, and probing deeper with targeted follow-up questions.
 
-VIVORA supports **three distinct AI agents** tailored for different audiences:
-
 | Agent | Audience | Style |
 |---|---|---|
 | 🏫 **School Viva** | Class 8–12 students | Simple, foundational, encouraging |
@@ -60,7 +58,7 @@ VIVORA supports **three distinct AI agents** tailored for different audiences:
 - Accepts **PDF textbooks, Q&A sheets, or typed topic names**
 - Generates **foundational recall questions** — definitions, processes, facts
 - Feedback is **positive and motivating** — suitable for younger students
-- **No follow-up cross-questioning** — each answer moves straight to the next question
+- **No follow-up cross-questioning** — each answer moves to the next question
 - *Example:* `"What is photosynthesis? Where does it take place in the cell?"`
 
 ### 🎓 College Viva Agent
@@ -71,7 +69,7 @@ VIVORA supports **three distinct AI agents** tailored for different audiences:
 - *Example:* `"Explain how Banker's Algorithm prevents deadlock. What are its limitations?"`
 
 ### 💼 Job Interview Agent
-- Accepts **Resume PDF** + **Target Role** (text)
+- Accepts **Resume PDF** + **Target Role** text input
 - AI reads your actual resume and asks questions **specific to your experience**
 - Applies **targeted cross-examination** on every claimed skill and project
 - Supports **experience level**: Entry / Mid / Senior
@@ -83,37 +81,36 @@ VIVORA supports **three distinct AI agents** tailored for different audiences:
 
 ```mermaid
 graph TB
-    subgraph Frontend["⚛️ Frontend (Next.js)"]
-        LP[Landing Page\nAgent Select Modal]
-        SR[Session Room\nLive Viva]
-        RP[Report Page\nScorecard]
+    subgraph FE["⚛️ Frontend - Next.js"]
+        LP["Landing Page\nAgent Select Modal"]
+        SR["Session Room\nLive Viva + Camera"]
+        RP["Report Page\nScorecard"]
     end
 
-    subgraph Backend["🐍 Backend (FastAPI)"]
-        REST[REST API Routes\n/auth /sessions /upload /reports]
-        WS[WebSocket Handler\n/ws/session/{id}]
+    subgraph BE["🐍 Backend - FastAPI"]
+        REST["REST API\n/auth  /sessions  /upload  /reports"]
+        WS["WebSocket Handler\n/ws/session/id"]
 
-        subgraph Agents["🤖 Agent System"]
-            ORC[Orchestrator\nCentral Dispatcher]
-            QA[Question Agent\nSchool / College / Interview]
-            EA[Evaluator Agent\nScoring & Rubric]
-            FA[Followup Agent\nCross-questioning]
-            RA[Report Agent\nFinal Scorecard]
-            DA[Doubt Agent\nClarification]
-            IA[Intake Agent\nDocument Ingestion]
+        subgraph AGT["🤖 Agent System"]
+            ORC["Orchestrator\nCentral Dispatcher"]
+            QA["Question Agent\nSchool / College / Interview"]
+            EA["Evaluator Agent\nScoring and Rubric"]
+            FA["Followup Agent\nCross-questioning"]
+            RA["Report Agent\nFinal Scorecard"]
+            DA["Doubt Agent\nClarification"]
         end
 
-        LLM[LLM Router\nGemini + Fallback]
-        RAG[RAG Pipeline\nPDF → Chunks → Context]
-        DB[(SQLite Database\nSessions / Questions\nAnswers / Evaluations)]
+        LLM["LLM Router\nGemini + Smart Fallback"]
+        RAG["RAG Pipeline\nPDF → Chunks → Context"]
+        DB[("SQLite DB\nSessions / Questions\nAnswers / Evaluations")]
     end
 
-    GEM[☁️ Google Gemini API]
+    GEM["☁️ Google Gemini API"]
 
-    LP -->|HTTP POST /sessions| REST
-    LP -->|HTTP POST /upload| REST
-    SR <-->|WebSocket| WS
-    RP -->|HTTP GET /report| REST
+    LP -->|"HTTP POST /sessions"| REST
+    LP -->|"HTTP POST /upload"| REST
+    SR <-->|"WebSocket"| WS
+    RP -->|"HTTP GET /report"| REST
 
     REST --> DB
     WS --> ORC
@@ -122,7 +119,6 @@ graph TB
     ORC --> FA
     ORC --> RA
     ORC --> DA
-    IA --> RAG
 
     QA --> LLM
     EA --> LLM
@@ -130,8 +126,8 @@ graph TB
     RA --> LLM
     DA --> LLM
 
-    LLM -->|Primary| GEM
-    LLM -->|Fallback| LLM
+    LLM -->|"Primary"| GEM
+    LLM -->|"Fallback"| LLM
 
     RAG --> DB
     ORC --> DB
@@ -144,55 +140,53 @@ graph TB
 ```mermaid
 sequenceDiagram
     actor User
-    participant FE as Frontend (Next.js)
-    participant BE as Backend (FastAPI)
-    participant GEM as Gemini AI
+    participant FE as "Frontend"
+    participant BE as "Backend"
+    participant GEM as "Gemini AI"
 
-    User->>FE: 1. Select Agent Mode (School / College / Interview)
-    User->>FE: 2. Upload PDF or enter Topic / Job Role
-    FE->>BE: POST /upload (PDF file)
-    BE->>BE: Parse PDF, chunk text, store in DB
-    BE-->>FE: { document_id }
+    User->>FE: Select Agent Mode
+    User->>FE: Upload PDF or enter Topic
+    FE->>BE: POST /upload
+    BE->>BE: Parse PDF, chunk, store
+    BE-->>FE: document_id
 
-    User->>FE: 3. Start Session
+    User->>FE: Start Session
     FE->>BE: POST /sessions
-    BE-->>FE: { session_id }
+    BE-->>FE: session_id
 
-    FE->>BE: WS CONNECT /ws/session/{id}
-    FE->>BE: WS { type: "auth", token }
-    BE-->>FE: WS { type: "auth_ok" }
+    FE->>BE: WebSocket CONNECT
+    FE->>BE: type auth + token
+    BE-->>FE: auth_ok
 
-    BE->>GEM: Generate questions (mode + context)
-    GEM-->>BE: Questions with reference answers
-    BE-->>FE: WS { type: "question_ready", question, speech }
-    FE->>User: AI speaks question aloud (TTS)
+    BE->>GEM: Generate questions
+    GEM-->>BE: Questions + reference answers
+    BE-->>FE: question_ready + speech
+    FE->>User: AI speaks question aloud
 
-    User->>FE: 4. Speak answer (microphone)
-    FE->>BE: WS { type: "stt_partial", transcript } (continuous)
+    User->>FE: Speak answer
+    FE->>BE: stt_partial stream
+    User->>FE: Submit answer
+    FE->>BE: submit_answer + transcript
 
-    User->>FE: 5. Submit answer
-    FE->>BE: WS { type: "submit_answer", transcript }
-    BE-->>FE: WS { type: "evaluating" }
-    BE->>GEM: Evaluate answer (rubric scoring)
-    GEM-->>BE: Scores + feedback
-    BE-->>FE: WS { type: "evaluation_result", evaluation }
-    FE->>User: Show scores + feedback
+    BE-->>FE: evaluating
+    BE->>GEM: Evaluate answer
+    GEM-->>BE: Scores and feedback
+    BE-->>FE: evaluation_result
+    FE->>User: Show scores and feedback
 
-    alt Follow-up triggered (College / Interview mode)
-        BE->>GEM: Generate follow-up question
+    opt College or Interview mode
+        BE->>GEM: Generate follow-up
         GEM-->>BE: Follow-up question
-        BE-->>FE: WS { type: "followup_question", question, speech }
-        FE->>User: AI speaks follow-up aloud
+        BE-->>FE: followup_question + speech
+        FE->>User: AI speaks follow-up
     end
-
-    Note over BE,GEM: Repeat for each question
 
     BE->>GEM: Generate final report
     GEM-->>BE: Report data
-    BE-->>FE: WS { type: "session_completed", report_id }
-    FE->>User: 6. Redirect to /report/{id}
-    FE->>BE: GET /report/{session_id}
-    BE-->>FE: Full scorecard data
+    BE-->>FE: session_completed + report_id
+    FE->>BE: GET /report/session_id
+    BE-->>FE: Full scorecard
+    FE->>User: Redirect to report page
 ```
 
 ---
@@ -201,32 +195,30 @@ sequenceDiagram
 
 The real-time session runs over a **persistent WebSocket** at `/ws/session/{session_id}`.
 
-### Client → Server Messages
+### Client → Server
 
 | `type` | Payload | Description |
 |---|---|---|
-| `auth` | `{ token: string }` | JWT auth — **must be first message within 5s** |
-| `submit_answer` | `{ transcript: string }` | Submit spoken/typed answer for evaluation |
-| `stt_partial` | `{ transcript: string }` | Live speech stream (continuous updates) |
+| `auth` | `{ token }` | JWT auth — **must be first message within 5s** |
+| `submit_answer` | `{ transcript }` | Submit spoken/typed answer for evaluation |
+| `stt_partial` | `{ transcript }` | Live speech stream (continuous) |
 | `replay_question` | `{}` | Re-read the current question aloud |
 | `skip_question` | `{}` | Skip to the next question |
-| `ask_doubt` | `{ doubt: string }` | Ask for clarification (no score penalty) |
-| `end_session` | `{}` | End interview and generate final report |
-| `retry_evaluation` | `{ question_id?: string }` | Re-evaluate last answer (max 2 retries/Q) |
+| `ask_doubt` | `{ doubt }` | Clarification request (no score penalty) |
+| `end_session` | `{}` | End interview, generate final report |
+| `retry_evaluation` | `{ question_id? }` | Re-evaluate last answer (max 2/question) |
 
-### Server → Client Messages
+### Server → Client
 
 | `type` | Payload | Description |
 |---|---|---|
 | `auth_ok` | — | Authentication successful |
 | `session_started` | `{ total_questions, language }` | Session initialized |
-| `question_ready` | `{ question, question_index, total_questions, speech }` | New question ready |
+| `question_ready` | `{ question, question_index, total_questions, speech }` | New question |
 | `followup_question` | `{ question, speech }` | AI-triggered follow-up probe |
 | `evaluating` | `{ message }` | Evaluation in progress |
 | `evaluation_result` | `{ evaluation }` | Scores + detailed feedback |
-| `doubt_answered` | `{ doubt: { explanation } }` | Clarification response |
-| `question_repeated` | `{ speech }` | Question audio replay |
-| `session_completing` | `{ message }` | Generating final report |
+| `doubt_answered` | `{ doubt }` | Clarification response |
 | `session_completed` | `{ report_id, report }` | Session finished |
 | `session_timeout` | `{ message }` | Time limit reached |
 | `error` | `{ code, message }` | Error details |
@@ -239,12 +231,10 @@ The real-time session runs over a **persistent WebSocket** at `/ws/session/{sess
 VIVORA/
 ├── 📄 README.md
 ├── 📄 docker-compose.yml
-├── 📄 .gitignore
 │
 ├── 🐍 backend/
 │   ├── 📄 requirements.txt
 │   ├── 📄 Dockerfile
-│   ├── 📄 alembic.ini
 │   ├── 📄 .env.example
 │   ├── alembic/                      # DB migrations
 │   └── app/
@@ -252,53 +242,41 @@ VIVORA/
 │       ├── agents/
 │       │   ├── 📄 orchestrator.py    # Central dispatcher
 │       │   ├── 📄 question_agent.py  # Q generation (all 3 modes)
-│       │   ├── 📄 evaluator_agent.py # Answer scoring & rubric
+│       │   ├── 📄 evaluator_agent.py # Scoring & rubric
 │       │   ├── 📄 followup_agent.py  # Follow-up cross-questions
 │       │   ├── 📄 interviewer_agent.py  # TTS turn preparation
 │       │   ├── 📄 intake_agent.py    # Document ingestion & RAG
-│       │   ├── 📄 doubt_agent.py     # Doubt/clarification handler
-│       │   └── 📄 report_agent.py    # Final scorecard generation
+│       │   ├── 📄 doubt_agent.py     # Clarification handler
+│       │   └── 📄 report_agent.py    # Final scorecard
 │       ├── api/
-│       │   ├── routes/
-│       │   │   ├── 📄 auth.py        # /auth/register, /auth/login
-│       │   │   ├── 📄 sessions.py    # /sessions CRUD
-│       │   │   ├── 📄 upload.py      # /upload PDF processing
-│       │   │   └── 📄 reports.py     # /report/{id}
+│       │   ├── routes/               # auth / sessions / upload / reports
 │       │   └── ws/
 │       │       └── 📄 interview_ws.py  # WebSocket session handler
 │       ├── llm/
-│       │   ├── 📄 router.py          # LLM provider routing + fallback
-│       │   └── 📄 prompts.py         # Agent-specific prompt templates
+│       │   ├── 📄 router.py          # LLM routing + fallback
+│       │   └── 📄 prompts.py         # Agent-specific prompts
 │       ├── rag/
-│       │   └── 📄 retriever.py       # PDF chunking + context retrieval
+│       │   └── 📄 retriever.py       # PDF chunking + retrieval
 │       ├── db/
-│       │   ├── 📄 database.py        # SQLAlchemy engine + session
+│       │   ├── 📄 database.py        # SQLAlchemy engine
 │       │   └── 📄 models.py          # ORM models
 │       ├── schemas/
-│       │   └── 📄 ws_messages.py     # WebSocket message schemas
+│       │   └── 📄 ws_messages.py     # WebSocket schemas
 │       ├── services/
-│       │   └── 📄 session_service.py # Business logic layer
+│       │   └── 📄 session_service.py # Business logic
 │       └── core/
-│           └── 📄 auth.py            # JWT creation & verification
+│           └── 📄 auth.py            # JWT auth
 │
 └── ⚛️ frontend/
-    ├── 📄 package.json
-    ├── 📄 next.config.js
-    ├── 📄 tailwind.config.js
     └── src/
         ├── app/
-        │   ├── 📄 page.tsx            # Landing page + Agent launch modal
-        │   ├── 📄 layout.tsx          # Root layout + fonts
-        │   ├── 📄 globals.css         # Design system tokens
-        │   ├── login/                 # Login page
-        │   ├── signup/                # Registration page
-        │   ├── session/[id]/          # Live session room (WS + voice + cam)
-        │   ├── report/[id]/           # Final scorecard report
-        │   └── parent-consent/        # Parental consent flow
+        │   ├── 📄 page.tsx            # Landing page + modal
+        │   ├── session/[id]/          # Live session room
+        │   └── report/[id]/           # Scorecard report
         └── lib/
-            ├── 📄 api.ts              # REST API client helpers
-            ├── 📄 wsClient.ts         # WebSocket URL builder
-            └── 📄 voice.ts            # BrowserVoiceClient (STT + TTS)
+            ├── 📄 api.ts              # REST client
+            ├── 📄 wsClient.ts         # WebSocket helper
+            └── 📄 voice.ts            # STT + TTS client
 ```
 
 ---
@@ -312,22 +290,22 @@ VIVORA/
 | **SQLAlchemy** | ORM & database layer | 2.0 |
 | **SQLite** | Database (dev) | 3 |
 | **Alembic** | Database migrations | 1.20 |
-| **Pydantic** | Data validation & schemas | 2.13 |
+| **Pydantic** | Schemas & validation | 2.13 |
 | **pypdf** | PDF text extraction | 6.19 |
 | **python-jose** | JWT auth tokens | 3.4 |
-| **passlib + bcrypt** | Password hashing | — |
+| **bcrypt** | Password hashing | 4.0 |
 | **uvicorn** | ASGI server | 0.54 |
-| **Google Gemini** | LLM for Q generation & evaluation | API |
+| **Google Gemini** | LLM (Q generation + evaluation) | API |
 
 ### Frontend
 | Technology | Purpose | Version |
 |---|---|---|
-| **Next.js** | React framework with App Router | 15 |
-| **TypeScript** | Type-safe frontend | 5 |
-| **Tailwind CSS** | Utility-first styling | 3 |
-| **Lucide React** | Icon library | — |
-| **Web Speech API** | Browser-native STT + TTS | Native |
-| **WebSocket API** | Real-time session communication | Native |
+| **Next.js** | React framework (App Router) | 15 |
+| **TypeScript** | Type-safe code | 5 |
+| **Tailwind CSS** | Styling | 3 |
+| **Lucide React** | Icons | — |
+| **Web Speech API** | Browser STT + TTS | Native |
+| **WebSocket API** | Real-time communication | Native |
 | **MediaDevices API** | Webcam capture | Native |
 
 ---
@@ -335,10 +313,8 @@ VIVORA/
 ## 🚀 Getting Started
 
 ### Prerequisites
-
 - **Node.js** ≥ 18
 - **Python** ≥ 3.11
-- **Git**
 - **Google Gemini API key** — free at [ai.google.dev](https://ai.google.dev)
 
 ### 1. Clone
@@ -348,32 +324,25 @@ git clone https://github.com/Anu7276/VIVORA.git
 cd VIVORA
 ```
 
-### 2. Backend Setup
+### 2. Backend
 
 ```bash
 cd backend
 
-# Create and activate virtual environment
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 source .venv/bin/activate       # macOS / Linux
 
 pip install -r requirements.txt
+cp .env.example .env            # Add your GEMINI_API_KEY
 
-# Configure environment
-cp .env.example .env
-# → Edit .env and add your GEMINI_API_KEY
-
-# Run DB migrations
 alembic upgrade head
-
-# Start server
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 > API: `http://localhost:8000` | Docs: `http://localhost:8000/docs`
 
-### 3. Frontend Setup
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -383,7 +352,7 @@ npm run dev
 
 > App: `http://localhost:3000`
 
-### 4. Docker (All-in-One)
+### 4. Docker
 
 ```bash
 docker-compose up --build
@@ -394,21 +363,12 @@ docker-compose up --build
 ## 🔐 Environment Variables
 
 ```env
-# LLM
 GEMINI_API_KEY=your_google_gemini_api_key_here
-
-# JWT
-SECRET_KEY=your_very_long_random_secret_key_here
+SECRET_KEY=your_very_long_random_secret_key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
-
-# Database
 DATABASE_URL=sqlite:///./vivora.db
-
-# CORS
 ALLOWED_ORIGINS=http://localhost:3000
-
-# Session
 DEFAULT_TIME_LIMIT_MIN=30
 MAX_QUESTIONS_PER_SESSION=9
 ```
@@ -423,11 +383,10 @@ MAX_QUESTIONS_PER_SESSION=9
 | `POST` | `/auth/login` | Login — returns JWT token |
 | `GET` | `/auth/me` | Get current user profile |
 | `POST` | `/sessions` | Create a new viva session |
-| `GET` | `/sessions/{id}` | Get session + questions |
-| `GET` | `/sessions` | List user's sessions |
-| `POST` | `/upload` | Upload PDF (resume / syllabus / Q&A) |
-| `GET` | `/report/{session_id}` | Get final scorecard report |
-| `WS` | `/ws/session/{session_id}` | Live real-time session room |
+| `GET` | `/sessions/id` | Get session + questions |
+| `POST` | `/upload` | Upload PDF |
+| `GET` | `/report/session_id` | Get final scorecard |
+| `WS` | `/ws/session/id` | Live session WebSocket |
 
 ---
 
@@ -442,7 +401,6 @@ erDiagram
         string hashed_password
         datetime created_at
     }
-
     documents {
         string id PK
         string user_id FK
@@ -451,7 +409,6 @@ erDiagram
         text extracted_text
         datetime created_at
     }
-
     sessions {
         string id PK
         string user_id FK
@@ -469,7 +426,6 @@ erDiagram
         datetime started_at
         datetime completed_at
     }
-
     questions {
         string id PK
         string session_id FK
@@ -480,10 +436,7 @@ erDiagram
         string difficulty
         string origin
         text reference_answer
-        text followup_question
-        text followup_answer
     }
-
     answers {
         string id PK
         string question_id FK
@@ -492,7 +445,6 @@ erDiagram
         int filler_count
         datetime answered_at
     }
-
     evaluations {
         string id PK
         string answer_id FK
@@ -503,9 +455,7 @@ erDiagram
         text feedback
         text missing_concepts
         text model_answer
-        string provider
     }
-
     reports {
         string id PK
         string session_id FK
@@ -514,7 +464,6 @@ erDiagram
         text improvements
         text revision_plan
         text communication_feedback
-        string scoring_note
         datetime created_at
     }
 
@@ -522,8 +471,8 @@ erDiagram
     users ||--o{ documents : "uploads"
     documents ||--o{ sessions : "used in"
     sessions ||--o{ questions : "contains"
-    questions ||--o| questions : "parent_of"
-    questions ||--o| answers : "has"
+    questions ||--o| questions : "parent of"
+    questions ||--o| answers : "answered by"
     answers ||--o| evaluations : "scored by"
     sessions ||--o| reports : "generates"
 ```
@@ -534,35 +483,32 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    REQ([Incoming Request]) --> ORC[Orchestrator]
+    REQ(["Incoming Request"]) --> ORC["Orchestrator"]
+    ORC --> MODE{"Session Mode"}
 
-    ORC --> MODE{Session Mode?}
+    MODE -->|school| QAS["QuestionAgent - School\nSimple recall questions\nFrom Q and A pairs or topic keywords"]
+    MODE -->|college| QAC["QuestionAgent - College\nConceptual + application\nFrom syllabus or PDF context"]
+    MODE -->|interview| QAI["QuestionAgent - Interview\nResume-driven questions\nRole-specific probing"]
 
-    MODE -->|school| QA_S[QuestionAgent\nSchool Strategy\nSimple recall Qs\nFrom Q&A / topic keywords]
-    MODE -->|college| QA_C[QuestionAgent\nCollege Strategy\nConceptual + application Qs\nFrom syllabus/PDF context]
-    MODE -->|interview| QA_I[QuestionAgent\nInterview Strategy\nResume-driven Qs\nRole-specific probing]
+    QAS --> LLM["LLM Router"]
+    QAC --> LLM
+    QAI --> LLM
+    LLM --> QUES(["Questions Generated"])
 
-    QA_S --> LLM[LLM Router]
-    QA_C --> LLM
-    QA_I --> LLM
+    QUES --> ANS(["User Answers"])
+    ANS --> EVAL["EvaluatorAgent\nCorrectness / Depth / Clarity"]
+    EVAL --> FUQ{"Follow-up?"}
 
-    LLM --> QS[Questions Generated]
-    QS --> ANS([User Answers])
-    ANS --> EVAL[EvaluatorAgent\nCorrectness / Depth / Clarity]
-    EVAL --> FU{Follow-up\nTriggered?}
+    FUQ -->|"school - disabled"| NOFQ["Next Question"]
+    FUQ -->|"college - selective"| FAC["FollowupAgent\nConceptual probing\nWhy this? Why not X?"]
+    FUQ -->|"interview - targeted"| FAI["FollowupAgent\nResume cross-examination\nYou claimed X - prove it"]
 
-    FU -->|school mode| NO_FU[No Follow-up\nNext question]
-    FU -->|college - selective| FA_C[FollowupAgent\nConceptual probing\nWhy this? Why not X?]
-    FU -->|interview - targeted| FA_I[FollowupAgent\nResume cross-examination\nYou claimed X — prove it]
+    FAC --> LLM
+    FAI --> LLM
+    FAC --> NOFQ
+    FAI --> NOFQ
 
-    FA_C --> LLM
-    FA_I --> LLM
-
-    NO_FU --> NEXT[Next Question]
-    FA_C --> NEXT
-    FA_I --> NEXT
-
-    NEXT -->|all done| REPORT[ReportAgent\nFinal Scorecard]
+    NOFQ -->|"all done"| REPORT["ReportAgent\nFinal Scorecard"]
     REPORT --> LLM
 ```
 
@@ -572,14 +518,11 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    REQ([Agent Request]) --> ROUTER[LLM Router]
-
-    ROUTER -->|Primary| GEMINI[☁️ Google Gemini API]
-    GEMINI -->|Success| RESULT([Result])
-    GEMINI -->|Rate limit / Error| FB
-
-    ROUTER -->|Automatic fallback| FB[SmartRuleFallbackProvider\nMode-specific mock data\nSessions stay functional]
-    FB --> RESULT
+    REQ(["Agent Request"]) --> ROUTER["LLM Router"]
+    ROUTER -->|"Primary"| GEM["☁️ Google Gemini API"]
+    GEM -->|"Success"| OUT(["Result returned"])
+    GEM -->|"Rate limit or error"| FB["SmartRuleFallbackProvider\nMode-specific mock data\nSessions stay functional offline"]
+    FB --> OUT
 ```
 
 ---
@@ -588,21 +531,21 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    PDF([📄 PDF Upload]) --> EXT[pypdf Extraction\nRaw text]
-    EXT --> CHUNK[Text Chunking\nOverlapping windows]
-    CHUNK --> STORE[(Chunk Storage\nDatabase)]
+    PDF(["PDF Upload"]) --> EXT["pypdf Extraction\nRaw text"]
+    EXT --> CHUNK["Text Chunking\nOverlapping windows"]
+    CHUNK --> STORE[("Chunk Storage\nDatabase")]
 
-    QR([Question Generation Request]) --> RET[Context Retrieval\nTop-K relevant chunks]
+    QR(["Question Generation Request"]) --> RET["Context Retrieval\nTop-K relevant chunks"]
     STORE --> RET
 
-    RET --> PROMPT[Prompt Assembly\nSystem Instructions\n+ Mode Strategy\n+ Retrieved Context]
-    PROMPT --> GEM[☁️ Gemini API]
-    GEM --> QS([Generated Questions\n+ Reference Answers])
+    RET --> PROMPT["Prompt Assembly\nSystem Instructions\n+ Mode Strategy\n+ Retrieved Context"]
+    PROMPT --> GEM["☁️ Gemini API"]
+    GEM --> OUT(["Generated Questions\n+ Reference Answers"])
 
-    subgraph doc_types["Document Types by Mode"]
-        S[🏫 School → doc_type: questions\nQ&A pairs, study notes]
-        C[🎓 College → doc_type: syllabus\nTextbook chapters, lab manuals]
-        I[💼 Interview → doc_type: resume\nCandidate CV / Resume]
+    subgraph TYPES["Document Types by Mode"]
+        S["🏫 School  →  doc_type: questions"]
+        C["🎓 College  →  doc_type: syllabus"]
+        I["💼 Interview  →  doc_type: resume"]
     end
 ```
 
@@ -612,23 +555,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph STT["🎤 Speech-to-Text (STT)"]
-        MIC([Microphone Input]) --> WSR[Web Speech API\nSpeechRecognition]
-        WSR -->|partial| PT[onPartialTranscript\nWS: stt_partial]
-        WSR -->|final| FT[onFinalTranscript\nStored locally]
+    subgraph STT["🎤 Speech-to-Text"]
+        MIC(["Microphone"]) --> WSR["Web Speech API\nSpeechRecognition\nContinuous mode"]
+        WSR -->|"partial"| PT["onPartialTranscript\nWS: stt_partial stream"]
+        WSR -->|"final"| FT["onFinalTranscript\nStored for submission"]
     end
 
-    subgraph TTS["🔊 Text-to-Speech (TTS)"]
-        Q([AI Question Text]) --> SSU[SpeechSynthesisUtterance\nRate: 0.95 Pitch: 1.0\nLang: en-IN]
-        SSU --> AUD([Spoken Aloud])
-        SSU -->|onEnd| AUTO[Auto-start Microphone]
+    subgraph TTS["🔊 Text-to-Speech"]
+        Q(["AI Question Text"]) --> SSU["SpeechSynthesisUtterance\nRate 0.95  Pitch 1.0  Lang en-IN"]
+        SSU --> AUD(["Spoken aloud to user"])
+        SSU -->|"onEnd"| AUTO["Auto-start Microphone"]
     end
 
-    PT -->|live stream| BE[Backend WS]
-    FT -->|on submit| BE
+    PT -->|"live stream"| BE["Backend WebSocket"]
+    FT -->|"on submit"| BE
 ```
 
-> **Browser support:** Chrome ✅ | Edge ✅ | Safari ✅ | Firefox ⚠️ *(text fallback available)*
+> **Browser support:** Chrome ✅ | Edge ✅ | Safari ✅ | Firefox ⚠️ *(text input fallback available)*
 
 ---
 
@@ -636,28 +579,22 @@ flowchart TD
 
 ```mermaid
 stateDiagram-v2
-    [*] --> CREATED : Session created via POST /sessions
+    [*] --> CREATED : POST /sessions
 
-    CREATED --> LIVE : WebSocket connected + auth_ok\nFirst question sent
+    CREATED --> LIVE : WebSocket auth_ok\nFirst question sent
 
     LIVE --> EVALUATING : submit_answer received
 
-    EVALUATING --> FOLLOWUP : Follow-up triggered\n(College / Interview mode)
+    EVALUATING --> FOLLOWUP : Follow-up triggered\nCollege or Interview mode
     EVALUATING --> LIVE : No follow-up\nNext question sent
 
     FOLLOWUP --> EVALUATING : Follow-up answer submitted
 
-    LIVE --> COMPLETING : All questions answered\nor end_session sent\nor session_timeout
+    LIVE --> COMPLETING : All questions done\nor end_session\nor timeout
 
-    COMPLETING --> COMPLETED : Final report generated
+    COMPLETING --> COMPLETED : Report generated
 
-    COMPLETED --> [*] : Redirect to /report/{id}
-
-    note right of FOLLOWUP
-        School mode: follow-ups disabled
-        College mode: selective probing
-        Interview mode: targeted cross-exam
-    end note
+    COMPLETED --> [*] : Redirect to report page
 ```
 
 ---
@@ -680,16 +617,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 npm run build && npm start
 ```
 
-### Production Notes
-
-- Replace SQLite with **PostgreSQL**: update `DATABASE_URL`
-- Use `wss://` for WebSocket (TLS required in production)
-- Set `ALLOWED_ORIGINS` to your actual domain
-- Store secrets in a secrets manager (not in `.env`)
+> For production: use PostgreSQL, `wss://` WebSocket, and store secrets securely.
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Tests
 
 ```bash
 cd backend
@@ -700,17 +632,16 @@ pytest tests/ -v
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a branch: `git checkout -b feat/your-feature`
-3. Commit: `git commit -m "feat: add your feature"`
-4. Push: `git push origin feat/your-feature`
-5. Open a Pull Request
+1. Fork → `git checkout -b feat/your-feature`
+2. Commit → `git commit -m "feat: your feature"`
+3. Push → `git push origin feat/your-feature`
+4. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE)
 
 ---
 
