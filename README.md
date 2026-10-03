@@ -6,23 +6,25 @@
 
 ## 🎨 UI/UX Design (Powered by Google Stitch)
 
-High-fidelity designs crafted with the **Obsidian Telemetry HUD** design system for both Desktop and Mobile viewports.
+High-fidelity designs crafted in Stitch for both **Live System Design Mock Interviews** and the **Serene Academic AI Study Home Dashboard**.
 
-### 🖥️ Desktop Cockpit View
-![VIVORA Desktop Cockpit View](https://lh3.googleusercontent.com/aida/AEtjO1UF8Ivj3zK4BfszJq03Cxvz7bmsw170lTLq8MjEVTtsOFmfPF4_4mBoXgmKynJVZ5_RqVWdccq6hbCL72nr-GvxnQE7xheWPUuCaTG7vPJ3jSdMrJPGLlsxyzKJ82vzimzBt6M-KKLQZTk25VUAxc9TABwwLlrZi6OewD9A5zKEx7nlmGOpWtbtEyoV8hMabNokeYiWJ017BK0ptQuM9MlIlSCbtnvpItxqbqiO_A4hUGHyLlLJHj1Iab8)
+### 💻 1. Live AI Technical Interview & Whiteboard (HackerRank Theme)
+![VIVORA Live Interview & Whiteboard](https://lh3.googleusercontent.com/aida/AEtjO1VHod31GUxDL4NOpMUVLbKtigbZZU7Ral-tqVsr1nx6fjw5-w3ugqYB05g28C9nZsElRXBomsmOSlq3oAxkbgqtrUeUUtVmOYo3yMOT2425JOm_V1UuT3HQyyAg7HKQj7vbsSYmp6VUZ-VC7UyN6WPbTbE8Wvag71KqnuE65JipW4nKhfOqszkFh4mtsDiB2glOALaEmKA7wr4nGZzSGNXorOgqij9QWZ_rGGbtaeUFkjWHixOo5tk9ujI)
 
-* **12-Column Telemetry Deck**: Persistent examination stream, RAG context inspector, and real-time rubric gauge sidebar.
-* **Neural Examiner Card**: Real-time AI voice frequency oscilloscope with dynamic voice activity indicator.
-* **Live Assessment Gauges**: Instant visual scoring across **Correctness (50%)**, **Technical Depth (30%)**, and **Speech Clarity (20%)**.
+* **Top Telemetry Header**: Session tracking, live countdown timer (`59:39 mins`), and red `End Interview` action button.
+* **Left AI Examiner Stream**: Live interviewer prompt card (`Dr. Aris`), active listening beacon (`🟢 I'm listening...`), and real-time candidate transcript feed.
+* **Central Interactive Whiteboard**: Architecture diagram canvas with drawing tools (Pencil, Rectangle, Diamond, Circle, Connector Arrows, and Text).
+* **Floating Candidate PIP Webcam**: Live video preview overlay in the bottom-right corner with `LIVE HD` recording indicator and green audio equalizer bars.
 
 ---
 
-### 📱 Mobile Experience
-![VIVORA Mobile View](https://lh3.googleusercontent.com/aida/AEtjO1XwaNK-4yrwu58Axg79X2czDRVNewcEjB3fKhxLBOWKWMmL30sfpb2AqYq9h2UyTnnLCN-Lk5vsXIk3yP5fq6hoqnTYijXZE46wx_mzEI_oDUVIE2M8qEaradzloVz-5YE3iHnRCxvAi8ooQjyXPPBwFY8Wm_9v47a37F3TwDRTFLC_722i5uDi82FIx4Rokgw97WmLawGj2TqSbYronxRhia5XKqz-VUMgIllQ16mJYpT7f45enmqqgMM)
+### 🌿 2. AI Study Assistant & Viva Prep Home (Serene Academic Theme)
+![VIVORA Serene Academic Home](https://lh3.googleusercontent.com/aida/AEtjO1WYvOl2wgNfhHKKZIvqzu-8sfTLSOOKroQZyB08BJqhw9OoZzyxHRNG7oCvBlN5teWS4E0NhKQErfdr3sdm58MCnEzrT2FdY4Nl8em8QVbHUVxGIPc_DtXBzodnJgYU_f-JeoxFJ80xPOhOwG41k7qrQ69H3-XedQiowsVuA4Rtoq-NhB39aUu-1cHukpH2V2pAcdLFHcH_CoPWpCQSIQeXPMe-z8u-gqk8RiysvYw6U8hZTMnjpgs3rCE)
 
-* **Compact Telemetry Header**: Displays question progress (`Q3/10`), latency metrics (`14ms OPT`), and session timer (`18:42`).
-* **Tactile Floating Voice Dock**: One-tap pulsing microphone button (`TAP TO TRANSMIT / MUTE`), instant Doubt clarification trigger, and protected session termination.
-* **Collapsible Whisper STT Feed**: Live speech-to-text candidate stream with decibel level monitoring.
+* **Slim Left Navigation Rail**: Clean icon rail for Home, Courses, Voice Viva, Calendar, and Profile.
+* **Prompt Console & Micro-Toolbar**: Serene header (*"What do you want to learn, Pramila?"*), command shortcuts (`Type / to use commands`), and quick action pill buttons (*Quiz me*, *Analyze notes*, *Connect Canvas*).
+* **Get Started Workspace Cards**: Instant triggers to create classes, connect LMS, or launch live System Design interviews.
+* **Floating Survey Modal**: Contextual user feedback card with quick response actions.
 
 ---
 
