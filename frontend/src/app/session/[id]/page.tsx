@@ -101,8 +101,9 @@ export default function SessionRoomPage() {
     if (!sessionId) return;
     getSession(sessionId).then((data) => {
       setSession(data);
-      if (data.questions.length > 0) {
+      if (data.questions && data.questions.length > 0) {
         setTotalQuestions(data.questions.length);
+        setCurrentQuestion((prev: any) => prev || data.questions[0]);
       }
     }).catch(console.error);
   }, [sessionId]);
@@ -138,6 +139,7 @@ export default function SessionRoomPage() {
             setHasCameraPermission(true);
             if (videoRef.current) {
               videoRef.current.srcObject = stream;
+              videoRef.current.play().catch(console.warn);
             }
           }
         }
@@ -165,6 +167,16 @@ export default function SessionRoomPage() {
       }
     };
   }, [isCameraActive]);
+
+  // Sync stream to video element when rendered
+  useEffect(() => {
+    if (videoRef.current && mediaStreamRef.current && isCameraActive) {
+      if (videoRef.current.srcObject !== mediaStreamRef.current) {
+        videoRef.current.srcObject = mediaStreamRef.current;
+        videoRef.current.play().catch(console.warn);
+      }
+    }
+  }, [hasCameraPermission, isCameraActive]);
 
   // Whiteboard Canvas Interaction
   useEffect(() => {
@@ -800,6 +812,112 @@ export default function SessionRoomPage() {
             />
           </div>
 
+          {/* ── TOP FLOATING LIVE QUESTION & CANDIDATE SPEECH HUD BANNER ──────── */}
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 w-[94%] max-w-3xl space-y-2 pointer-events-auto">
+            
+            {/* 1. What AI Examiner Dr. Aris is Saying */}
+            <div className="glass-card-elevated rounded-2xl p-4 shadow-xl border border-[#DDD9CF] space-y-2 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-[#7D9F68] animate-ping" />
+                  <span className="font-mono text-[11px] uppercase tracking-wider font-bold text-[#20211E]">
+                    AI EXAMINER (DR. ARIS) • QUESTION {questionIndex + 1}/{totalQuestions}
+                  </span>
+                  {isAISpeaking && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#7D9F68]/15 text-[#3a582b] font-mono font-bold animate-pulse">
+                      🎙️ Speaking Question
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleReplayQuestion}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-[11px] font-mono text-[#555850] transition-colors"
+                  >
+                    <Volume2 className="w-3 h-3 text-[#7D9F68]" />
+                    <span>Replay Audio</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowDoubtModal(true)}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-[11px] font-mono text-[#4f46e5] transition-colors"
+                  >
+                    <HelpCircle className="w-3 h-3 text-[#4f46e5]" />
+                    <span>Ask Doubt</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Spoken Question Text */}
+              <p className="text-sm md:text-base font-serif text-[#20211E] font-normal leading-relaxed">
+                "{currentQuestion?.question_text ||
+                  (session?.questions?.[0]?.question_text || "Welcome to your Viva! Could you introduce your technical approach and how you would design this system for scale?")}"
+              </p>
+            </div>
+
+            {/* 2. What User Is Answering (Live Spoken Transcript Bar) */}
+            <div className="glass-card rounded-2xl p-3 shadow-md border border-[#DDD9CF] flex items-center justify-between gap-3">
+              <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                <div className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${isMicActive ? "bg-[#7D9F68] text-white animate-pulse" : "bg-[#FAF9F5] text-[#8c9099] border border-[#DDD9CF]"}`}>
+                  <Mic className="w-4 h-4" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-mono uppercase font-bold text-[#7D9F68]">
+                      {isMicActive ? "Live Speech Transcript" : "Your Answer"}
+                    </span>
+                    {isMicActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#7D9F68] animate-ping" />
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#20211E] truncate font-sans">
+                    {transcript ? (
+                      <span className="font-medium text-[#20211E]">{transcript}</span>
+                    ) : (
+                      <span className="text-[#8c9099] italic">
+                        {isMicActive ? "Listening to your voice... Speak your answer now." : "Microphone paused. Click mic to speak or use left pane to type."}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Action Button */}
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  onClick={handleToggleMic}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-medium transition-all ${
+                    isMicActive
+                      ? "bg-[#FAF9F5] text-[#7D9F68] border-[#7D9F68]"
+                      : "bg-[#20211E] text-white border-[#20211E]"
+                  }`}
+                >
+                  {isMicActive ? "Mute Mic" : "Start Mic"}
+                </button>
+
+                <button
+                  onClick={handleSubmitAnswer}
+                  disabled={isEvaluating || !transcript.trim()}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#20211E] hover:bg-[#343631] disabled:opacity-40 text-white font-mono font-bold text-xs flex items-center space-x-1.5 shadow-sm transition-all"
+                >
+                  {isEvaluating ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Scoring...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Submit</span>
+                      <Send className="w-3 h-3" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Interactive Whiteboard Canvas */}
           <div className="flex-1 w-full h-full relative cursor-crosshair bg-[radial-gradient(#e2e8f0_1.5px,transparent_1.5px)] [background-size:24px_24px]">
             <canvas
@@ -841,24 +959,22 @@ export default function SessionRoomPage() {
           </div>
 
           {/* ── FLOATING CANDIDATE PIP WEBCAM FEED (Bottom-Right) ─────────────── */}
-          <div className="absolute bottom-5 right-5 z-20 w-56 sm:w-64 md:w-72 h-36 sm:h-44 md:h-48 rounded-2xl overflow-hidden shadow-2xl border-2 border-white bg-[#0f172a] transition-all hover:ring-2 hover:ring-[#0f766e]">
+          <div className="absolute bottom-5 right-5 z-20 w-56 sm:w-64 md:w-72 h-36 sm:h-44 md:h-48 rounded-2xl overflow-hidden shadow-2xl border-2 border-white bg-[#0f172a] transition-all hover:ring-2 hover:ring-[#7D9F68]">
             {isCameraActive ? (
-              hasCameraPermission ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover mirror-mode"
-                />
-              ) : (
-                /* Fallback candidate portrait image */
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop"
-                  alt="Candidate Camera Preview"
-                  className="w-full h-full object-cover"
-                />
-              )
+              <video
+                ref={(el) => {
+                  videoRef.current = el;
+                  if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
+                    el.srcObject = mediaStreamRef.current;
+                    el.play().catch(console.warn);
+                  }
+                }}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+                style={{ transform: "scaleX(-1)" }}
+              />
             ) : (
               <div className="w-full h-full bg-[#1e293b] flex flex-col items-center justify-center space-y-2 text-[#94a3b8]">
                 <Camera className="w-8 h-8 opacity-40" />
