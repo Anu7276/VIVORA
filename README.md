@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # ✦ VIVORA
 
@@ -36,7 +36,10 @@
 15. [Voice System](#-voice-system)
 16. [Session State Machine](#-session-state-machine)
 17. [Deployment](#-deployment)
-18. [Contributing](#-contributing)
+18. [Testing & Quality Assurance](#-testing--quality-assurance)
+19. [Pre-Launch Audit & Hardening](#️-pre-launch-audit--hardening)
+20. [Contributing](#-contributing)
+21. [License](#-license)
 
 ---
 
@@ -200,11 +203,11 @@ The real-time session runs over a **persistent WebSocket** at `/ws/session/{sess
 | `type` | Payload | Description |
 |---|---|---|
 | `auth` | `{ token }` | JWT auth — **must be first message within 5s** |
-| `submit_answer` | `{ transcript }` | Submit spoken/typed answer for evaluation |
+| `submit_answer` | `{ transcript }` | Submit spoken/typed answer for atomic evaluation |
 | `stt_partial` | `{ transcript }` | Live speech stream (continuous) |
-| `replay_question` | `{}` | Re-read the current question aloud |
-| `skip_question` | `{}` | Skip to the next question |
-| `ask_doubt` | `{ doubt }` | Clarification request (no score penalty) |
+| `repeat_question` | `{}` | Re-read the current question aloud |
+| `skip_question` | `{}` | Skip to the next question (factors into completion scoring) |
+| `ask_doubt` | `{ doubt }` | Clarification request (rate-limited, no score penalty) |
 | `end_session` | `{}` | End interview, generate final report |
 | `retry_evaluation` | `{ question_id? }` | Re-evaluate last answer (max 2/question) |
 
@@ -287,15 +290,17 @@ VIVORA/
 | Technology | Purpose | Version |
 |---|---|---|
 | **FastAPI** | REST API + WebSocket server | 0.142 |
-| **SQLAlchemy** | ORM & database layer | 2.0 |
-| **SQLite** | Database (dev) | 3 |
-| **Alembic** | Database migrations | 1.20 |
-| **Pydantic** | Schemas & validation | 2.13 |
-| **pypdf** | PDF text extraction | 6.19 |
-| **python-jose** | JWT auth tokens | 3.4 |
+| **SQLAlchemy** | ORM with eager loading (`joinedload`) | 2.0 |
+| **SQLite (WAL)** | Database with WAL mode, foreign keys & `busy_timeout` | 3 |
+| **Alembic** | Idempotent database migrations | 1.20 |
+| **httpx** | Async connection-pooled HTTP client | 0.28 |
+| **Groq API** | Low-latency inference (`qwen/qwen3.8-27b`) | API |
+| **Google Gemini** | Question generation & comprehensive reporting | API |
+| **Pydantic** | Strict schema validation | 2.13 |
+| **pypdf** | PDF syllabus & resume text extraction | 6.19 |
+| **python-jose** | JWT token authentication (HS256) | 3.4 |
 | **bcrypt** | Password hashing | 4.0 |
-| **uvicorn** | ASGI server | 0.54 |
-| **Google Gemini** | LLM (Q generation + evaluation) | API |
+| **uvicorn** | ASGI production server | 0.54 |
 
 ### Frontend
 | Technology | Purpose | Version |
@@ -362,31 +367,56 @@ docker-compose up --build
 
 ## 🔐 Environment Variables
 
+Create `backend/.env` based on `backend/.env.example`:
+
 ```env
-GEMINI_API_KEY=your_google_gemini_api_key_here
-SECRET_KEY=your_very_long_random_secret_key
-ALGORITHM=HS256
+# Core Environment
+ENV=development                                      # 'production' enforces strict secret checks
+JWT_SECRET_KEY=vivora-production-secure-jwt-secret-key-32chars  # Min 32 chars required
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 DATABASE_URL=sqlite:///./vivora.db
-ALLOWED_ORIGINS=http://localhost:3000
-DEFAULT_TIME_LIMIT_MIN=30
-MAX_QUESTIONS_PER_SESSION=9
+
+# LLM Providers (Multi-Provider Support)
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GEMINI_API_KEY=AIzaSy_your_gemini_api_key_here
+OPENAI_API_KEY=sk-your_openai_api_key_here
+
+# Task-Specific Router Configuration
+QUESTION_GEN_PROVIDER=gemini                         # 'gemini' | 'groq' | 'openai' | 'mock'
+LIVE_PROVIDER=groq
+EVALUATION_PROVIDER=groq
+REPORT_PROVIDER=gemini
+
+# Model Identifiers
+GROQ_MODEL=qwen/qwen3.8-27b
+GEMINI_MODEL=gemini-2.5-flash
+OPENAI_MODEL=gpt-4o-mini
+
+# Security & CORS
+BACKEND_CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
 ```
 
 ---
 
 ## 📡 API Reference
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/auth/register` | Register a new user |
-| `POST` | `/auth/login` | Login — returns JWT token |
-| `GET` | `/auth/me` | Get current user profile |
-| `POST` | `/sessions` | Create a new viva session |
-| `GET` | `/sessions/id` | Get session + questions |
-| `POST` | `/upload` | Upload PDF |
-| `GET` | `/report/session_id` | Get final scorecard |
-| `WS` | `/ws/session/id` | Live session WebSocket |
+All REST endpoints are namespaced under `/api`:
+
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|:---:|
+| `GET` | `/health` | Basic application liveness probe | No |
+| `GET` | `/health/ready` | Database readiness check (`SELECT 1`) | No |
+| `POST` | `/api/auth/signup` | Register new student or candidate account | No |
+| `POST` | `/api/auth/login` | Authenticate and retrieve JWT bearer token | No |
+| `GET` | `/api/auth/me` | Fetch active user profile and role | Yes |
+| `POST` | `/api/auth/parent-consent-confirm` | Confirm parental consent for minor accounts | No |
+| `POST` | `/api/session/start` | Create a new exam session (rate-limited) | Yes |
+| `GET` | `/api/session/{id}` | Retrieve session status, timer, and questions | Yes |
+| `POST` | `/api/upload/file` | Ingest syllabus, textbook, or resume PDF | Yes |
+| `POST` | `/api/upload/text` | Ingest raw topic or chapter text | Yes |
+| `GET` | `/api/upload/status/{task_id}` | Poll background document ingestion status | Yes |
+| `GET` | `/api/report/{session_id}` | Fetch completed scorecard and rubric metrics | Yes |
+| `WS` | `/ws/session/{session_id}` | Real-time audio and exam state WebSocket | Yes (JWT) |
 
 ---
 
@@ -514,16 +544,39 @@ flowchart TD
 
 ---
 
-## ⚡ LLM Router & Fallback
+## ⚡ LLM Router & Degraded Mode Fallback
+
+VIVORA implements a **per-task resilient LLM router** with automatic rate-limit backoff, token limits (`TASK_MAX_TOKENS`), and a zero-cost fallback provider:
 
 ```mermaid
-flowchart LR
-    REQ(["Agent Request"]) --> ROUTER["LLM Router"]
-    ROUTER -->|"Primary"| GEM["☁️ Google Gemini API"]
-    GEM -->|"Success"| OUT(["Result returned"])
-    GEM -->|"Rate limit or error"| FB["SmartRuleFallbackProvider\nMode-specific mock data\nSessions stay functional offline"]
-    FB --> OUT
+flowchart TD
+    REQ(["Task Request\nqgen | live_turn | eval | report"]) --> ROUTER["Per-Task LLM Router"]
+    
+    ROUTER --> MAP{"Preferred Provider\nfrom Config"}
+    
+    MAP -->|"qgen / report"| GEM["☁️ Gemini 2.5 Flash\nx-goog-api-key Header"]
+    MAP -->|"live_turn / eval"| GROQ["⚡ Groq API\nqwen/qwen3.8-27b\nllama-3.3-70b-versatile"]
+    MAP -->|"optional"| OAI["🧠 OpenAI API\ngpt-4o-mini"]
+    
+    GEM -->|"429 Rate Limit"| RETRY1["1.5s Backoff & Retry"]
+    GROQ -->|"429 Rate Limit"| RETRY2["1.5s Backoff & Retry"]
+    
+    RETRY1 -->|"Fail"| FALLBACK["Fallback Chain\nNext Available Provider"]
+    RETRY2 -->|"Fail"| FALLBACK
+    
+    FALLBACK -->|"All APIs Unavailable"| MOCK["🛡️ SmartRuleFallbackProvider\nZero-Cost Offline Rules\nDeterministic Adaptive Fallback"]
+    
+    MOCK --> DEG["Flags _is_mock=True\nEmits degraded_mode WS event\nApp Remains Fully Functional"]
 ```
+
+### Per-Task Token Ceilings & Providers
+| Task | Preferred Provider | Max Tokens | Description |
+|---|---|---|---|
+| `live_turn` | Groq / Gemini | 250 | Fast avatar spoken reply preparation |
+| `evaluation` | Groq (`qwen/qwen3.8-27b`) | 600 | Real-time multi-dimensional scoring rubric |
+| `question_generation` | Gemini (`gemini-2.5-flash`) | 1,500 | Role/syllabus-adaptive questions with follow-ups |
+| `report` | Gemini / Groq | 2,500 | Final multi-factor examination scorecard |
+| *Safety Net* | `mock` (SmartRuleFallback) | — | Offline testing & automatic zero-downtime failover |
 
 ---
 
@@ -621,12 +674,27 @@ npm run build && npm start
 
 ---
 
-## 🧪 Tests
+## 🧪 Testing & Quality Assurance
+
+VIVORA maintains an automated regression suite covering authentication hardening, token validation, LLM routing, atomic evaluations, SQLite concurrency, rate limiting, and WebSocket state machine flows.
 
 ```bash
+# Run all 160 backend regression tests (100% pass rate)
 cd backend
-pytest tests/ -v
+python -m pytest tests/ -v
+
+# Run frontend typecheck and production build
+cd ../frontend
+npm run build
 ```
+
+---
+
+## 🛡️ Pre-Launch Audit & Hardening
+
+The platform has undergone a comprehensive engineering audit and autonomous remediation sprint:
+- **[AUDIT_REPORT.md](AUDIT_REPORT.md)**: Pre-launch audit covering 28 findings across Architecture, AI Agents, UI/UX, Backend Concurrency, Security, and DevOps.
+- **[MORNING_REPORT.md](MORNING_REPORT.md)**: Remediation report detailing 24 atomic commits, 160 passing tests, empirical concurrency benchmarks, and production verification.
 
 ---
 
