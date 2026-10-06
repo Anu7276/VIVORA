@@ -13,6 +13,8 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [dob, setDob] = useState("");
   const [parentEmail, setParentEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,11 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match. Please re-enter.");
+      return;
+    }
 
     if (isMinor && !parentEmail.trim()) {
       setError("Parent or guardian email is required for students under 18.");
@@ -186,7 +193,7 @@ export default function SignupPage() {
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-[#20211E]">Full Name</label>
                     <div className="relative group">
-                      <User className="w-4 h-4 text-[#8c9099] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
+                      <User className="w-4 h-4 text-[#5A5D64] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
                       <input
                         type="text"
                         required
@@ -202,7 +209,7 @@ export default function SignupPage() {
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-[#20211E]">Email Address</label>
                     <div className="relative group">
-                      <Mail className="w-4 h-4 text-[#8c9099] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
+                      <Mail className="w-4 h-4 text-[#5A5D64] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
                       <input
                         type="email"
                         required
@@ -218,7 +225,7 @@ export default function SignupPage() {
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-[#20211E]">Password</label>
                     <div className="relative group">
-                      <Lock className="w-4 h-4 text-[#8c9099] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
+                      <Lock className="w-4 h-4 text-[#5A5D64] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
                       <input
                         type={showPassword ? "text" : "password"}
                         required
@@ -231,10 +238,35 @@ export default function SignupPage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-3 text-[#8c9099] hover:text-[#20211E] transition-colors"
+                        className="absolute right-3.5 top-3 text-[#5A5D64] hover:text-[#20211E] transition-colors"
                         aria-label={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-[#20211E]">Confirm Password</label>
+                    <div className="relative group">
+                      <Lock className="w-4 h-4 text-[#5A5D64] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        required
+                        minLength={8}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter your password"
+                        className="w-full bg-[#FAF9F5]/90 border border-[#DDD9CF] rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-[#20211E] placeholder-[#9ca3af] focus:outline-none focus:border-[#20211E] focus:bg-white focus:ring-2 focus:ring-[#20211E]/5 transition-all shadow-2xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3.5 top-3 text-[#5A5D64] hover:text-[#20211E] transition-colors"
+                        aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -243,7 +275,7 @@ export default function SignupPage() {
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-[#20211E]">Date of Birth</label>
                     <div className="relative group">
-                      <Calendar className="w-4 h-4 text-[#8c9099] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
+                      <Calendar className="w-4 h-4 text-[#5A5D64] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
                       <input
                         type="date"
                         required
@@ -319,7 +351,7 @@ export default function SignupPage() {
       </div>
 
       {/* ── FOOTER MINIMAL ── */}
-      <div className="w-full max-w-md mx-auto text-center text-[11px] font-mono text-[#8c9099] relative z-10">
+      <div className="w-full max-w-md mx-auto text-center text-[11px] font-mono text-[#5A5D64] relative z-10">
         Protected by standard encryption • VIVORA Engine
       </div>
     </div>
