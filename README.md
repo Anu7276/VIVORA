@@ -6,12 +6,16 @@
 
 **Study. Practice. Speak. Excel under pressure.**
 
+**Created & Engineered by [Anurag Verma](https://github.com/Anu7276)**
+
+[![Author: Anurag Verma](https://img.shields.io/badge/Author-Anurag%20Verma-10b981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Anu7276)
+[![Repository](https://img.shields.io/badge/GitHub-Anu7276%2FVIVORA-181717?style=for-the-badge&logo=github)](https://github.com/Anu7276/VIVORA)
+[![Live Frontend](https://img.shields.io/badge/Frontend-Vercel_Live-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vivora-frontend.vercel.app)
+[![Live Backend](https://img.shields.io/badge/Backend-Render_Live-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://vivora-backend.onrender.com)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.142-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Python 3.12](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Groq Fast Inference](https://img.shields.io/badge/Groq-LPU_Inference-F05A28?style=for-the-badge)](https://groq.com)
-[![Google Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-8E75B2?style=for-the-badge&logo=google)](https://ai.google.dev)
-[![SQLite WAL](https://img.shields.io/badge/SQLite-WAL_Pragmas-003B57?style=for-the-badge&logo=sqlite)](https://sqlite.org)
+[![Groq Inference](https://img.shields.io/badge/Groq-LPU_Inference-F05A28?style=for-the-badge)](https://groq.com)
+[![Google Gemini](https://img.shields.io/badge/Gemini-2.0_Flash-8E75B2?style=for-the-badge&logo=google)](https://ai.google.dev)
 [![Pytest 160 Passing](https://img.shields.io/badge/Tests-160%2F160_Passing-brightgreen?style=for-the-badge)](https://pytest.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
@@ -731,6 +735,13 @@ docker-compose ps
 - [x] Use persistent volume for database directory (`/app/data`).
 - [x] Expose `/health/ready` probe for load balancer health checks.
 
+## 👨‍💻 Author & Creator
+
+**Anurag Verma**
+- **GitHub**: [@Anu7276](https://github.com/Anu7276)
+- **Project**: [VIVORA Repository](https://github.com/Anu7276/VIVORA)
+- **Live Demo**: [Vercel Web App](https://vivora-frontend.vercel.app) • [Render API Backend](https://vivora-backend.onrender.com)
+
 ---
 
 ## 📄 License & Acknowledgments
@@ -739,7 +750,7 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
 
 <div align="center">
 
-**Built with pride for students and candidates who want to think clearly, speak with conviction, and master oral examinations.**
+**Built with pride by Anurag Verma for students and candidates who want to think clearly, speak with conviction, and master oral examinations.**
 
 *✦ VIVORA — Your next answer starts here.*
 
