@@ -38,11 +38,6 @@ function LoginForm() {
     }
   };
 
-  const handleFillDemo = () => {
-    setEmail("student@example.com");
-    setPassword("password123");
-  };
-
   return (
     <div className="min-h-screen bg-[#FAF9F5] flex flex-col justify-between py-8 px-4 relative overflow-hidden selection:bg-[#7D9F68]/20">
       
@@ -119,16 +114,9 @@ function LoginForm() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-[#20211E]">Email Address</label>
-                  <button
-                    type="button"
-                    onClick={handleFillDemo}
-                    className="text-[11px] font-mono text-[#7D9F68] hover:text-[#5a764a] transition-colors"
-                  >
-                    ✦ Fill demo
-                  </button>
                 </div>
                 <div className="relative group">
-                  <Mail className="w-4 h-4 text-[#8c9099] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
+                  <Mail className="w-4 h-4 text-[#5A5D64] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
                   <input
                     type="email"
                     required
@@ -146,7 +134,7 @@ function LoginForm() {
                   <label className="text-xs font-medium text-[#20211E]">Password</label>
                 </div>
                 <div className="relative group">
-                  <Lock className="w-4 h-4 text-[#8c9099] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
+                  <Lock className="w-4 h-4 text-[#5A5D64] group-focus-within:text-[#20211E] absolute left-3.5 top-3.5 pointer-events-none transition-colors" />
                   <input
                     type={showPassword ? "text" : "password"}
                     required
@@ -158,7 +146,7 @@ function LoginForm() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3 text-[#8c9099] hover:text-[#20211E] transition-colors"
+                    className="absolute right-3.5 top-3 text-[#5A5D64] hover:text-[#20211E] transition-colors"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -207,7 +195,7 @@ function LoginForm() {
       </div>
 
       {/* ── FOOTER MINIMAL ── */}
-      <div className="w-full max-w-md mx-auto text-center text-[11px] font-mono text-[#8c9099] relative z-10">
+      <div className="w-full max-w-md mx-auto text-center text-[11px] font-mono text-[#5A5D64] relative z-10">
         © 2026 VIVORA AI • Intellectual Oral Preparation
       </div>
     </div>
