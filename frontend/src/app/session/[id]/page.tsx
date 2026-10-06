@@ -852,21 +852,23 @@ export default function SessionRoomPage() {
                       Question Score
                     </span>
                     <span className="text-sm font-mono font-bold text-[#2D4A3E] bg-[#E8F3E5] px-2.5 py-0.5 rounded-full border border-[#7D9F68]/30">
-                      {latestEval.score_total || latestEval.score}/100
+                      {Number(latestEval.overall_score ?? latestEval.score_total ?? latestEval.total_score ?? latestEval.score ?? 0).toFixed(1)} / 10
                     </span>
                   </div>
 
-                  {/* 3 Metric Progress Bars */}
+                  {/* 3 Metric Progress Bars (0-10 scale, width as score * 10 percent) */}
                   <div className="space-y-2.5 pt-1">
                     <div>
                       <div className="flex justify-between text-[11px] font-mono text-[#555850] mb-1">
                         <span>Correctness</span>
-                        <span className="font-bold text-[#2D4A3E]">{latestEval.correctness_score ?? 85}%</span>
+                        <span className="font-bold text-[#2D4A3E]">
+                          {Number(latestEval.correctness_score ?? 0).toFixed(1)} / 10
+                        </span>
                       </div>
                       <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
                         <div
                           className="bg-[#2D4A3E] h-full rounded-full transition-all"
-                          style={{ width: `${latestEval.correctness_score ?? 85}%` }}
+                          style={{ width: `${Math.min(100, Math.max(0, Number(latestEval.correctness_score ?? 0) * 10))}%` }}
                         />
                       </div>
                     </div>
@@ -874,12 +876,14 @@ export default function SessionRoomPage() {
                     <div>
                       <div className="flex justify-between text-[11px] font-mono text-[#555850] mb-1">
                         <span>Depth & Reasoning</span>
-                        <span className="font-bold text-[#0284c7]">{latestEval.depth_score ?? 80}%</span>
+                        <span className="font-bold text-[#0284c7]">
+                          {Number(latestEval.depth_score ?? 0).toFixed(1)} / 10
+                        </span>
                       </div>
                       <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
                         <div
                           className="bg-[#0284c7] h-full rounded-full transition-all"
-                          style={{ width: `${latestEval.depth_score ?? 80}%` }}
+                          style={{ width: `${Math.min(100, Math.max(0, Number(latestEval.depth_score ?? 0) * 10))}%` }}
                         />
                       </div>
                     </div>
@@ -887,12 +891,14 @@ export default function SessionRoomPage() {
                     <div>
                       <div className="flex justify-between text-[11px] font-mono text-[#555850] mb-1">
                         <span>Communication Clarity</span>
-                        <span className="font-bold text-[#7c3aed]">{latestEval.clarity_score ?? 90}%</span>
+                        <span className="font-bold text-[#7c3aed]">
+                          {Number(latestEval.clarity_score ?? 0).toFixed(1)} / 10
+                        </span>
                       </div>
                       <div className="w-full bg-[#E5E0D4] h-1.5 rounded-full overflow-hidden">
                         <div
                           className="bg-[#7c3aed] h-full rounded-full transition-all"
-                          style={{ width: `${latestEval.clarity_score ?? 90}%` }}
+                          style={{ width: `${Math.min(100, Math.max(0, Number(latestEval.clarity_score ?? 0) * 10))}%` }}
                         />
                       </div>
                     </div>
