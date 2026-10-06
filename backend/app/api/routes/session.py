@@ -186,6 +186,6 @@ async def get_session_details(
         "mode": session.mode,
         "time_limit_min": session.time_limit_min,
         "status": session.status,
-        "started_at": session.started_at,
+        "started_at": (session.started_at or session.created_at).isoformat() if (session.started_at or session.created_at) else None,
         "questions": questions_list,
     }

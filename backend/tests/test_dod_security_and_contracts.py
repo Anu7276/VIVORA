@@ -184,7 +184,6 @@ class TestWebSocketIntegrityAndForeignQuestions:
                 "question_id": q1_id,
                 "transcript": "First answer submission."
             })
-            time.sleep(0.1)
 
             # Send duplicate submit answer for q1
             ws.send_json({
@@ -192,7 +191,6 @@ class TestWebSocketIntegrityAndForeignQuestions:
                 "question_id": q1_id,
                 "transcript": "Duplicate answer submission."
             })
-            time.sleep(0.1)
 
             # Send submit answer with a fake foreign question_id
             ws.send_json({
@@ -200,7 +198,15 @@ class TestWebSocketIntegrityAndForeignQuestions:
                 "question_id": "non-existent-foreign-question-id",
                 "transcript": "Foreign question answer."
             })
-            time.sleep(0.1)
+
+            # Read frames until evaluation finishes
+            for _ in range(15):
+                try:
+                    msg = ws.receive_json()
+                    if msg.get("type") in ("evaluation_result", "session_completed"):
+                        break
+                except Exception:
+                    break
 
         # Verify in DB: exactly one answer for q1
         db = SessionLocal()

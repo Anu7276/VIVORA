@@ -711,10 +711,13 @@ class LLMRouter:
         """Call once; on 429 back off 1.5 s and retry once."""
         for attempt in range(2):
             try:
-                if as_json:
-                    return await provider.generate_json(prompt, system_prompt, max_tokens=max_tokens)
-                else:
-                    return await provider.generate_text(prompt, system_prompt, max_tokens=max_tokens)
+                fn = provider.generate_json if as_json else provider.generate_text
+                try:
+                    return await fn(prompt, system_prompt, max_tokens=max_tokens)
+                except TypeError as te:
+                    if "max_tokens" in str(te):
+                        return await fn(prompt, system_prompt)
+                    raise
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code == 429:
                     if attempt == 0:

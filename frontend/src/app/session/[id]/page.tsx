@@ -71,8 +71,8 @@ export default function SessionRoomPage() {
   const [showEndModal, setShowEndModal] = useState(false);
   const [isFinishingSession, setIsFinishingSession] = useState(false);
   
-  // Countdown Timer (Starts at 60 mins: 3600 seconds)
-  const [remainingSeconds, setRemainingSeconds] = useState(3600);
+  // Countdown Timer (Defaults to 15 mins: 900 seconds until session metadata loads)
+  const [remainingSeconds, setRemainingSeconds] = useState(900);
   const [manualInput, setManualInput] = useState(false);
   const [micNotice, setMicNotice] = useState<string | null>(null);
 
@@ -106,6 +106,19 @@ export default function SessionRoomPage() {
         setTotalQuestions(data.questions.length);
         setCurrentQuestion((prev: any) => prev || data.questions[0]);
       }
+      // Server-authoritative timer sync
+      const timeLimitSecs = (data.time_limit_min || 15) * 60;
+      if (data.started_at) {
+        const startTime = new Date(data.started_at).getTime();
+        if (!isNaN(startTime)) {
+          const elapsedSecs = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+          setRemainingSeconds(Math.max(0, timeLimitSecs - elapsedSecs));
+        } else {
+          setRemainingSeconds(timeLimitSecs);
+        }
+      } else {
+        setRemainingSeconds(timeLimitSecs);
+      }
     }).catch(console.error);
   }, [sessionId]);
 
@@ -121,7 +134,7 @@ export default function SessionRoomPage() {
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? "0" : ""}${secs} mins`;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
   // Setup candidate webcam feed
