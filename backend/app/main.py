@@ -191,6 +191,21 @@ def health():
     return {"status": "healthy"}
 
 
+@app.get("/health/ready")
+@app.get(f"{settings.API_V1_STR}/health/ready")
+@app.get("/api/v1/health/ready")
+def health_ready(response: Response):
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "connected"}
+    except Exception as exc:
+        logger.error(f"Readiness check failed: {exc}")
+        response.status_code = 503
+        return {"status": "unhealthy", "database": "disconnected", "error": str(exc)}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
