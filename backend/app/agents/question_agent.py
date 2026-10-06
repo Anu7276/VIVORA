@@ -124,6 +124,18 @@ class QuestionAgent(BaseAgent):
                     "followup_question": fu_q,
                     "followup_answer": fu_ans
                 })
+
+            if mode == "college" and count and len(result) < count:
+                fallback_pool = self._get_college_fallback_questions(topic, count)
+                existing_texts = {r["question_text"].lower() for r in result}
+                for fb in fallback_pool:
+                    if len(result) >= count:
+                        break
+                    if fb["question_text"].lower() not in existing_texts:
+                        fb_copy = dict(fb)
+                        fb_copy["order_no"] = len(result) + 1
+                        result.append(fb_copy)
+
             if result:
                 return result
         except Exception as e:

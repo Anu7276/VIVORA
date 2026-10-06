@@ -2,7 +2,7 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, engine_from_config, pool
 from alembic import context
 
 # Ensure backend root is in sys.path
@@ -19,8 +19,12 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+def get_url() -> str:
+    url = config.get_main_option("sqlalchemy.url")
+    return url if url else settings.DATABASE_URL
+
 def run_migrations_offline() -> None:
-    url = settings.DATABASE_URL
+    url = get_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -32,11 +36,18 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 def run_migrations_online() -> None:
-    with engine.connect() as connection:
+    url = get_url()
+    connectable = create_engine(url) if url != settings.DATABASE_URL else engine
+
+    with connectable.connect() as connection:
+        if "sqlite" in url:
+            import sqlalchemy as sa
+            connection.execute(sa.text("PRAGMA foreign_keys=OFF;"))
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=True if "sqlite" in settings.DATABASE_URL else False,
+            render_as_batch=True if "sqlite" in url else False,
         )
 
         with context.begin_transaction():
