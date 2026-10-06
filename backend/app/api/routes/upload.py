@@ -13,6 +13,7 @@ Security changes (Phase 1):
 """
 
 import os
+import re
 import logging
 from typing import Optional
 

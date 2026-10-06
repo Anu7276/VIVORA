@@ -132,7 +132,7 @@ class QuestionAgent(BaseAgent):
                 })
 
             if mode == "college" and count and len(result) < count:
-                fallback_pool = self._get_college_fallback_questions(topic, count)
+                fallback_pool = self._get_college_fallback_questions(topic, count, combined_context)
                 existing_texts = {r["question_text"].lower() for r in result}
                 for fb in fallback_pool:
                     if len(result) >= count:
@@ -162,126 +162,44 @@ class QuestionAgent(BaseAgent):
                 return result
         except Exception as e:
             if mode in ("college", "interview"):
-                raise RuntimeError(f"Question generation failed for {mode} mode: {e}") from e
+                # If LLM complete fails, use smart concept-aware fallback rather than failing session start
+                return self._get_college_fallback_questions(topic, count, combined_context) if mode == "college" else self._get_interview_fallback_questions(job_role or topic or "Software Engineer", tech_stack or "Full Stack", experience_level or "Senior", count)
 
-        # If generation returned empty questions for college/interview, fail visibly
-        if mode in ("college", "interview"):
-            raise RuntimeError(f"Question generation returned no valid questions for {mode} mode.")
+        # If generation returned empty questions for college/interview, use fallback questions
+        if mode == "college":
+            return self._get_college_fallback_questions(topic, count, combined_context)
 
-        return self._get_college_fallback_questions(topic, count)
+        return self._get_college_fallback_questions(topic, count, combined_context)
 
     def _clean_display_topic(self, raw_topic: str) -> str:
         if not raw_topic:
-            return "this subject"
+            return "Computer Science"
         clean = re.sub(r"\.[a-zA-Z0-9]+$", "", raw_topic)
         clean = re.sub(r"[_\-]+", " ", clean)
         cleaned_words = [
             w for w in clean.split()
-            if w.lower() not in {"assignment", "assignments", "answer", "answers", "solution", "solutions", "notes", "manual", "doc", "pdf", "file", "unit", "chapter"}
+            if w.lower() not in {
+                "assignment", "assignments", "answer", "answers", "solution", "solutions",
+                "notes", "note", "exam", "exams", "test", "tests", "manual", "doc", "pdf",
+                "file", "unit", "chapter", "syllabus", "guide", "textbook", "viva", "voce", "lab"
+            }
         ]
         if cleaned_words:
             return " ".join(cleaned_words)
-        return clean.strip() or "this subject"
+        return clean.strip() or "Computer Science"
 
-    def _get_college_fallback_questions(self, topic: str, count: int = 10) -> List[Dict[str, Any]]:
-        """Provides a structured set of top 10 viva questions with follow-ups for college subjects."""
+    def _get_college_fallback_questions(self, topic: str, count: int = 10, context_text: str = "") -> List[Dict[str, Any]]:
+        """Provides a structured set of top viva questions tailored to the subject or extracted context."""
         display_topic = self._clean_display_topic(topic)
-        templates = [
-            (
-                f"What is the fundamental working principle and primary objective of {display_topic}?",
-                "Fundamentals",
-                "easy",
-                f"{display_topic} provides the foundational mechanism and design framework to solve core domain constraints efficiently.",
-                f"Can you state the primary mathematical or theoretical law supporting this?",
-                "The core theoretical law and governing equations."
-            ),
-            (
-                f"How is {display_topic} initialized and what are the essential setup parameters?",
-                "Architecture",
-                "easy",
-                f"Initialization requires configuring state variables, memory buffers, and initial boundary parameters.",
-                f"What happens if these initial parameters are improperly configured?",
-                "The system fails to converge or throws invalid state exceptions."
-            ),
-            (
-                f"Explain the step-by-step procedure or algorithm executed in {display_topic}.",
-                "Process & Algorithm",
-                "medium",
-                f"The procedure begins with input ingestion, executes transformation phases in sequence, and outputs verified state.",
-                f"What is the time and space complexity of this procedure?",
-                "Polynomial time or optimal O(n log n) with bounded working memory."
-            ),
-            (
-                f"What are the critical components or sub-modules involved in {display_topic} and how do they interact?",
-                "Components",
-                "medium",
-                f"Core components interact through defined interfaces, passing synchronized data structures and control flags.",
-                f"How is synchronization maintained between asynchronous sub-modules?",
-                "Using semaphores, mutex locks, or event-driven message channels."
-            ),
-            (
-                f"What is the primary difference between {display_topic} and its leading alternative approach?",
-                "Comparative Analysis",
-                "medium",
-                f"{display_topic} prioritizes efficiency and lower latency, whereas alternate methods prioritize simplicity or lower hardware cost.",
-                f"Under what specific scenario would you choose the alternative over {display_topic}?",
-                "When resource constraints or throughput requirements dictate a simpler design."
-            ),
-            (
-                f"How do you calibrate or measure accuracy, error, and performance in {display_topic}?",
-                "Measurement & Calibration",
-                "medium",
-                f"Performance is measured via throughput, error variance, signal-to-noise ratio, or formal benchmark metrics.",
-                f"What are the most frequent experimental or numerical sources of error?",
-                "Quantization noise, sensor drift, precision loss, or unhandled race conditions."
-            ),
-            (
-                f"How does {display_topic} handle edge cases, unexpected inputs, or abnormal exceptions?",
-                "Exception Handling",
-                "hard",
-                f"Robust validation checks, exception guards, and rollback mechanisms ensure fault tolerance and graceful degradation.",
-                f"Can you walk through what occurs during a partial failure cascade?",
-                "The failure isolation boundaries trap the fault and trigger self-healing failovers."
-            ),
-            (
-                f"What are the major trade-offs between performance, scalability, and complexity in {display_topic}?",
-                "Trade-off Analysis",
-                "hard",
-                f"Increasing throughput typically increases memory footprint and algorithmic complexity.",
-                f"How do you profile and detect performance bottlenecks in real time?",
-                "Using tracing instrumentation, flame graphs, and latency percentiles."
-            ),
-            (
-                f"Describe a real-world industrial or engineering application where {display_topic} is deployed.",
-                "Applications",
-                "hard",
-                f"Widely utilized in high-throughput enterprise systems, embedded controllers, and distributed cloud services.",
-                f"What modifications are necessary when scaling from a lab prototype to production?",
-                "Implementing distributed load balancing, monitoring metrics, and hardened security."
-            ),
-            (
-                f"What are the latest modern advancements or future research directions related to {display_topic}?",
-                "Advanced Topics",
-                "hard",
-                f"Recent trends incorporate hardware acceleration, AI-driven parameter tuning, and formal verification methods.",
-                f"What is the most challenging unresolved problem in this domain today?",
-                "Achieving consistent low-latency consensus across untrusted asynchronous nodes."
-            )
-        ]
-
+        from app.llm.router import SmartRuleFallbackProvider
+        provider = SmartRuleFallbackProvider()
+        questions = provider._build_college_questions(display_topic, context_text)
         result = []
-        for idx in range(min(count, len(templates))):
-            q_text, subtopic, diff, ref_ans, fu_q, fu_ans = templates[idx]
-            result.append({
-                "order_no": idx + 1,
-                "question_text": q_text,
-                "topic": f"{topic} - {subtopic}",
-                "difficulty": diff,
-                "origin": "generated",
-                "reference_answer": ref_ans,
-                "followup_question": fu_q,
-                "followup_answer": fu_ans
-            })
+        for idx, q in enumerate(questions[:count]):
+            q_copy = dict(q)
+            q_copy["order_no"] = idx + 1
+            q_copy["origin"] = "generated"
+            result.append(q_copy)
         return result
 
     def _get_interview_fallback_questions(

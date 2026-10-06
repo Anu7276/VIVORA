@@ -19,6 +19,7 @@ The router:
 import asyncio
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -505,94 +506,22 @@ class SmartRuleFallbackProvider(LLMProvider):
                     ]
                 }
 
-            is_college = "college" in prompt.lower() or "practical" in prompt.lower() or "university" in (system_prompt or "").lower()
+            is_college = "college" in prompt.lower() or "practical" in prompt.lower() or "university" in (system_prompt or "").lower() or "syllabus" in prompt.lower()
             if is_college:
-                # Extract topic from prompt if possible
+                # 1. Clean topic name (remove suffixes like Exam Notes, Assignments, Manual)
                 topic_match = re.search(r'Title / Topic:\s*"([^"]+)"', prompt)
-                topic_val = topic_match.group(1) if topic_match else "College Subject"
+                raw_topic = topic_match.group(1) if topic_match else ""
+                clean_topic = self._clean_topic_name(raw_topic)
+
+                # 2. Extract context from prompt
+                ctx_match = re.search(r'\"\"\"(.*?)\"\"\"', prompt, re.DOTALL)
+                ctx = ctx_match.group(1).strip() if ctx_match else ""
+                if not ctx:
+                    c_match = re.search(r'(?:Reference Context|Lab Context|Notes Context|Questions Context):\s*(.+)', prompt, re.DOTALL)
+                    ctx = c_match.group(1).strip() if c_match else ""
+
                 return {
-                    "questions": [
-                        {
-                            "question_text": f"What is the fundamental working principle and primary objective of {topic_val}?",
-                            "topic": f"{topic_val} - Core Principles",
-                            "difficulty": "easy",
-                            "reference_answer": f"{topic_val} provides the core mechanism to resolve system constraints efficiently.",
-                            "followup_question": "What is the governing mathematical or theoretical law supporting this?",
-                            "followup_answer": "The core governing equations and foundational theoretical formulation."
-                        },
-                        {
-                            "question_text": f"How is {topic_val} initialized and what are its key parameters?",
-                            "topic": f"{topic_val} - Initialization",
-                            "difficulty": "easy",
-                            "reference_answer": "Initialization sets up memory structures, environment flags, and boundary variables.",
-                            "followup_question": "What happens if boundary parameters are improperly configured?",
-                            "followup_answer": "Throws configuration exception or causes unstable state convergence."
-                        },
-                        {
-                            "question_text": f"Explain the step-by-step procedure or algorithm executed in {topic_val}.",
-                            "topic": f"{topic_val} - Procedure",
-                            "difficulty": "medium",
-                            "reference_answer": "The execution flows from validation, step-wise state transformation, to terminal verification.",
-                            "followup_question": "What is the computational complexity of this procedure?",
-                            "followup_answer": "Optimal polynomial time with bounded space overhead."
-                        },
-                        {
-                            "question_text": f"What are the critical components or sub-modules involved in {topic_val} and how do they interact?",
-                            "topic": f"{topic_val} - Architecture",
-                            "difficulty": "medium",
-                            "reference_answer": "Sub-modules communicate over defined interfaces passing validated state structures.",
-                            "followup_question": "How is synchronization maintained between asynchronous sub-modules?",
-                            "followup_answer": "Using semaphores, mutex locks, or event loops."
-                        },
-                        {
-                            "question_text": f"Compare {topic_val} with an alternative approach or previous standard.",
-                            "topic": f"{topic_val} - Comparative Analysis",
-                            "difficulty": "medium",
-                            "reference_answer": "It provides superior throughput and reliability compared to older synchronous architectures.",
-                            "followup_question": "Under what constraint would you choose the simpler legacy method?",
-                            "followup_answer": "When minimal hardware footprint or extreme simplicity is strictly demanded."
-                        },
-                        {
-                            "question_text": f"How do you calibrate or measure accuracy, error, and performance in {topic_val}?",
-                            "topic": f"{topic_val} - Measurement",
-                            "difficulty": "medium",
-                            "reference_answer": "Quantified through latency percentiles, error rates, and standard benchmark suites.",
-                            "followup_question": "What are the common sources of experimental or runtime error?",
-                            "followup_answer": "Drift, noise, packet loss, or unhandled race conditions."
-                        },
-                        {
-                            "question_text": f"How does {topic_val} handle edge cases and abnormal exception states?",
-                            "topic": f"{topic_val} - Exception Handling",
-                            "difficulty": "hard",
-                            "reference_answer": "Defensive guards and transactional rollbacks maintain state integrity.",
-                            "followup_question": "How do you recover if a catastrophic cascade occurs?",
-                            "followup_answer": "Circuit breakers isolate the failure and trigger self-healing failovers."
-                        },
-                        {
-                            "question_text": f"What are the major trade-offs between performance, scalability, and complexity in {topic_val}?",
-                            "topic": f"{topic_val} - Trade-offs",
-                            "difficulty": "hard",
-                            "reference_answer": "Scaling throughput increases concurrency complexity and memory footprint.",
-                            "followup_question": "How do you isolate a memory leak or bottleneck in production?",
-                            "followup_answer": "Through profiling graphs, heap dumps, and distributed tracing."
-                        },
-                        {
-                            "question_text": f"Describe a real-world industrial or engineering application where {topic_val} is deployed.",
-                            "topic": f"{topic_val} - Practical Application",
-                            "difficulty": "hard",
-                            "reference_answer": "Widely deployed in distributed cloud systems, real-time operating kernels, and financial networks.",
-                            "followup_question": "What modifications are needed when scaling from prototype to production?",
-                            "followup_answer": "Load balancing, fault tolerant replicas, and telemetry logging."
-                        },
-                        {
-                            "question_text": f"What are the recent modern advancements or future research directions in {topic_val}?",
-                            "topic": f"{topic_val} - Modern Trends",
-                            "difficulty": "hard",
-                            "reference_answer": "Current trends incorporate hardware acceleration, AI optimization, and formal verification.",
-                            "followup_question": "What is the key open challenge currently under investigation?",
-                            "followup_answer": "Low-latency consensus and verifiable security across decentralized topologies."
-                        }
-                    ]
+                    "questions": self._build_college_questions(clean_topic, ctx)
                 }
             return {
                 "questions": [
@@ -619,6 +548,414 @@ class SmartRuleFallbackProvider(LLMProvider):
 
         # Intake extraction fallback
         return {"topics": ["General Science", "Core Concepts"], "questions": []}
+
+    def _clean_topic_name(self, raw: str) -> str:
+        if not raw:
+            return "Computer Science"
+        clean = re.sub(r"\.[a-zA-Z0-9]+$", "", raw)
+        clean = re.sub(r"[_\-]+", " ", clean)
+        words = [
+            w for w in clean.split()
+            if w.lower() not in {
+                "assignment", "assignments", "answer", "answers", "solution", "solutions",
+                "notes", "note", "exam", "exams", "test", "tests", "manual", "doc", "pdf",
+                "file", "unit", "chapter", "lab", "viva", "voce", "questions", "question",
+                "syllabus", "guide", "textbook"
+            }
+        ]
+        cleaned = " ".join(words).strip()
+        return cleaned if len(cleaned) >= 2 else (clean.strip() or "Computer Science")
+
+    def _extract_concepts_from_text(self, text: str) -> List[str]:
+        if not text:
+            return []
+        concepts: List[str] = []
+        # Multi-word capitalized terms
+        cap_terms = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b', text)
+        for term in cap_terms:
+            t = term.strip()
+            if t.lower() not in {"computer science", "university exam", "exam notes", "all rights", "chapter one", "first edition"} and t not in concepts:
+                concepts.append(t)
+        # Bullet items / numbered items
+        bullets = re.findall(r'(?:^|\n)\s*(?:[\*\-\•]|\d+[\.\)])\s*([A-Za-z0-9\s\-]{3,35})(?:\:|\-|\n|$)', text)
+        for b in bullets:
+            b_clean = b.strip()
+            if 3 <= len(b_clean) <= 30 and b_clean.lower() not in {"the", "and", "introduction", "conclusion", "overview", "summary"} and b_clean not in concepts:
+                concepts.append(b_clean)
+        # Uppercase technical acronyms
+        acronyms = re.findall(r'\b([A-Z]{2,6})\b', text)
+        for acr in acronyms:
+            if acr not in {"THE", "AND", "FOR", "NOT", "PDF", "DOC", "N/A", "URL", "API"} and acr not in concepts:
+                concepts.append(acr)
+        return concepts[:10]
+
+    def _build_college_questions(self, topic: str, context: str) -> List[Dict[str, Any]]:
+        t_low = (topic or "").lower()
+        c_low = (context or "").lower()[:1500]
+
+        # ── Domain 1: Java ───────────────────────────────────────────────────
+        if "java" in t_low or "java" in c_low:
+            return [
+                {
+                    "question_text": "What are the core principles of Object-Oriented Programming (OOP) in Java, and how is Polymorphism implemented?",
+                    "topic": "Java - OOP & Polymorphism",
+                    "difficulty": "easy",
+                    "reference_answer": "Java OOP relies on Encapsulation, Inheritance, Polymorphism, and Abstraction. Polymorphism is implemented via method overloading (compile-time) and method overriding (runtime).",
+                    "followup_question": "How does dynamic method dispatch work in Java at runtime?",
+                    "followup_answer": "The JVM uses the virtual method table (vtable) of the runtime object to resolve the method call."
+                },
+                {
+                    "question_text": "What is the difference between an Abstract Class and an Interface in Java, especially after Java 8?",
+                    "topic": "Java - Abstract Classes vs Interfaces",
+                    "difficulty": "easy",
+                    "reference_answer": "Abstract classes can hold state (instance variables) and constructors, whereas interfaces define contracts. Java 8 introduced default and static methods in interfaces.",
+                    "followup_question": "When would you prefer an abstract class over an interface in application design?",
+                    "followup_answer": "When multiple classes share common non-static state and code logic in an 'is-a' hierarchy."
+                },
+                {
+                    "question_text": "How does memory management work in the Java Virtual Machine (JVM) between Stack and Heap?",
+                    "topic": "Java - JVM Memory Management",
+                    "difficulty": "medium",
+                    "reference_answer": "Stack memory stores local primitive variables and method call frames. Heap memory stores all objects and class instances managed by the Garbage Collector.",
+                    "followup_question": "What is the role of the Garbage Collector, and can you force it using System.gc()?",
+                    "followup_answer": "Garbage collection automatically reclaims unreferenced heap objects; System.gc() is only a suggestion to the JVM and is not guaranteed to execute immediately."
+                },
+                {
+                    "question_text": "Explain Exception Handling in Java. What is the fundamental difference between Checked and Unchecked exceptions?",
+                    "topic": "Java - Exception Handling",
+                    "difficulty": "medium",
+                    "reference_answer": "Checked exceptions are verified at compile-time and must be caught or declared with throws. Unchecked exceptions (subclasses of RuntimeException) indicate logic or runtime errors.",
+                    "followup_question": "Under what specific condition will a finally block NOT execute in Java?",
+                    "followup_answer": "If System.exit() is invoked or if a fatal JVM error occurs."
+                },
+                {
+                    "question_text": "How does Multithreading work in Java, and how do you achieve thread synchronization?",
+                    "topic": "Java - Multithreading & Concurrency",
+                    "difficulty": "medium",
+                    "reference_answer": "Threads can be created by implementing Runnable/Callable or extending Thread. Synchronization uses synchronized blocks/methods or locks to prevent race conditions on shared state.",
+                    "followup_question": "What is a Deadlock in multithreading, and how can it be avoided?",
+                    "followup_answer": "A deadlock occurs when two threads wait indefinitely on locks held by each other. It is avoided by acquiring locks in a strict global ordering."
+                },
+                {
+                    "question_text": "How does HashMap work internally in Java, and what happens during a hash collision?",
+                    "topic": "Java - Collections Framework",
+                    "difficulty": "medium",
+                    "reference_answer": "HashMap stores key-value pairs in bucket arrays indexed by the key's hash code. On collision, entries form a linked list, transforming into a red-black balanced tree when bucket depth exceeds 8.",
+                    "followup_question": "What is the contract between equals() and hashCode() methods?",
+                    "followup_answer": "If two objects are equal by equals(), they must produce the identical hashCode."
+                },
+                {
+                    "question_text": "Why are String objects immutable in Java, and what is the difference between String, StringBuilder, and StringBuffer?",
+                    "topic": "Java - String Handling",
+                    "difficulty": "medium",
+                    "reference_answer": "Strings are immutable for security, thread-safety, and String Constant Pool caching. StringBuilder is mutable and faster for single-thread use; StringBuffer is thread-safe and synchronized.",
+                    "followup_question": "Where does a string literal reside in JVM memory compared to an object created with new?",
+                    "followup_answer": "String literals reside in the String Constant Pool inside the heap; 'new' explicitly allocates on the general heap."
+                },
+                {
+                    "question_text": "What is the difference between Method Overloading and Method Overriding in Java?",
+                    "topic": "Java - Methods & Polymorphism",
+                    "difficulty": "medium",
+                    "reference_answer": "Overloading occurs in the same class with identical name but different parameters (static binding). Overriding redefines a superclass method in a subclass with the same signature (dynamic binding).",
+                    "followup_question": "Can you override a static method in Java?",
+                    "followup_answer": "No, static methods belong to the class and are hidden rather than overridden."
+                },
+                {
+                    "question_text": "Explain the lifecycle and states of a Thread in Java.",
+                    "topic": "Java - Thread Lifecycle",
+                    "difficulty": "hard",
+                    "reference_answer": "Thread states include New, Runnable, Blocked, Waiting, Timed Waiting, and Terminated.",
+                    "followup_question": "What is the difference between wait() and sleep() methods?",
+                    "followup_answer": "sleep() pauses execution without releasing monitor locks; wait() releases the lock on the monitor until notify() is called."
+                },
+                {
+                    "question_text": "What are Generics in Java, and what is Type Erasure?",
+                    "topic": "Java - Generics",
+                    "difficulty": "hard",
+                    "reference_answer": "Generics provide compile-time type safety. Type erasure removes all generic type arguments during compilation so bytecode remains backward compatible.",
+                    "followup_question": "Why can't you instantiate a generic type with new T() in Java?",
+                    "followup_answer": "Because the runtime type information T is erased at compile time."
+                }
+            ]
+
+        # ── Domain 2: DBMS / Database ─────────────────────────────────────────
+        if "dbms" in t_low or "database" in t_low or "sql" in t_low or "rdbms" in t_low or "dbms" in c_low:
+            return [
+                {
+                    "question_text": "Explain the ACID properties of database transactions with examples.",
+                    "topic": "DBMS - Transaction Management",
+                    "difficulty": "easy",
+                    "reference_answer": "Atomicity (all or nothing), Consistency (preserves integrity constraints), Isolation (concurrent transactions execute independently), and Durability (committed changes persist).",
+                    "followup_question": "What is the purpose of the Write-Ahead Logging (WAL) protocol in maintaining Durability?",
+                    "followup_answer": "WAL ensures all state modifications are logged to non-volatile disk before changes are written to the database files."
+                },
+                {
+                    "question_text": "What is Normalization, and what is the difference between 3NF and BCNF?",
+                    "topic": "DBMS - Normalization",
+                    "difficulty": "easy",
+                    "reference_answer": "Normalization organizes data to reduce redundancy and eliminate insertion, update, and deletion anomalies. BCNF strictly requires every determinant to be a super key.",
+                    "followup_question": "Can every relational schema be decomposed into BCNF without losing functional dependencies?",
+                    "followup_answer": "No, BCNF decomposition guarantees lossless join, but dependency preservation is not always achievable."
+                },
+                {
+                    "question_text": "How do B-Trees and B+ Trees work as database indexes, and why are B+ Trees preferred?",
+                    "topic": "DBMS - Indexing",
+                    "difficulty": "medium",
+                    "reference_answer": "B+ Trees store all actual record pointers in leaf nodes linked sequentially, which allows efficient range scans and higher branching factors in internal nodes.",
+                    "followup_question": "What is the difference between a Clustered Index and a Non-Clustered Index?",
+                    "followup_answer": "A clustered index defines the physical order of table rows on disk; non-clustered indexes maintain a separate lookup structure."
+                },
+                {
+                    "question_text": "What is the Two-Phase Locking (2PL) protocol, and how does it guarantee serializability?",
+                    "topic": "DBMS - Concurrency Control",
+                    "difficulty": "medium",
+                    "reference_answer": "2PL consists of a growing phase (locks acquired) and a shrinking phase (locks released). Once a lock is released, no new locks can be acquired.",
+                    "followup_question": "Does strict 2PL prevent cascading aborts and deadlocks?",
+                    "followup_answer": "Strict 2PL prevents cascading aborts by holding exclusive locks until commit, but deadlocks can still occur."
+                },
+                {
+                    "question_text": "Explain the differences between Inner, Left Outer, Right Outer, and Full Outer Joins in SQL.",
+                    "topic": "DBMS - SQL Joins",
+                    "difficulty": "medium",
+                    "reference_answer": "Inner joins return matching records from both tables. Left/Right joins return all records from one table plus matching records from the other. Full outer joins return all rows from both.",
+                    "followup_question": "How does an SQL query engine execute a Hash Join vs a Nested Loop Join?",
+                    "followup_answer": "Nested loop iterates row-by-row; hash join builds an in-memory hash table on the smaller relation and probes it with the larger relation."
+                },
+                {
+                    "question_text": "What is the difference between a Primary Key, a Unique Key, and a Foreign Key?",
+                    "topic": "DBMS - Keys & Constraints",
+                    "difficulty": "medium",
+                    "reference_answer": "Primary key uniquely identifies a record and rejects NULLs. Unique key enforces uniqueness but permits NULLs. Foreign key establishes referential integrity with another table's primary key.",
+                    "followup_question": "What actions can occur on parent delete when a foreign key constraint is configured with ON DELETE CASCADE?",
+                    "followup_answer": "All child rows referencing the deleted parent row are automatically deleted."
+                },
+                {
+                    "question_text": "What are Stored Procedures and Triggers, and when should you use each?",
+                    "topic": "DBMS - Programmability",
+                    "difficulty": "medium",
+                    "reference_answer": "Stored procedures are compiled subroutines invoked manually; triggers execute automatically in response to DML events (INSERT, UPDATE, DELETE).",
+                    "followup_question": "What are the performance implications of heavily nested triggers?",
+                    "followup_answer": "They increase transaction latency, lock durations, and can cause difficult-to-debug cascading side effects."
+                },
+                {
+                    "question_text": "How does a database recover from a system crash using Checkpointing and redo/undo logs?",
+                    "topic": "DBMS - Recovery Systems",
+                    "difficulty": "hard",
+                    "reference_answer": "During recovery, transactions committed after checkpoint are redone from the log, and active uncommitted transactions are undone.",
+                    "followup_question": "Why is checkpointing essential for log-based recovery efficiency?",
+                    "followup_answer": "It limits the volume of log records that must be scanned and reprocessed during crash recovery."
+                },
+                {
+                    "question_text": "What are database Deadlocks, and what techniques are used for deadlock detection and prevention?",
+                    "topic": "DBMS - Deadlock Handling",
+                    "difficulty": "hard",
+                    "reference_answer": "Deadlocks occur when transactions wait cyclically for locks held by each other. Techniques include wait-for graphs, timeout mechanisms, and timestamp schemes (Wait-Die, Wound-Wait).",
+                    "followup_question": "What is the difference between the Wait-Die and Wound-Wait preemption schemes?",
+                    "followup_answer": "Wait-Die is non-preemptive (older waits, younger dies); Wound-Wait is preemptive (older wounds younger, younger waits)."
+                },
+                {
+                    "question_text": "Compare Relational Databases with NoSQL Document Databases. What trade-offs govern this architectural choice?",
+                    "topic": "DBMS - Architectural Trade-offs",
+                    "difficulty": "hard",
+                    "reference_answer": "RDBMS guarantees ACID and relational integrity with structured schemas; NoSQL provides flexible schemas, horizontal scalability, and eventual consistency (BASE model).",
+                    "followup_question": "Explain the CAP theorem and which two properties distributed databases typically prioritize.",
+                    "followup_answer": "Consistency, Availability, and Partition tolerance; networks must tolerate partitions, forcing systems to trade between Consistency (CP) and Availability (AP)."
+                }
+            ]
+
+        # ── Domain 3: Operating Systems ───────────────────────────────────────
+        if "operating" in t_low or "os" in t_low.split() or "operating" in c_low or "deadlock" in c_low or "semaphore" in c_low:
+            return [
+                {
+                    "question_text": "What is the difference between a Process and a Thread, and what resources are shared between threads?",
+                    "topic": "OS - Processes & Threads",
+                    "difficulty": "easy",
+                    "reference_answer": "A process is an executing program with isolated address space. Threads are lightweight execution units within a process sharing heap, global variables, and open files, but having their own stack.",
+                    "followup_question": "What overhead occurs during a process context switch compared to a thread context switch?",
+                    "followup_answer": "Process context switches invalidate virtual memory TLB caches and switch page tables, causing higher latency."
+                },
+                {
+                    "question_text": "What are the four necessary Coffman conditions for a Deadlock to occur?",
+                    "topic": "OS - Deadlock Conditions",
+                    "difficulty": "easy",
+                    "reference_answer": "Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait.",
+                    "followup_question": "How does Banker's Algorithm ensure deadlock avoidance in resource allocation?",
+                    "followup_answer": "It tests whether allocating requested resources leaves the system in a safe state where a safe sequence exists to satisfy maximum needs."
+                },
+                {
+                    "question_text": "What is the difference between a Counting Semaphore and a Binary Mutex Lock?",
+                    "topic": "OS - Process Synchronization",
+                    "difficulty": "medium",
+                    "reference_answer": "A mutex is a locking mechanism with ownership restricted to the acquiring thread. A counting semaphore is a signaling mechanism initialized with an integer value allowing concurrent access to N resources.",
+                    "followup_question": "What is Priority Inversion and how does Priority Inheritance solve it?",
+                    "followup_answer": "When a lower-priority thread holding a lock blocks a high-priority thread, priority inheritance temporarily elevates the lower thread's priority to release the lock."
+                },
+                {
+                    "question_text": "Explain Virtual Memory and how Paging translates logical addresses to physical addresses.",
+                    "topic": "OS - Memory Management",
+                    "difficulty": "medium",
+                    "reference_answer": "Virtual memory maps virtual pages to physical frames via page tables managed by the MMU. The Translation Lookaside Buffer (TLB) caches recent translations.",
+                    "followup_question": "What happens inside the kernel when a Page Fault interrupt is triggered?",
+                    "followup_answer": "The OS suspends the process, allocates a physical frame, reads the page from disk swap, updates the page table, and restarts the instruction."
+                },
+                {
+                    "question_text": "Compare the Round Robin, First-Come First-Served (FCFS), and Shortest Job First (SJF) CPU scheduling algorithms.",
+                    "topic": "OS - CPU Scheduling",
+                    "difficulty": "medium",
+                    "reference_answer": "FCFS suffers from the convoy effect; SJF provides optimal average waiting time but risks starvation; Round Robin assigns time quantum slices for fair interactive response.",
+                    "followup_question": "What happens if the time quantum in Round Robin is configured too short or too long?",
+                    "followup_answer": "Too short causes excessive context switching overhead; too long degrades to FCFS with poor responsiveness."
+                },
+                {
+                    "question_text": "Explain the LRU (Least Recently Used) and FIFO Page Replacement algorithms.",
+                    "topic": "OS - Page Replacement",
+                    "difficulty": "medium",
+                    "reference_answer": "FIFO replaces the oldest loaded page, subject to Belady's Anomaly. LRU replaces the page unused for the longest duration, approximating optimal replacement.",
+                    "followup_question": "What is Belady's Anomaly and which algorithms are immune to it?",
+                    "followup_answer": "When increasing physical frames causes more page faults. Stack algorithms like LRU and Optimal are strictly immune."
+                },
+                {
+                    "question_text": "What is Thrashing in an operating system, and how is the Working Set Model used to prevent it?",
+                    "topic": "OS - Virtual Memory Thrashing",
+                    "difficulty": "hard",
+                    "reference_answer": "Thrashing occurs when the system spends more time servicing page faults than executing instructions. The working set model allocates frames matching each process's active page set.",
+                    "followup_question": "How does the OS respond if total demand exceeds available physical memory frames?",
+                    "followup_answer": "It suspends lower-priority processes and swaps their entire address spaces to disk to relieve frame pressure."
+                },
+                {
+                    "question_text": "What is the difference between User Mode and Kernel Mode, and how does a System Call transition between them?",
+                    "topic": "OS - Kernel Architecture",
+                    "difficulty": "hard",
+                    "reference_answer": "User mode restricts direct access to hardware and kernel memory. A system call executes a software interrupt or trap instruction, switching CPU privilege to kernel mode.",
+                    "followup_question": "Why is dual-mode execution essential for system security and stability?",
+                    "followup_answer": "It prevents errant user applications from corrupting kernel structures or halting CPU execution."
+                },
+                {
+                    "question_text": "What mechanisms are used for Inter-Process Communication (IPC), and how do Shared Memory and Message Passing compare?",
+                    "topic": "OS - Inter-Process Communication",
+                    "difficulty": "hard",
+                    "reference_answer": "IPC uses pipes, message queues, sockets, and shared memory. Shared memory is fastest (no kernel copies) but requires explicit synchronization; message passing uses kernel buffers.",
+                    "followup_question": "When would you prefer message passing sockets over shared memory?",
+                    "followup_answer": "When processes run across distributed networked machines or require kernel-managed isolation."
+                },
+                {
+                    "question_text": "How does an Inode-based file system store file metadata and data block pointers?",
+                    "topic": "OS - File Systems",
+                    "difficulty": "hard",
+                    "reference_answer": "An inode stores file attributes, permissions, size, direct block pointers, and single/double/triple indirect block pointers addressing large file blocks.",
+                    "followup_question": "What is the difference between a Hard Link and a Symbolic Link to an inode?",
+                    "followup_answer": "A hard link is a directory entry pointing directly to the same inode number; a symbolic link is a separate file storing the path to the target file."
+                }
+            ]
+
+        # ── Domain 4: Dynamic Concept Extraction from Uploaded Document Context ─
+        concepts = self._extract_concepts_from_text(context)
+        display_topic = topic or "Core Principles"
+
+        if len(concepts) >= 3:
+            c = concepts
+            return [
+                {
+                    "question_text": f"What is the foundational principle of {c[0]} in {display_topic}, and what problem does it address?",
+                    "topic": f"{display_topic} - {c[0]}",
+                    "difficulty": "easy",
+                    "reference_answer": f"{c[0]} provides the foundational mechanism to manage state and solve domain requirements effectively in {display_topic}.",
+                    "followup_question": f"How does {c[0]} interact with surrounding components?",
+                    "followup_answer": f"{c[0]} interfaces directly with adjacent structures to ensure predictable state propagation."
+                },
+                {
+                    "question_text": f"Explain how {c[1]} is initialized and configured in {display_topic}.",
+                    "topic": f"{display_topic} - {c[1]}",
+                    "difficulty": "easy",
+                    "reference_answer": f"Initialization of {c[1]} establishes memory boundaries, parameter flags, and default state structures.",
+                    "followup_question": f"What exceptions or invalid states occur if {c[1]} is improperly set up?",
+                    "followup_answer": f"Improper setup throws boundary exceptions or causes non-convergent runtime behavior."
+                },
+                {
+                    "question_text": f"Walk through the step-by-step procedure or algorithmic workflow of {c[2]}.",
+                    "topic": f"{display_topic} - {c[2]}",
+                    "difficulty": "medium",
+                    "reference_answer": f"The workflow progresses from input validation, intermediate state transformation, to terminal verification.",
+                    "followup_question": f"What is the algorithmic time and space complexity of {c[2]}?",
+                    "followup_answer": f"Bounded polynomial time with O(1) or O(n) space overhead."
+                },
+                {
+                    "question_text": f"What is the key difference between {c[0]} and {c[min(3, len(c)-1)]} in practical implementations?",
+                    "topic": f"{display_topic} - Comparative Analysis",
+                    "difficulty": "medium",
+                    "reference_answer": f"Each component satisfies different trade-offs between throughput, abstraction, and memory footprint.",
+                    "followup_question": f"Under what constraints would you select one over the other?",
+                    "followup_answer": "When system constraints demand lower latency versus simplified operational overhead."
+                },
+                {
+                    "question_text": f"How does {display_topic} handle error conditions, edge cases, and fault recovery in {c[min(4, len(c)-1)]}?",
+                    "topic": f"{display_topic} - Error Handling",
+                    "difficulty": "hard",
+                    "reference_answer": "Defensive validations, transactional rollbacks, and boundary guards preserve system integrity.",
+                    "followup_question": "What fail-safe triggers prevent catastrophic cascading failures?",
+                    "followup_answer": "Circuit breakers and graceful degradation isolate failure domains."
+                },
+                {
+                    "question_text": f"What are the major performance trade-offs and scalability bottlenecks encountered in {c[min(5, len(c)-1)]}?",
+                    "topic": f"{display_topic} - Performance Trade-offs",
+                    "difficulty": "hard",
+                    "reference_answer": "Increasing throughput increases memory footprint and synchronization contention.",
+                    "followup_question": "How do you profile and isolate runtime bottlenecks in this component?",
+                    "followup_answer": "Using diagnostic traces, heap profiling, and latency percentile metrics."
+                }
+            ]
+
+        # ── Domain 5: Clean Generic Fallback (No Raw Filenames or Templates) ─
+        return [
+            {
+                "question_text": f"What is the core working principle and fundamental objective of {display_topic}?",
+                "topic": f"{display_topic} - Fundamentals",
+                "difficulty": "easy",
+                "reference_answer": f"{display_topic} establishes the foundational architecture and methodologies to resolve core domain requirements efficiently.",
+                "followup_question": "Can you state the primary theoretical or practical rule supporting this?",
+                "followup_answer": "The foundational rules and governing architectural constraints of the domain."
+            },
+            {
+                "question_text": f"How is {display_topic} structured and what are its primary architectural components?",
+                "topic": f"{display_topic} - Architecture",
+                "difficulty": "easy",
+                "reference_answer": "The architecture comprises modular sub-systems communicating across well-defined interfaces and state contracts.",
+                "followup_question": "How is synchronization maintained between interacting sub-systems?",
+                "followup_answer": "Through synchronization locks, event channels, or bounded queues."
+            },
+            {
+                "question_text": f"Explain the standard procedural workflow or execution cycle in {display_topic}.",
+                "topic": f"{display_topic} - Execution Flow",
+                "difficulty": "medium",
+                "reference_answer": "The execution cycle begins with validation, executes state transformations, and produces verified terminal output.",
+                "followup_question": "What is the typical time and memory overhead of this execution cycle?",
+                "followup_answer": "Optimal polynomial time with bounded working memory."
+            },
+            {
+                "question_text": f"How does {display_topic} compare with alternative classical approaches in this domain?",
+                "topic": f"{display_topic} - Comparative Analysis",
+                "difficulty": "medium",
+                "reference_answer": f"{display_topic} provides higher throughput and resilience compared to legacy single-stage approaches.",
+                "followup_question": "In what specific scenario would a legacy approach still be justifiable?",
+                "followup_answer": "When minimal hardware footprint or absolute simplicity is strictly required."
+            },
+            {
+                "question_text": f"How does {display_topic} handle edge cases, runtime exceptions, and abnormal input states?",
+                "topic": f"{display_topic} - Fault Tolerance",
+                "difficulty": "hard",
+                "reference_answer": "Defensive guards, transactional rollbacks, and isolation boundaries ensure resilient degradation.",
+                "followup_question": "How does the system self-heal when a partial failure occurs?",
+                "followup_answer": "Fault-isolation barriers isolate the error and restart the failed subsystem."
+            },
+            {
+                "question_text": f"What are the major engineering trade-offs between performance, scalability, and complexity in {display_topic}?",
+                "topic": f"{display_topic} - Trade-off Analysis",
+                "difficulty": "hard",
+                "reference_answer": "Scaling throughput increases concurrency complexity and memory footprint.",
+                "followup_question": "How do you detect memory leaks or latency spikes in this ecosystem?",
+                "followup_answer": "Through heap profiling, distributed tracing, and metric alerts."
+            }
+        ]
 
 
 # ─── JSON extraction helper ───────────────────────────────────────────────────
@@ -698,12 +1035,34 @@ class LLMRouter:
     def __init__(self, cfg=None) -> None:
         cfg = cfg or settings
         self._pool: Dict[str, LLMProvider] = {}
-        if cfg.GEMINI_API_KEY:
-            self._pool["gemini"] = GeminiProvider(cfg.GEMINI_API_KEY)
-        if cfg.GROQ_API_KEY:
-            self._pool["groq"] = GroqProvider(cfg.GROQ_API_KEY)
-        if cfg.OPENAI_API_KEY:
-            self._pool["openai"] = OpenAIProvider(cfg.OPENAI_API_KEY)
+        gemini_key = (
+            getattr(cfg, "GEMINI_API_KEY", None)
+            or os.environ.get("GEMINI_API_KEY")
+            or os.environ.get("GOOGLE_API_KEY")
+            or os.environ.get("GEMINI_KEY")
+            or os.environ.get("GOOGLE_GEMINI_API_KEY")
+            or os.environ.get("GOOGLE_AI_KEY")
+        )
+        if gemini_key:
+            self._pool["gemini"] = GeminiProvider(gemini_key)
+
+        groq_key = (
+            getattr(cfg, "GROQ_API_KEY", None)
+            or os.environ.get("GROQ_API_KEY")
+            or os.environ.get("GROQ_KEY")
+            or os.environ.get("GROQ_APIKEY")
+        )
+        if groq_key:
+            self._pool["groq"] = GroqProvider(groq_key)
+
+        openai_key = (
+            getattr(cfg, "OPENAI_API_KEY", None)
+            or os.environ.get("OPENAI_API_KEY")
+            or os.environ.get("OPENAI_KEY")
+        )
+        if openai_key:
+            self._pool["openai"] = OpenAIProvider(openai_key)
+
         # Mock fallback provider is always registered for offline/testing/graceful degradation
         self._pool["mock"] = SmartRuleFallbackProvider()
 
@@ -724,9 +1083,9 @@ class LLMRouter:
         # Emit a clear WARNING for each task whose preferred provider has no key.
         # This surfaces misconfigured deployments at startup rather than at runtime.
         key_map = {
-            "gemini": cfg.GEMINI_API_KEY,
-            "groq": cfg.GROQ_API_KEY,
-            "openai": cfg.OPENAI_API_KEY,
+            "gemini": gemini_key,
+            "groq": groq_key,
+            "openai": openai_key,
             "mock": "__always_available__",
         }
         for task_name, provider_name in [

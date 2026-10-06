@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, List
+from typing import Optional, List, Any
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "VIVORA - AI Viva & Interview Simulator"
@@ -29,6 +29,34 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        return (init_settings, env_settings, dotenv_settings, file_secret_settings)
+
+    def model_post_init(self, __context: Any) -> None:
+        import os
+        if not self.GEMINI_API_KEY:
+            self.GEMINI_API_KEY = (
+                os.environ.get("GEMINI_API_KEY")
+                or os.environ.get("GOOGLE_API_KEY")
+                or os.environ.get("GEMINI_KEY")
+                or os.environ.get("GOOGLE_GEMINI_API_KEY")
+                or os.environ.get("GOOGLE_AI_KEY")
+            )
+        if not self.GROQ_API_KEY:
+            self.GROQ_API_KEY = (
+                os.environ.get("GROQ_API_KEY")
+                or os.environ.get("GROQ_KEY")
+                or os.environ.get("GROQ_APIKEY")
+            )
 
     # ── Model names (override per deployment) ─────────────────────────────────
     GEMINI_MODEL: str = "gemini-2.0-flash"
