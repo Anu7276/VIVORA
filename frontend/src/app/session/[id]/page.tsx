@@ -477,7 +477,7 @@ export default function SessionRoomPage() {
     <div className="flex flex-col h-screen w-screen bg-[#F9F8F5] text-[#1a1b1e] font-sans select-none overflow-hidden">
       
       {/* ── TOP HEADER BAR ─────────────────────────────────────────────────── */}
-      <header className="h-16 bg-white border-b border-[#E8E4DA] px-6 flex items-center justify-between z-20 shrink-0 shadow-2xs">
+      <header className="min-h-16 bg-white border-b border-[#E8E4DA] px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between z-20 shrink-0 shadow-2xs gap-2">
         {/* Brand & Topic Section */}
         <div className="flex items-center space-x-3.5">
           <div className="flex items-center space-x-2.5">
@@ -552,10 +552,10 @@ export default function SessionRoomPage() {
       </header>
 
       {/* ── MAIN STUDIO CONTENT ────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden p-4 md:p-5 gap-5">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden p-3 sm:p-4 md:p-5 gap-5">
         
         {/* ── LEFT/CENTER STAGE: VIRTUAL INTERVIEW ROOM + QUESTION ARENA ────── */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-auto min-w-0 pr-1">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-visible lg:overflow-y-auto min-w-0 pr-1">
           
           {/* 1. DUAL VIDEO STAGE: EXAMINER & CANDIDATE TILES */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[250px] md:h-[280px] shrink-0">
@@ -842,7 +842,7 @@ export default function SessionRoomPage() {
         </div>
 
         {/* ── RIGHT SIDEBAR: VIVA INTELLIGENCE & EVALUATION ─────────────────── */}
-        <aside className="w-80 md:w-96 shrink-0 bg-white border border-[#E8E4DA] rounded-2xl p-5 shadow-xs flex flex-col justify-between overflow-y-auto space-y-4">
+        <aside className="w-full lg:w-96 shrink-0 bg-white border border-[#E8E4DA] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between overflow-y-auto space-y-4">
           <div className="space-y-4">
             {/* Sidebar Title */}
             <div className="flex items-center justify-between pb-3 border-b border-[#E8E4DA]">
