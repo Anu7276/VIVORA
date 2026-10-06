@@ -209,32 +209,36 @@ class SessionService:
         evaluation_data: Dict[str, Any]
     ) -> Answer:
         now_utc = datetime.datetime.now(datetime.timezone.utc)
-        answer = Answer(
-            question_id=question_id,
-            transcript=transcript,
-            duration_sec=duration_sec,
-            filler_word_count=filler_count,
-            answered_at=now_utc
-        )
-        db.add(answer)
-        db.commit()
-        db.refresh(answer)
+        try:
+            answer = Answer(
+                question_id=question_id,
+                transcript=transcript,
+                duration_sec=duration_sec,
+                filler_word_count=filler_count,
+                answered_at=now_utc
+            )
+            db.add(answer)
+            db.flush()
 
-        eval_record = Evaluation(
-            answer_id=answer.id,
-            scored=evaluation_data.get("scored", True),
-            correctness_score=evaluation_data.get("correctness_score"),
-            depth_score=evaluation_data.get("depth_score"),
-            clarity_score=evaluation_data.get("clarity_score"),
-            overall_score=evaluation_data.get("overall_score"),
-            feedback=evaluation_data.get("feedback", ""),
-            missing_concepts=evaluation_data.get("missing_concepts", ""),
-            model_answer=evaluation_data.get("model_answer", ""),
-            provider=evaluation_data.get("_provider", "mock")
-        )
-        db.add(eval_record)
-        db.commit()
-        return answer
+            eval_record = Evaluation(
+                answer_id=answer.id,
+                scored=evaluation_data.get("scored", True),
+                correctness_score=evaluation_data.get("correctness_score"),
+                depth_score=evaluation_data.get("depth_score"),
+                clarity_score=evaluation_data.get("clarity_score"),
+                overall_score=evaluation_data.get("overall_score"),
+                feedback=evaluation_data.get("feedback", ""),
+                missing_concepts=evaluation_data.get("missing_concepts", ""),
+                model_answer=evaluation_data.get("model_answer", ""),
+                provider=evaluation_data.get("_provider", "mock")
+            )
+            db.add(eval_record)
+            db.commit()
+            db.refresh(answer)
+            return answer
+        except Exception:
+            db.rollback()
+            raise
 
     @staticmethod
     def get_session_evaluations(db: DBSession, session_id: str) -> List[Dict[str, Any]]:
@@ -278,6 +282,23 @@ class SessionService:
                             "missing_concepts": ev.missing_concepts or "",
                             "model_answer": ev.model_answer or "",
                             "_is_mock": (ev.provider == "mock")
+                        })
+                    else:
+                        evaluations.append({
+                            "question_id": q.id,
+                            "order_no": q.order_no,
+                            "question_text": q.question_text,
+                            "topic": q.topic or "General",
+                            "reference_answer": q.reference_answer or "",
+                            "scored": False,
+                            "correctness_score": 0.0,
+                            "depth_score": 0.0,
+                            "clarity_score": 0.0,
+                            "overall_score": 0.0,
+                            "feedback": "Evaluation unavailable for this answer.",
+                            "missing_concepts": "",
+                            "model_answer": q.reference_answer or "",
+                            "_is_mock": False,
                         })
         return evaluations
 
