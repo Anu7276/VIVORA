@@ -31,20 +31,47 @@ export default function ReportPage() {
 
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pollCount, setPollCount] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
-    getReport(sessionId)
-      .then((data) => {
-        setReport(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || "Failed to load report");
-        setLoading(false);
-      });
+    let isMounted = true;
+    let pollTimer: NodeJS.Timeout;
+
+    const fetchReportData = (attempt: number) => {
+      getReport(sessionId)
+        .then((data: any) => {
+          if (!isMounted) return;
+          // Check if report is still compiling in background
+          const isPending = !data?.questions_review || data?.message?.includes("pending") || data?.status === "in_progress";
+          if (isPending && attempt < 15) {
+            setPollCount(attempt + 1);
+            pollTimer = setTimeout(() => fetchReportData(attempt + 1), 2000);
+          } else {
+            setReport(data);
+            setLoading(false);
+          }
+        })
+        .catch((err) => {
+          if (!isMounted) return;
+          if (attempt < 8) {
+            setPollCount(attempt + 1);
+            pollTimer = setTimeout(() => fetchReportData(attempt + 1), 2000);
+          } else {
+            setError(err.message || "Failed to load report");
+            setLoading(false);
+          }
+        });
+    };
+
+    fetchReportData(0);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(pollTimer);
+    };
   }, [sessionId]);
 
   const handleDeleteData = async () => {
@@ -72,34 +99,47 @@ export default function ReportPage() {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-4 bg-[#fcfbf9]">
         <div className="w-12 h-12 border-4 border-[#0f766e] border-t-transparent rounded-full animate-spin" />
-        <p className="text-[#64748b] font-medium font-mono text-sm">Generating analytical viva scorecard & rubric metrics...</p>
+        <p className="text-[#0f172a] font-display font-semibold text-base">Compiling Analytical Scorecard...</p>
+        <p className="text-[#64748b] font-medium font-mono text-xs">
+          Synthesizing multi-agent feedback, rubric metrics, and revision suggestions
+          {pollCount > 1 ? ` (analyzing turn ${pollCount}...)` : "..."}
+        </p>
       </div>
     );
   }
 
-  if (error || !report) {
+  if (error || !report || !report.questions_review) {
     return (
       <div className="min-h-screen bg-[#fcfbf9] flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center py-12 px-8 space-y-4 bg-white border border-[#e2e8f0] rounded-2xl shadow-lg">
           <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
-          <h2 className="text-xl font-bold text-[#0f172a]">Report Not Found</h2>
-          <p className="text-sm text-[#64748b]">{error || "Could not retrieve session report data."}</p>
-          <button
-            onClick={() => router.push("/")}
-            className="px-6 py-2.5 rounded-xl bg-[#0f766e] hover:bg-[#115e59] text-white text-xs font-semibold shadow-sm transition-all"
-          >
-            Back to Home
-          </button>
+          <h2 className="text-xl font-bold text-[#0f172a]">Report Not Ready</h2>
+          <p className="text-sm text-[#64748b]">{error || "Could not retrieve completed session report data. It may still be finalizing."}</p>
+          <div className="flex justify-center gap-3 pt-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-xl bg-[#0f766e] hover:bg-[#115e59] text-white text-xs font-semibold shadow-sm transition-all"
+            >
+              Retry Loading
+            </button>
+            <button
+              onClick={() => router.push("/")}
+              className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-[#0f172a] text-xs font-semibold transition-all"
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Calculate total marks across questions
-  const totalQuestions = report.questions_review.length;
-  const totalScore = report.questions_review.reduce((acc, q) => acc + (q.score || 0), 0);
+  // Calculate total marks across questions with optional chaining
+  const questionsReview = report?.questions_review ?? [];
+  const totalQuestions = questionsReview.length;
+  const totalScore = questionsReview.reduce((acc, q) => acc + (q?.score || 0), 0);
   const maxScore = totalQuestions * 10;
-  const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : (report.overall_score || 0);
+  const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : (report?.overall_score || 0);
 
   return (
     <div className="min-h-screen bg-[#fcfbf9] text-[#1e293b] py-8 px-4 sm:px-6 lg:px-8">
@@ -216,7 +256,7 @@ export default function ReportPage() {
           </div>
 
           <div className="divide-y divide-[#e2e8f0]">
-            {report.questions_review.map((q, idx) => (
+            {questionsReview.map((q, idx) => (
               <div key={idx} className="p-5 space-y-3.5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1 flex-1">
@@ -247,7 +287,7 @@ export default function ReportPage() {
         </div>
 
         {/* ── PRIORITIZED REVISION PLAN ──────────────────────────────────────── */}
-        {report.revision_plan && report.revision_plan.length > 0 && (
+        {report?.revision_plan && report.revision_plan.length > 0 && (
           <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-md space-y-4">
             <h3 className="font-display font-bold text-[#0f172a] text-base flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-[#0f766e]" />
@@ -255,7 +295,7 @@ export default function ReportPage() {
             </h3>
 
             <div className="space-y-2.5">
-              {report.revision_plan.map((item, idx) => (
+              {(report?.revision_plan ?? []).map((item, idx) => (
                 <div key={idx} className="flex items-start gap-3 p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
                   <span className="w-6 h-6 rounded-full bg-[#0f766e] text-white flex items-center justify-center font-mono font-bold text-xs shrink-0 mt-0.5">
                     {idx + 1}

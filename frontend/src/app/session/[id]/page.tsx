@@ -69,6 +69,7 @@ export default function SessionRoomPage() {
   const [showDoubtModal, setShowDoubtModal] = useState(false);
   const [doubtInput, setDoubtInput] = useState("");
   const [showEndModal, setShowEndModal] = useState(false);
+  const [isFinishingSession, setIsFinishingSession] = useState(false);
   
   // Countdown Timer (Starts at 60 mins: 3600 seconds)
   const [remainingSeconds, setRemainingSeconds] = useState(3600);
@@ -448,10 +449,14 @@ export default function SessionRoomPage() {
   };
 
   const handleEndInterview = () => {
+    setIsFinishingSession(true);
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "end_session" }));
     }
-    router.push(`/report/${sessionId}`);
+    // Fallback navigation after 8s in case WS message is interrupted
+    setTimeout(() => {
+      router.push(`/report/${sessionId}`);
+    }, 8000);
   };
 
   return (
@@ -1031,6 +1036,19 @@ export default function SessionRoomPage() {
                 Conclude & View Report
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FINISHING / COMPILING SESSION OVERLAY ──────────────────────────── */}
+      {isFinishingSession && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border border-[#E8E4DA]">
+            <div className="w-12 h-12 border-4 border-[#2D4A3E] border-t-transparent rounded-full animate-spin mx-auto" />
+            <h3 className="font-serif italic text-xl font-bold text-[#1a1b1e]">Session Concluded</h3>
+            <p className="text-xs text-[#555850] leading-relaxed">
+              Compiling multi-agent evaluations, rubric grades, and generating your analytical viva scorecard...
+            </p>
           </div>
         </div>
       )}
