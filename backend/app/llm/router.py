@@ -59,7 +59,7 @@ def get_shared_http_client() -> httpx.AsyncClient:
     global _shared_http_client
     if _shared_http_client is None or _shared_http_client.is_closed:
         _shared_http_client = httpx.AsyncClient(
-            timeout=30.0,
+            timeout=10.0,
             limits=httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30.0),
         )
     return _shared_http_client

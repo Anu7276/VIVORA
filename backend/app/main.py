@@ -175,6 +175,7 @@ def root():
     return {
         "status": "online",
         "service": settings.PROJECT_NAME,
+        "version": "1.2.0-concept-aware",
         "docs": "/docs" if _is_dev else "disabled in production",
         "health": "/health",
         "llm_routing": {

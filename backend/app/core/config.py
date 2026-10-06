@@ -57,6 +57,11 @@ class Settings(BaseSettings):
                 or os.environ.get("GROQ_KEY")
                 or os.environ.get("GROQ_APIKEY")
             )
+        if self.GEMINI_API_KEY and not self.GROQ_API_KEY:
+            self.QUESTION_GEN_PROVIDER = "gemini"
+            self.LIVE_PROVIDER = "gemini"
+            self.EVALUATION_PROVIDER = "gemini"
+            self.REPORT_PROVIDER = "gemini"
 
     # ── Model names (override per deployment) ─────────────────────────────────
     GEMINI_MODEL: str = "gemini-2.0-flash"
