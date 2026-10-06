@@ -24,6 +24,31 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "VIVORA — Intelligent AI Study, Viva & Interview Platform",
   description: "Study smarter. Speak better. Perform with confidence. Your AI workspace for studying, viva preparation, technical interviews, and real-world oral communication.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://vivora.ai"),
+  openGraph: {
+    title: "VIVORA — Intelligent AI Study, Viva & Interview Platform",
+    description: "Study smarter. Speak better. Perform with confidence. Your AI workspace for studying, viva preparation, technical interviews, and real-world oral communication.",
+    url: "https://vivora.ai",
+    siteName: "VIVORA",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VIVORA — Intelligent AI Study, Viva & Interview Platform",
+    description: "Study smarter. Speak better. Perform with confidence. Your AI workspace for studying, viva preparation, and mock technical interviews.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({
