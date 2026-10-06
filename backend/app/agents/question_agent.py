@@ -102,17 +102,27 @@ class QuestionAgent(BaseAgent):
             default_topic = topic or (job_role if mode == "interview" else "General")
             for idx, q in enumerate(generated):
                 q_text = q.get("question_text", "").strip()
-                if not q_text:
+                if not q_text or len(q_text) < 10 or q_text.upper() in ("N/A", "NONE", "NULL", "UNDEFINED"):
                     continue
+                ref_ans = q.get("reference_answer", "").strip()
+                if not ref_ans or ref_ans.upper() in ("N/A", "NONE", "NULL"):
+                    ref_ans = f"Comprehensive technical concepts and principles regarding {q.get('topic', default_topic)}."
+                fu_q = q.get("followup_question", "").strip()
+                if fu_q.upper() in ("N/A", "NONE", "NULL"):
+                    fu_q = ""
+                fu_ans = q.get("followup_answer", "").strip()
+                if fu_ans.upper() in ("N/A", "NONE", "NULL"):
+                    fu_ans = ""
+
                 result.append({
                     "order_no": idx + 1,
                     "question_text": q_text,
                     "topic": q.get("topic", default_topic),
                     "difficulty": q.get("difficulty", "medium"),
                     "origin": "generated",
-                    "reference_answer": q.get("reference_answer", ""),
-                    "followup_question": q.get("followup_question", ""),
-                    "followup_answer": q.get("followup_answer", "")
+                    "reference_answer": ref_ans,
+                    "followup_question": fu_q,
+                    "followup_answer": fu_ans
                 })
             if result:
                 return result

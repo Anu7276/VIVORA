@@ -89,12 +89,24 @@ except Exception as _mig_exc:
 # /docs and /openapi.json are only served in development mode.
 _is_dev = settings.ENV.lower() == "development"
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    try:
+        from app.llm.router import close_shared_http_client
+        await close_shared_http_client()
+    except Exception:
+        pass
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     # Disable interactive docs outside development to avoid exposing API surface.
     docs_url="/docs" if _is_dev else None,
     redoc_url="/redoc" if _is_dev else None,
     openapi_url=f"{settings.API_V1_STR}/openapi.json" if _is_dev else None,
+    lifespan=lifespan,
 )
 
 MAX_GLOBAL_BODY_SIZE = 2 * 1024 * 1024  # 2 MB

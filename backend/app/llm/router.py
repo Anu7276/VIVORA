@@ -44,16 +44,43 @@ TASK_PROVIDER_MAP: Dict[str, str] = {
 }
 
 
+TASK_MAX_TOKENS: Dict[str, int] = {
+    "live_turn": 250,
+    "evaluation": 600,
+    "question_generation": 1500,
+    "report": 2500,
+}
+
+_shared_http_client: Optional[httpx.AsyncClient] = None
+
+
+def get_shared_http_client() -> httpx.AsyncClient:
+    global _shared_http_client
+    if _shared_http_client is None or _shared_http_client.is_closed:
+        _shared_http_client = httpx.AsyncClient(
+            timeout=30.0,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=50, keepalive_expiry=30.0),
+        )
+    return _shared_http_client
+
+
+async def close_shared_http_client() -> None:
+    global _shared_http_client
+    if _shared_http_client is not None and not _shared_http_client.is_closed:
+        await _shared_http_client.aclose()
+        _shared_http_client = None
+
+
 # ─── Abstract base ────────────────────────────────────────────────────────────
 class LLMProvider(ABC):
     name: str = "base"
 
     @abstractmethod
-    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> str:
         pass
 
     @abstractmethod
-    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
+    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> Dict[str, Any]:
         pass
 
 
@@ -70,19 +97,21 @@ class GeminiProvider(LLMProvider):
             f"{self.model}:generateContent"
         )
 
-    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> str:
         prompt = Guardrails.sanitize_input(prompt)
         full_text = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-        payload = {"contents": [{"parts": [{"text": full_text}]}]}
+        payload: Dict[str, Any] = {"contents": [{"parts": [{"text": full_text}]}]}
+        if max_tokens:
+            payload["generationConfig"] = {"maxOutputTokens": max_tokens}
         headers = {"x-goog-api-key": self.api_key, "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(self.base_url, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+        client = get_shared_http_client()
+        resp = await client.post(self.base_url, headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
-    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
-        text = await self.generate_text(prompt, system_prompt)
+    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> Dict[str, Any]:
+        text = await self.generate_text(prompt, system_prompt, max_tokens=max_tokens)
         return _extract_json_from_text(text)
 
 
@@ -95,40 +124,46 @@ class GroqProvider(LLMProvider):
         self.base_url = "https://api.groq.com/openai/v1/chat/completions"
         self.model = settings.GROQ_MODEL
 
-    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> str:
         prompt = Guardrails.sanitize_input(prompt)
         messages: List[Dict[str, str]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                self.base_url, headers=headers,
-                json={"model": self.model, "messages": messages},
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+        payload: Dict[str, Any] = {"model": self.model, "messages": messages}
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        client = get_shared_http_client()
+        resp = await client.post(
+            self.base_url, headers=headers,
+            json=payload,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
 
-    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
+    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> Dict[str, Any]:
         prompt = Guardrails.sanitize_input(prompt)
         messages: List[Dict[str, str]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                self.base_url, headers=headers,
-                json={
-                    "model": self.model,
-                    "messages": messages,
-                    "response_format": {"type": "json_object"}
-                },
-            )
-            resp.raise_for_status()
-            text = resp.json()["choices"][0]["message"]["content"]
-            return _extract_json_from_text(text)
+        payload: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "response_format": {"type": "json_object"}
+        }
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        client = get_shared_http_client()
+        resp = await client.post(
+            self.base_url, headers=headers,
+            json=payload,
+        )
+        resp.raise_for_status()
+        text = resp.json()["choices"][0]["message"]["content"]
+        return _extract_json_from_text(text)
 
 
 # ─── OpenAI ───────────────────────────────────────────────────────────────────
@@ -140,23 +175,26 @@ class OpenAIProvider(LLMProvider):
         self.base_url = "https://api.openai.com/v1/chat/completions"
         self.model = settings.OPENAI_MODEL
 
-    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> str:
         prompt = Guardrails.sanitize_input(prompt)
         messages: List[Dict[str, str]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                self.base_url, headers=headers,
-                json={"model": self.model, "messages": messages},
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+        payload: Dict[str, Any] = {"model": self.model, "messages": messages}
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        client = get_shared_http_client()
+        resp = await client.post(
+            self.base_url, headers=headers,
+            json=payload,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
 
-    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
-        text = await self.generate_text(prompt, system_prompt)
+    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> Dict[str, Any]:
+        text = await self.generate_text(prompt, system_prompt, max_tokens=max_tokens)
         return _extract_json_from_text(text)
 
 
@@ -169,12 +207,12 @@ class SmartRuleFallbackProvider(LLMProvider):
     """
     name = "mock"
 
-    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def generate_text(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> str:
         if "Interviewer" in (system_prompt or ""):
             return "Let's move on to the next question. Please speak clearly whenever you are ready."
         return "Good explanation. Let us proceed with the next concept."
 
-    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
+    async def generate_json(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> Dict[str, Any]:
         # Evaluation rubric
         if "Evaluator" in (system_prompt or "") or "correctness_score" in prompt:
             if "<student_answer>" in prompt:
@@ -309,7 +347,9 @@ class SmartRuleFallbackProvider(LLMProvider):
             }
 
         # Question generation
-        if "Question" in (system_prompt or "") or "college" in prompt.lower() or "viva" in prompt.lower() or "interview" in prompt.lower() or "school" in prompt.lower():
+        sys_lower = (system_prompt or "").lower()
+        prompt_lower = prompt.lower()
+        if "question" in sys_lower or "interview" in sys_lower or "college" in prompt_lower or "viva" in prompt_lower or "interview" in prompt_lower or "school" in prompt_lower or "target job role" in prompt_lower:
             is_school = "school" in prompt.lower() or "young student" in (system_prompt or "").lower()
             is_interview = "interview" in prompt.lower() or "target job role" in prompt.lower() or "candidate" in prompt.lower() or "hiring" in (system_prompt or "").lower()
             
@@ -381,6 +421,22 @@ class SmartRuleFallbackProvider(LLMProvider):
                             "reference_answer": "Pragmatic prioritization, well-documented design choices, and planned refactoring cycles.",
                             "followup_question": "How do you align technical priorities with product and stakeholder expectations?",
                             "followup_answer": "Quantifying technical debt impact in terms of reliability, velocity, and user experience."
+                        },
+                        {
+                            "question_text": f"How do you design and architect for concurrency, security, and scalability in a {role_val} ecosystem?",
+                            "topic": f"{role_val} - Architecture & Concurrency",
+                            "difficulty": "hard",
+                            "reference_answer": "Stateless services, horizontal scaling, database connection pooling, idempotent APIs, and token bucket rate limits.",
+                            "followup_question": "How do you mitigate race conditions and deadlocks in concurrent state updates?",
+                            "followup_answer": "Optimistic concurrency control with version stamps or atomic distributed locks."
+                        },
+                        {
+                            "question_text": f"What testing, monitoring, and continuous deployment strategies do you employ for critical {role_val} services?",
+                            "topic": f"{role_val} - Testing & Operations",
+                            "difficulty": "medium",
+                            "reference_answer": "End-to-end integration tests, synthetic monitoring, canary deployments, and automated rollback triggers.",
+                            "followup_question": "How do you evaluate test coverage effectiveness beyond raw percentage metrics?",
+                            "followup_answer": "Mutation testing, boundary analysis, and testing against production incident post-mortem scenarios."
                         }
                     ]
                 }
@@ -650,14 +706,15 @@ class LLMRouter:
         prompt: str,
         system_prompt: Optional[str],
         as_json: bool,
+        max_tokens: Optional[int] = None,
     ) -> Any:
         """Call once; on 429 back off 1.5 s and retry once."""
         for attempt in range(2):
             try:
                 if as_json:
-                    return await provider.generate_json(prompt, system_prompt)
+                    return await provider.generate_json(prompt, system_prompt, max_tokens=max_tokens)
                 else:
-                    return await provider.generate_text(prompt, system_prompt)
+                    return await provider.generate_text(prompt, system_prompt, max_tokens=max_tokens)
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code == 429:
                     if attempt == 0:
@@ -692,11 +749,14 @@ class LLMRouter:
         if not candidates:
             raise RuntimeError(f"No LLM provider available for task '{task}'. Check configured API keys.")
 
+        task_max_tokens = TASK_MAX_TOKENS.get(task)
         for provider in candidates:
             t0 = time.monotonic()
             error_type: Optional[str] = None
             try:
-                result = await self._call_with_retry(provider, prompt, system_prompt, as_json)
+                result = await self._call_with_retry(
+                    provider, prompt, system_prompt, as_json, max_tokens=task_max_tokens
+                )
                 latency_ms = int((time.monotonic() - t0) * 1000)
                 is_mock = provider.name == "mock"
                 logger.info(
