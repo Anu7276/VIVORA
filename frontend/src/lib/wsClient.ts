@@ -5,6 +5,9 @@ export function getWebSocketBaseUrl(): string {
     return process.env.NEXT_PUBLIC_WS_URL.replace(/\/$/, "");
   }
   if (typeof window !== "undefined") {
+    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      return "wss://vivora-backend.onrender.com";
+    }
     const isSecure = window.location.protocol === "https:";
     const host = window.location.hostname || "127.0.0.1";
     // If running frontend on localhost:3000, default backend ws is on 8000

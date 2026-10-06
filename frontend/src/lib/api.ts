@@ -1,4 +1,16 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+export function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
+  }
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "https://vivora-backend.onrender.com/api";
+  }
+  return "http://127.0.0.1:8000/api";
+}
+
+export const API_BASE_URL = typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+  ? "https://vivora-backend.onrender.com/api"
+  : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api");
 
 // ── Auth Token Management (in-memory + sessionStorage, never localStorage) ────
 let _inMemoryToken: string | null = null;
