@@ -9,6 +9,8 @@ backend/.venv/
 env/
 venv/
 *.db
+*.db-shm
+*.db-wal
 *.sqlite3
 
 # Node.js & Next.js

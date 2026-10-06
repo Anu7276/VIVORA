@@ -150,12 +150,14 @@ async def request_id_and_logging_middleware(request: Request, call_next):
     )
     return response
 
-# CORS configuration — explicit list of origins to avoid wildcard+credentials vulnerability.
-# Using '*' with allow_credentials=True is rejected by browsers and is a security flaw.
+cors_origins = list(settings.BACKEND_CORS_ORIGINS)
+if settings.FRONTEND_URL and settings.FRONTEND_URL not in cors_origins:
+    cors_origins.append(settings.FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_origins=cors_origins,
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1)(:[0-9]+)?|https://.*\.vercel\.app)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -168,22 +170,22 @@ app.include_router(session.router, prefix=f"{settings.API_V1_STR}/session", tags
 app.include_router(report.router, prefix=f"{settings.API_V1_STR}/report", tags=["Report & Analytics"])
 app.include_router(interview_ws.router, tags=["Realtime Voice WebSocket"])
 
-if _is_dev:
-    @app.get("/")
-    def root():
-        return {
-            "status": "online",
-            "service": settings.PROJECT_NAME,
-            "docs": "/docs",
-            "llm_routing": {
-                "question_generation": settings.QUESTION_GEN_PROVIDER,
-                "live_turn": settings.LIVE_PROVIDER,
-                "evaluation": settings.EVALUATION_PROVIDER,
-                "report": settings.REPORT_PROVIDER,
-            },
-            "stt_provider": settings.STT_PROVIDER,
-            "tts_provider": settings.TTS_PROVIDER,
-        }
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": settings.PROJECT_NAME,
+        "docs": "/docs" if _is_dev else "disabled in production",
+        "health": "/health",
+        "llm_routing": {
+            "question_generation": settings.QUESTION_GEN_PROVIDER,
+            "live_turn": settings.LIVE_PROVIDER,
+            "evaluation": settings.EVALUATION_PROVIDER,
+            "report": settings.REPORT_PROVIDER,
+        },
+        "stt_provider": settings.STT_PROVIDER,
+        "tts_provider": settings.TTS_PROVIDER,
+    }
 
 @app.get("/health")
 @app.get(f"{settings.API_V1_STR}/health")
