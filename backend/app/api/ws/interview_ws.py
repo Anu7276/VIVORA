@@ -32,6 +32,9 @@ router = APIRouter()
 FILLER_REGEX = re.compile(r"\b(um|uh|like|you know|basically|actually)\b", re.IGNORECASE)
 MAX_EVAL_RETRIES_PER_QUESTION = 2
 
+# Guard against double-submit race conditions per session
+_submitting_sessions: set = set()
+
 
 @router.websocket("/ws/session/{session_id}")
 async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
@@ -305,6 +308,15 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                     # Don't commit or write DB on stt_partial
 
                 elif msg_type == "submit_answer":
+                    if session_id in _submitting_sessions:
+                        logger.warning(f"Submission already in progress for session {session_id}; rejecting duplicate submit.")
+                        await websocket.send_json({
+                            "type": "info",
+                            "message": "Evaluation in progress, please wait..."
+                        })
+                        continue
+
+                    _submitting_sessions.add(session_id)
                     sub_msg = SubmitAnswerMessage(**data)
 
                     # 1. If all questions finished, ignore submit gracefully
@@ -661,10 +673,13 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                     "code": "HANDLER_ERROR",
                     "message": "Internal error processing request."
                 })
+            finally:
+                _submitting_sessions.discard(session_id)
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for session {session_id}")
     except Exception as e:
         logger.error(f"WebSocket unhandled error for session {session_id}: {e}", exc_info=True)
     finally:
+        _submitting_sessions.discard(session_id)
         db.close()

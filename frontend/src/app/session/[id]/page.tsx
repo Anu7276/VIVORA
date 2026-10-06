@@ -416,7 +416,8 @@ export default function SessionRoomPage() {
   };
 
   const handleSubmitAnswer = () => {
-    if (!transcript.trim()) return;
+    if (!transcript.trim() || isEvaluating) return;
+    setIsEvaluating(true);
     stopMicrophone();
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
