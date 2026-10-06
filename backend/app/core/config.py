@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
 
     # ── Model names (override per deployment) ─────────────────────────────────
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
     GROQ_MODEL: str = "qwen/qwen3.8-27b"
     OPENAI_MODEL: str = "gpt-4o-mini"
 

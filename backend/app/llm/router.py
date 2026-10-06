@@ -90,29 +90,93 @@ class GeminiProvider(LLMProvider):
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.model = settings.GEMINI_MODEL
-        # Key goes in the request header, NEVER in the URL query string.
-        self.base_url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent"
-        )
+        model = settings.GEMINI_MODEL
+        if model in ("gemini-2.5-flash", "gemini-flash"):
+            model = "gemini-2.0-flash"
+        self.model = model
+
+    def _url_for(self, model_name: str) -> str:
+        return f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
 
     async def generate_text(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> str:
         prompt = Guardrails.sanitize_input(prompt)
-        full_text = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-        payload: Dict[str, Any] = {"contents": [{"parts": [{"text": full_text}]}]}
+        payload: Dict[str, Any] = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        if system_prompt:
+            payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+        gen_cfg: Dict[str, Any] = {}
         if max_tokens:
-            payload["generationConfig"] = {"maxOutputTokens": max_tokens}
+            gen_cfg["maxOutputTokens"] = max_tokens
+        if gen_cfg:
+            payload["generationConfig"] = gen_cfg
+
         headers = {"x-goog-api-key": self.api_key, "Content-Type": "application/json"}
         client = get_shared_http_client()
-        resp = await client.post(self.base_url, headers=headers, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+        models_to_try = [self.model]
+        if self.model != "gemini-2.0-flash" and "2.0" not in self.model:
+            models_to_try.append("gemini-2.0-flash")
+        if "1.5-flash" not in models_to_try:
+            models_to_try.append("gemini-1.5-flash")
+
+        last_exc = None
+        for m in models_to_try:
+            try:
+                resp = await client.post(self._url_for(m), headers=headers, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            except httpx.HTTPStatusError as exc:
+                last_exc = exc
+                if exc.response.status_code in (404, 400) and m != models_to_try[-1]:
+                    continue
+                raise
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Gemini generate_text call failed")
 
     async def generate_json(self, prompt: str, system_prompt: Optional[str] = None, max_tokens: Optional[int] = None) -> Dict[str, Any]:
-        text = await self.generate_text(prompt, system_prompt, max_tokens=max_tokens)
-        return _extract_json_from_text(text)
+        prompt = Guardrails.sanitize_input(prompt)
+        payload: Dict[str, Any] = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        if system_prompt:
+            payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+        gen_cfg: Dict[str, Any] = {"responseMimeType": "application/json"}
+        if max_tokens:
+            gen_cfg["maxOutputTokens"] = max_tokens
+        payload["generationConfig"] = gen_cfg
+
+        headers = {"x-goog-api-key": self.api_key, "Content-Type": "application/json"}
+        client = get_shared_http_client()
+
+        models_to_try = [self.model]
+        if self.model != "gemini-2.0-flash" and "2.0" not in self.model:
+            models_to_try.append("gemini-2.0-flash")
+        if "1.5-flash" not in models_to_try:
+            models_to_try.append("gemini-1.5-flash")
+
+        last_exc = None
+        for m in models_to_try:
+            try:
+                resp = await client.post(self._url_for(m), headers=headers, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                return _extract_json_from_text(text)
+            except httpx.HTTPStatusError as exc:
+                last_exc = exc
+                if exc.response.status_code in (404, 400) and m != models_to_try[-1]:
+                    continue
+                raise
+            except Exception as exc:
+                last_exc = exc
+                text = await self.generate_text(prompt, system_prompt, max_tokens=max_tokens)
+                return _extract_json_from_text(text)
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Gemini generate_json call failed")
 
 
 # ─── Groq ─────────────────────────────────────────────────────────────────────
@@ -685,6 +749,13 @@ class LLMRouter:
         preferred = TASK_PROVIDER_MAP.get(task, "mock")
         if preferred in self._pool:
             return self._pool[preferred]
+        # Prefer any available real AI provider before mock rules
+        for real_name in ["gemini", "groq", "openai"]:
+            if real_name in self._pool:
+                return self._pool[real_name]
+        for name, p in self._pool.items():
+            if name != "mock":
+                return p
         if "mock" in self._pool:
             return self._pool["mock"]
         if self._pool:
@@ -695,8 +766,13 @@ class LLMRouter:
         primary = self._provider_for_task(task)
         primary_name = getattr(primary, "name", None)
         chain: List[LLMProvider] = []
+        # Explicit priority: If primary is groq, try gemini immediately next
+        priority_order = ["gemini", "openai"] if primary_name == "groq" else ["groq", "openai"]
+        for p_name in priority_order:
+            if p_name in self._pool and p_name != primary_name:
+                chain.append(self._pool[p_name])
         for name, prov in self._pool.items():
-            if name != primary_name and name != "mock":
+            if name != primary_name and name != "mock" and prov not in chain:
                 chain.append(prov)
         if "mock" in self._pool and primary_name != "mock":
             chain.append(self._pool["mock"])
