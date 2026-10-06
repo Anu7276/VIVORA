@@ -36,9 +36,17 @@ class SessionService:
             doc = db.query(Document).filter(Document.id == document_id).first()
             if not doc or (user_id and doc.user_id and doc.user_id != user_id):
                 raise HTTPException(status_code=404, detail="Document not found")
-            if not content_text and doc.content:
+            if doc.content:
                 content_text = doc.content
-            if title in ("Science Viva", "Science Viva Practice") and doc.title:
+            if doc.title and (not title or title in (
+                "Science Viva",
+                "Science Viva Practice",
+                "Operating Systems: Process Synchronization & Deadlocks",
+                "Class 10 Biology: Life Processes",
+                "College Viva Voce",
+                "School Viva Practice",
+                "General"
+            )):
                 title = doc.title
 
         # If job role provided for interview mode, personalize title and content

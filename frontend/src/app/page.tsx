@@ -649,8 +649,8 @@ export default function VIVORAEditorialHomePage() {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [promptText, setPromptText] = useState("");
   const [selectedMode, setSelectedMode] = useState<"interview" | "college" | "school">("college");
-  const [title, setTitle] = useState("Operating Systems: Process Synchronization & Deadlocks");
-  const [contentText, setContentText] = useState("Critical section problem, Peterson's algorithm, Semaphores, Mutex, Deadlock conditions (Mutual Exclusion, Hold and Wait, No Preemption, Circular Wait), Banker's Algorithm.");
+  const [title, setTitle] = useState("");
+  const [contentText, setContentText] = useState("");
   const [jobRole, setJobRole] = useState("Frontend Developer");
   const [experienceLevel, setExperienceLevel] = useState("Mid-Level");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -703,9 +703,9 @@ export default function VIVORAEditorialHomePage() {
       if (activeMode === "interview") {
         sessionTitle = `${jobRole || "Professional"} Interview`;
       } else if (activeMode === "college") {
-        sessionTitle = customTitle || title || promptText || "College Viva Voce";
+        sessionTitle = customTitle || title || (selectedFile ? selectedFile.name.replace(/\.[^/.]+$/, "") : "") || promptText || "College Viva Voce";
       } else {
-        sessionTitle = customTitle || title || promptText || "School Viva Practice";
+        sessionTitle = customTitle || title || (selectedFile ? selectedFile.name.replace(/\.[^/.]+$/, "") : "") || promptText || "School Viva Practice";
       }
 
       let finalContent = customContent || contentText || promptText;
@@ -1815,9 +1815,10 @@ export default function VIVORAEditorialHomePage() {
                 type="button"
                 onClick={() => {
                   setSelectedMode("school");
-                  setTitle("Class 10 Biology: Life Processes");
-                  setContentText("Photosynthesis, Respiration, Hemoglobin, Circulation, Excretion");
-                  setSelectedFile(null);
+                  if (!selectedFile) {
+                    setTitle("");
+                    setContentText("");
+                  }
                   setError(null);
                 }}
                 className={`p-2.5 rounded-xl border text-center transition-all ${
@@ -1832,9 +1833,10 @@ export default function VIVORAEditorialHomePage() {
                 type="button"
                 onClick={() => {
                   setSelectedMode("college");
-                  setTitle("Operating Systems: Process Synchronization & Deadlocks");
-                  setContentText("Critical section, Peterson's algorithm, Semaphores, Mutex, Deadlocks, Banker's Algorithm");
-                  setSelectedFile(null);
+                  if (!selectedFile) {
+                    setTitle("");
+                    setContentText("");
+                  }
                   setError(null);
                 }}
                 className={`p-2.5 rounded-xl border text-center transition-all ${
@@ -1850,8 +1852,9 @@ export default function VIVORAEditorialHomePage() {
                 onClick={() => {
                   setSelectedMode("interview");
                   setJobRole("Frontend Developer");
-                  setContentText("");
-                  setSelectedFile(null);
+                  if (!selectedFile) {
+                    setContentText("");
+                  }
                   setError(null);
                 }}
                 className={`p-2.5 rounded-xl border text-center transition-all ${
