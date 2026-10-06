@@ -49,22 +49,7 @@ _CONSENT_LINK_TTL_HOURS = 48
 
 
 # ─── Rate Limiter ─────────────────────────────────────────────────────────────
-class SimpleRateLimiter:
-    """In-memory sliding window rate limiter."""
-    def __init__(self, max_requests: int = 10, window_sec: int = 60):
-        self.max_requests = max_requests
-        self.window_sec = window_sec
-        self._records: Dict[str, List[float]] = defaultdict(list)
-
-    def check_and_record(self, key: str) -> bool:
-        now = time.monotonic()
-        cutoff = now - self.window_sec
-        # Filter older timestamps
-        self._records[key] = [t for t in self._records[key] if t > cutoff]
-        if len(self._records[key]) >= self.max_requests:
-            return False
-        self._records[key].append(now)
-        return True
+from app.core.rate_limiter import SimpleRateLimiter
 
 # Rate limiters: 10 requests / min per IP, 5 requests / min per email
 _ip_rate_limiter = SimpleRateLimiter(max_requests=10, window_sec=60)

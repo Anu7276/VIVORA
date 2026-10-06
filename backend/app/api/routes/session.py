@@ -12,7 +12,9 @@ Security changes (Phase 1):
   - time_limit_min validated as 1..MAX_TIME_LIMIT_MIN (from settings).
 """
 
-from datetime import datetime
+import os
+from datetime import datetime, timezone
+from starlette.requests import Request
 from typing import Optional, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -21,6 +23,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from app.core.auth import get_active_user
 from app.core.config import settings
+from app.core.rate_limiter import session_start_limiter
 from app.db.database import get_db
 from app.db.models import Session, Question, Answer, Evaluation, User
 from app.services.session_service import session_service
@@ -69,13 +72,36 @@ class CreateSessionRequest(BaseModel):
 @router.post("/start")
 async def start_new_session(
     req: CreateSessionRequest,
+    request: Request,
     db: DBSession = Depends(get_db),
     current_user: User = Depends(get_active_user),   # JWT required + account active
 ):
     """
     Initialize a new viva session.
     Requires a valid JWT Bearer token; the session is scoped to the authenticated user.
+    Enforces per-minute rate limit and daily session cap.
     """
+    is_test = bool(os.environ.get("PYTEST_CURRENT_TEST"))
+    check_limits = (not is_test) or (request.headers.get("X-Test-Rate-Limit") == "true")
+
+    if check_limits:
+        if not session_start_limiter.check_and_record(current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many session creation requests. Please wait a moment before starting another session.",
+            )
+
+        now_utc = datetime.now(timezone.utc)
+        today_start = datetime(now_utc.year, now_utc.month, now_utc.day)
+        daily_count = db.query(Session).filter(
+            Session.user_id == current_user.id,
+            Session.created_at >= today_start
+        ).count()
+        if daily_count >= settings.DAILY_SESSION_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Daily session limit reached ({settings.DAILY_SESSION_LIMIT} sessions/day). Please try again tomorrow.",
+            )
     session = await session_service.create_session(
         db=db,
         mode=req.mode,

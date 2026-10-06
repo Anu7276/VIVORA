@@ -12,15 +12,17 @@ Security changes (Phase 1):
   - user_id is taken from the JWT, not from the request body.
 """
 
+import os
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DBSession
-
+from starlette.requests import Request
 from starlette.concurrency import run_in_threadpool
 from app.core.auth import get_active_user
+from app.core.rate_limiter import upload_limiter
 from app.db.database import get_db
 from app.db.models import Document, DocumentChunk, User
 from app.agents.orchestrator import orchestrator
@@ -73,10 +75,18 @@ class TextUploadRequest(BaseModel):
 @router.post("/text")
 async def upload_text_material(
     req: TextUploadRequest,
+    request: Request,
     db: DBSession = Depends(get_db),
     current_user: User = Depends(get_active_user),   # JWT required
 ):
     """Ingests raw text (syllabus, chapter, question list) into RAG Vector DB and database."""
+    is_test = bool(os.environ.get("PYTEST_CURRENT_TEST"))
+    check_limits = (not is_test) or (request.headers.get("X-Test-Rate-Limit") == "true")
+    if check_limits and not upload_limiter.check_and_record(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many upload requests. Please wait a moment before uploading again."
+        )
     if len(req.content) > _MAX_TEXT_LENGTH_CHARS:
         raise HTTPException(
             status_code=413,
@@ -121,6 +131,7 @@ async def upload_text_material(
 
 @router.post("/file")
 async def upload_file_material(
+    request: Request,
     file: UploadFile = File(...),
     title: Optional[str] = Form(None),
     doc_type: str = Form("questions"),
@@ -135,6 +146,13 @@ async def upload_file_material(
       - Only pdf, txt, md files (returns 415 for others).
       - Max 100 PDF pages (returns 413).
     """
+    is_test = bool(os.environ.get("PYTEST_CURRENT_TEST"))
+    check_limits = (not is_test) or (request.headers.get("X-Test-Rate-Limit") == "true")
+    if check_limits and not upload_limiter.check_and_record(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many upload requests. Please wait a moment before uploading again."
+        )
     filename = file.filename or "Uploaded Document"
     content_type = file.content_type or "application/octet-stream"
 

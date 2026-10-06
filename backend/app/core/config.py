@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     # Session defaults
     DEFAULT_TIME_LIMIT_MIN: int = 15
     MAX_TIME_LIMIT_MIN: int = 30
+    DAILY_SESSION_LIMIT: int = 5
 
     # ── Scoring Weights ───────────────────────────────────────────────────────
     SCORE_WEIGHT_CORRECTNESS: float = 0.5

@@ -29,6 +29,8 @@ from app.schemas.ws_messages import (
 logger = logging.getLogger("vivora.ws")
 router = APIRouter()
 
+from app.core.rate_limiter import doubt_limiter
+
 FILLER_REGEX = re.compile(r"\b(um|uh|like|you know|basically|actually)\b", re.IGNORECASE)
 MAX_EVAL_RETRIES_PER_QUESTION = 2
 
@@ -557,6 +559,14 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
 
                 elif msg_type == "ask_doubt":
                     doubt_msg = AskDoubtMessage(**data)
+                    if not doubt_limiter.check_and_record(session_id):
+                        await websocket.send_json({
+                            "type": "error",
+                            "code": "RATE_LIMIT_EXCEEDED",
+                            "message": "Too many doubt questions asked. Please wait before asking another doubt."
+                        })
+                        continue
+
                     doubt_res = await orchestrator.handle_doubt(
                         tenant_id=session.document_id or session.id,
                         doubt_query=doubt_msg.doubt,
