@@ -409,30 +409,30 @@ export default function SessionRoomPage() {
     <div className="flex flex-col h-screen w-screen bg-[#F9F8F5] text-[#1a1b1e] font-sans select-none overflow-hidden">
       
       {/* ── TOP HEADER BAR ─────────────────────────────────────────────────── */}
-      <header className="min-h-16 bg-white border-b border-[#E8E4DA] px-3 sm:px-6 py-2 flex flex-wrap items-center justify-between z-20 shrink-0 shadow-2xs gap-2">
+      <header className="h-14 bg-white border-b border-[#E8E4DA] px-3 sm:px-5 flex items-center justify-between z-20 shrink-0 shadow-2xs">
         {/* Brand & Topic Section */}
-        <div className="flex items-center space-x-3.5">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#1C1C1E] flex items-center justify-center text-white text-xs font-mono font-medium shadow-xs">
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+          <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#1C1C1E] flex items-center justify-center text-white text-xs font-mono font-medium shadow-xs">
               ✦
             </div>
-            <span className="font-serif italic text-xl text-[#1a1b1e] font-semibold tracking-tight">
+            <span className="font-serif italic text-lg sm:text-xl text-[#1a1b1e] font-semibold tracking-tight">
               vivora
             </span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-[#7D9F68]/15 text-[#2d4a3e] border border-[#7D9F68]/30 uppercase">
-              AI VIVA
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono font-bold tracking-wider bg-[#7D9F68]/15 text-[#2d4a3e] border border-[#7D9F68]/30 uppercase">
+              {session?.mode ? session.mode.toUpperCase() : "VIVA"}
             </span>
           </div>
 
-          <div className="h-4 w-px bg-[#E2DED4]" />
+          <div className="hidden md:block h-4 w-px bg-[#E2DED4] shrink-0" />
 
-          {/* Mode & Topic Badge */}
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-semibold text-[#1a1b1e] uppercase tracking-wide">
+          {/* Mode & Topic Badge (Hidden on mobile to preserve single-row layout) */}
+          <div className="hidden md:flex items-center space-x-2 min-w-0">
+            <span className="text-xs font-semibold text-[#1a1b1e] uppercase tracking-wide shrink-0">
               {session?.mode ? `${session.mode} Studio` : "Technical Viva"}
             </span>
             <span className="text-xs text-[#5A5D64]">•</span>
-            <span className="text-xs text-[#555850] font-medium max-w-[220px] md:max-w-xs truncate">
+            <span className="text-xs text-[#555850] font-medium max-w-[200px] lg:max-w-xs truncate">
               {currentQuestion?.topic || (session as any)?.title || "Oral Technical Examination"}
             </span>
           </div>
@@ -462,109 +462,103 @@ export default function SessionRoomPage() {
           </span>
         </div>
 
-        {/* Right Header Area: Latency + Timer + End Action */}
-        <div className="flex items-center space-x-3">
+        {/* Right Header Area: Timer + End Action */}
+        <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
           <div className="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-[#F0FDF4] border border-[#BBF7D0] text-[11px] font-mono text-[#244B34] font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-[#34C759] animate-pulse" />
-            <span>14ms Latency</span>
+            <span>14ms</span>
           </div>
 
-          <div className="flex items-center space-x-2 font-mono text-xs text-[#475569] bg-[#FAF9F5] px-3 py-1.5 rounded-full border border-[#E8E4DA] shadow-2xs">
+          <div className="flex items-center space-x-1.5 font-mono text-xs text-[#475569] bg-[#FAF9F5] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-[#E8E4DA] shadow-2xs">
             <TimerIcon className="w-3.5 h-3.5 text-[#7D9F68] animate-pulse" />
-            <span>{formatTimer(remainingSeconds)}</span>
+            <span className="font-semibold">{formatTimer(remainingSeconds)}</span>
           </div>
 
           <button
             onClick={() => setShowEndModal(true)}
             aria-label="End examination session"
-            className="px-3.5 py-1.5 rounded-full text-xs font-semibold font-mono text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors flex items-center space-x-1.5"
+            className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-xs font-semibold font-mono text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors flex items-center space-x-1"
           >
-            <span>End Session</span>
+            <LogOut className="w-3 h-3 sm:hidden" />
+            <span className="hidden sm:inline">End Session</span>
+            <span className="sm:hidden">End</span>
           </button>
         </div>
       </header>
 
       {/* ── MAIN STUDIO CONTENT ────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden p-3 sm:p-4 md:p-5 gap-5">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden p-2.5 sm:p-4 md:p-5 gap-3.5 sm:gap-5">
         
         {/* ── LEFT/CENTER STAGE: VIRTUAL INTERVIEW ROOM + QUESTION ARENA ────── */}
-        <div className="flex-1 flex flex-col gap-4 overflow-y-visible lg:overflow-y-auto min-w-0 pr-1">
+        <div className="flex-1 flex flex-col gap-3 sm:gap-4 overflow-y-visible lg:overflow-y-auto min-w-0 pr-0.5">
           
-          {/* 1. DUAL VIDEO STAGE: EXAMINER & CANDIDATE TILES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[250px] md:h-[280px] shrink-0">
+          {/* 1. DUAL VIDEO STAGE: EXAMINER & CANDIDATE TILES (Side-by-side on mobile, proportional, never squashed) */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3.5 h-36 sm:h-48 md:h-[260px] shrink-0">
             
             {/* Tile A: AI Examiner (Dr. Aris) */}
-            <div className="bg-[#0e1014] border border-neutral-800 rounded-2xl relative overflow-hidden flex flex-col justify-between p-4 shadow-md">
+            <div className="bg-[#0e1014] border border-neutral-800 rounded-xl sm:rounded-2xl relative overflow-hidden flex flex-col justify-between p-2.5 sm:p-4 shadow-md">
               {/* Top Bar inside Examiner Tile */}
               <div className="flex items-center justify-between z-10">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="font-mono text-xs font-semibold text-neutral-200">
+                <div className="flex items-center space-x-1.5 sm:space-x-2">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-mono text-[11px] sm:text-xs font-semibold text-neutral-200">
                     Dr. Aris
                   </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700/60 uppercase">
+                  <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700/60 uppercase">
                     AI Examiner
                   </span>
                 </div>
 
                 {isAISpeaking ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10px] font-mono font-bold text-emerald-300 flex items-center space-x-1.5 shadow-[0_0_12px_rgba(52,211,153,0.3)] animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    <span>Speaking Question</span>
+                  <span className="px-1.5 sm:px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[9px] sm:text-[10px] font-mono font-bold text-emerald-300 flex items-center space-x-1 shadow-[0_0_12px_rgba(52,211,153,0.3)] animate-pulse">
+                    <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Speaking</span>
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-400">
+                  <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-neutral-900 border border-neutral-800 text-[9px] sm:text-[10px] font-mono text-neutral-400">
                     Listening
                   </span>
                 )}
               </div>
 
               {/* Center Animated Voice Orb / Wave Presence */}
-              <div className="flex-1 flex flex-col items-center justify-center relative">
-                {/* Concentric Sonic Rings */}
+              <div className="flex-1 flex flex-col items-center justify-center relative my-1">
                 <div className="relative flex items-center justify-center">
                   {isAISpeaking && (
                     <>
-                      <div className="absolute w-28 h-28 rounded-full border border-emerald-500/30 animate-ping opacity-60 pointer-events-none" />
-                      <div className="absolute w-36 h-36 rounded-full border border-emerald-500/20 animate-pulse pointer-events-none" />
+                      <div className="absolute w-16 h-16 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full border border-emerald-500/30 animate-ping opacity-60 pointer-events-none" />
+                      <div className="absolute w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 rounded-full border border-emerald-500/20 animate-pulse pointer-events-none" />
                     </>
                   )}
-                  <div className={`w-20 h-20 rounded-full bg-gradient-to-br from-neutral-800 via-neutral-900 to-black border-2 flex items-center justify-center shadow-xl transition-all ${
+                  <div className={`w-11 h-11 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-neutral-800 via-neutral-900 to-black border-2 flex items-center justify-center shadow-xl transition-all ${
                     isAISpeaking ? "border-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] scale-105" : "border-neutral-700"
                   }`}>
-                    <span className="text-2xl font-serif font-bold text-emerald-400">✦</span>
+                    <span className="text-base sm:text-xl md:text-2xl font-serif font-bold text-emerald-400">✦</span>
                   </div>
                 </div>
 
-                <div className="mt-3 text-center">
-                  <p className="text-xs font-sans text-neutral-300 font-medium">
-                    {isAISpeaking ? "Dr. Aris is articulating question..." : "Attentively analyzing your defense"}
+                <div className="mt-1 sm:mt-2 text-center px-1">
+                  <p className="text-[10px] sm:text-xs font-sans text-neutral-300 font-medium truncate max-w-[130px] sm:max-w-none">
+                    {isAISpeaking ? "Articulating question..." : "Analyzing defense"}
                   </p>
                 </div>
               </div>
 
               {/* Bottom Examiner Audio Strip */}
-              <div className="flex items-center justify-between z-10 pt-2 border-t border-neutral-800/80 text-[11px] font-mono text-neutral-400">
-                <div className="flex items-center space-x-1.5">
-                  <div className={`w-1 h-3 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
-                  <div className={`w-1 h-5 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
-                  <div className={`w-1 h-2 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
-                  <div className={`w-1 h-4 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
-                  <span className="ml-1 text-[10px] text-neutral-400">Voice Synthesis Engine</span>
+              <div className="flex items-center justify-between z-10 pt-1 sm:pt-2 border-t border-neutral-800/80 text-[10px] sm:text-[11px] font-mono text-neutral-400">
+                <div className="flex items-center space-x-1 sm:space-x-1.5">
+                  <div className={`w-0.5 sm:w-1 h-2 sm:h-3 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
+                  <div className={`w-0.5 sm:w-1 h-3.5 sm:h-5 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
+                  <div className={`w-0.5 sm:w-1 h-1.5 sm:h-2 rounded-full bg-emerald-400 ${isAISpeaking ? "animate-pulse" : "opacity-30"}`} />
+                  <span className="hidden sm:inline ml-1 text-[10px] text-neutral-400">Voice Synthesis Engine</span>
                 </div>
 
-                <button
-                  onClick={handleReplayQuestion}
-                  className="px-2.5 py-1 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 hover:text-white transition-colors flex items-center space-x-1 text-[11px]"
-                >
-                  <Volume2 className="w-3 h-3 text-emerald-400" />
-                  <span>Replay</span>
-                </button>
+                <span className="text-[9px] sm:text-[10px] font-mono text-emerald-400/80">AI Examiner</span>
               </div>
             </div>
 
             {/* Tile B: Candidate Video Feed (You) */}
-            <div className="bg-[#0e1014] border border-neutral-800 rounded-2xl relative overflow-hidden flex flex-col justify-between p-4 shadow-md">
+            <div className="bg-[#0e1014] border border-neutral-800 rounded-xl sm:rounded-2xl relative overflow-hidden flex flex-col justify-between p-2.5 sm:p-4 shadow-md">
               {/* Live Video Camera Stream */}
               {isCameraActive ? (
                 <video
@@ -582,56 +576,58 @@ export default function SessionRoomPage() {
                   style={{ transform: "scaleX(-1)" }}
                 />
               ) : (
-                <div className="absolute inset-0 bg-[#12151a] flex flex-col items-center justify-center space-y-2 text-neutral-400">
-                  <div className="w-16 h-16 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-400">
-                    <Camera className="w-7 h-7 opacity-50" />
+                <div className="absolute inset-0 bg-[#12151a] flex flex-col items-center justify-center space-y-1 sm:space-y-2 text-neutral-400">
+                  <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-400">
+                    <Camera className="w-5 h-5 sm:w-6 sm:h-6 opacity-50" />
                   </div>
-                  <span className="text-xs font-mono text-neutral-400">Camera Paused</span>
+                  <span className="text-[10px] sm:text-xs font-mono text-neutral-400">Camera Paused</span>
                 </div>
               )}
 
               {/* Overlaid Top Bar inside Candidate Tile */}
               <div className="flex items-center justify-between z-10">
-                <div className="flex items-center space-x-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-xs font-mono">
-                  <div className={`w-2 h-2 rounded-full ${isCameraActive ? "bg-[#34C759] animate-pulse" : "bg-neutral-500"}`} />
-                  <span className="text-white font-medium">You (Candidate)</span>
+                <div className="flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 text-[10px] sm:text-xs font-mono">
+                  <div className={`w-1.5 h-1.5 rounded-full ${isCameraActive ? "bg-[#34C759] animate-pulse" : "bg-neutral-500"}`} />
+                  <span className="text-white font-medium">You</span>
                 </div>
 
-                <div className="flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-[10px] font-mono text-emerald-400 font-bold">
-                  <span>LIVE HD</span>
+                <div className="flex items-center space-x-1 bg-black/60 backdrop-blur-md px-1.5 sm:px-2 py-0.5 rounded-full border border-white/10 text-[9px] sm:text-[10px] font-mono text-emerald-400 font-bold">
+                  <span>LIVE</span>
                 </div>
               </div>
 
               {/* Overlaid Bottom Bar with Quick Camera & Mic Toggles */}
-              <div className="flex items-center justify-between z-10 pt-2">
-                <div className="flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-[10px] font-mono text-neutral-300">
-                  <div className={`w-1.5 h-1.5 rounded-full ${isMicActive ? "bg-[#34C759] animate-pulse" : "bg-amber-400"}`} />
-                  <span>{isMicActive ? "Mic Listening" : "Mic Muted"}</span>
+              <div className="flex items-center justify-between z-10 pt-1">
+                <div className="flex items-center space-x-1 bg-black/60 backdrop-blur-md px-1.5 sm:px-2 py-0.5 rounded-full border border-white/10 text-[9px] sm:text-[10px] font-mono text-neutral-300">
+                  <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isMicActive ? "bg-[#34C759] animate-pulse" : "bg-amber-400"}`} />
+                  <span className="hidden xs:inline">{isMicActive ? "Listening" : "Muted"}</span>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-1.5">
                   <button
                     onClick={handleToggleMic}
-                    className={`p-2 rounded-xl backdrop-blur-md border transition-all ${
+                    className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl backdrop-blur-md border transition-all ${
                       isMicActive
                         ? "bg-[#2D4A3E]/90 border-emerald-500/40 text-emerald-300"
                         : "bg-black/60 border-white/10 text-neutral-300 hover:text-white"
                     }`}
                     title={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
+                    aria-label={isMicActive ? "Mute Microphone" : "Unmute Microphone"}
                   >
-                    {isMicActive ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+                    {isMicActive ? <Mic className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <MicOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                   </button>
 
                   <button
                     onClick={() => setIsCameraActive(!isCameraActive)}
-                    className={`p-2 rounded-xl backdrop-blur-md border transition-all ${
+                    className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl backdrop-blur-md border transition-all ${
                       isCameraActive
                         ? "bg-[#2D4A3E]/90 border-emerald-500/40 text-emerald-300"
                         : "bg-black/60 border-white/10 text-neutral-300 hover:text-white"
                     }`}
                     title={isCameraActive ? "Turn Off Camera" : "Turn On Camera"}
+                    aria-label={isCameraActive ? "Turn Off Camera" : "Turn On Camera"}
                   >
-                    {isCameraActive ? <Video className="w-3.5 h-3.5" /> : <VideoOff className="w-3.5 h-3.5" />}
+                    {isCameraActive ? <Video className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <VideoOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                   </button>
                 </div>
               </div>
@@ -639,57 +635,100 @@ export default function SessionRoomPage() {
           </div>
 
           {/* 2. CURRENT QUESTION SHOWCASE ARENA */}
-          <div className="bg-white border border-[#E8E4DA] rounded-2xl p-5 shadow-xs space-y-3 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-[#4C6E38]" />
-                <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#2D4A3E]">
+          <div className="bg-white border border-[#E8E4DA] rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs space-y-2 sm:space-y-3 shrink-0">
+            <div className="flex items-center justify-between gap-1.5">
+              <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-[#4C6E38] shrink-0" />
+                <span className="font-mono text-[11px] sm:text-xs font-bold uppercase tracking-wider text-[#2D4A3E] shrink-0">
                   Question {questionIndex + 1} of {totalQuestions}
                 </span>
-                <span className="text-xs text-[#5A5D64]">•</span>
-                <span className="text-xs font-mono text-[#555850]">Oral Evaluation</span>
+                <span className="text-xs text-[#5A5D64] hidden sm:inline">•</span>
+                <span className="text-[11px] sm:text-xs font-mono text-[#555850] truncate hidden sm:inline">
+                  Oral Evaluation
+                </span>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
                 <button
                   onClick={handleReplayQuestion}
                   aria-label="Replay current question audio"
-                  className="flex items-center space-x-1 px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-xs font-mono text-[#555850] transition-colors"
+                  className="flex items-center space-x-1 px-2.5 sm:px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-[11px] sm:text-xs font-mono text-[#555850] transition-colors"
                 >
                   <Volume2 className="w-3 h-3 text-[#4C6E38]" />
-                  <span>Replay Audio</span>
+                  <span className="hidden xs:inline">Replay</span>
                 </button>
 
                 <button
                   onClick={() => setShowDoubtModal(true)}
                   aria-label="Ask doubt about current question"
-                  className="flex items-center space-x-1 px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-xs font-mono text-[#4f46e5] transition-colors"
+                  className="flex items-center space-x-1 px-2.5 sm:px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-[11px] sm:text-xs font-mono text-[#4f46e5] transition-colors"
                 >
                   <HelpCircle className="w-3 h-3 text-[#4f46e5]" />
-                  <span>Ask Doubt</span>
+                  <span className="hidden xs:inline">Doubt</span>
+                </button>
+
+                <button
+                  onClick={handleNextQuestion}
+                  aria-label="Skip to next question"
+                  className="flex items-center space-x-1 px-2 sm:px-2.5 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-[11px] sm:text-xs font-mono text-[#b45309] transition-colors"
+                  title="Skip to next question"
+                >
+                  <SkipForward className="w-3 h-3 text-[#b45309]" />
+                  <span className="hidden xs:inline">Skip</span>
                 </button>
               </div>
             </div>
 
-            <p className="text-lg md:text-xl font-serif text-[#1a1b1e] font-medium leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl font-serif text-[#1a1b1e] font-medium leading-snug sm:leading-relaxed">
               "{currentQuestion?.question_text ||
                 (session?.questions?.[0]?.question_text || "Welcome to your Viva! Could you introduce your technical approach and how you would design this system for scale?")}"
             </p>
           </div>
 
-          {/* 3. CANDIDATE LIVE SPOKEN ANSWER & TRANSCRIPT BAR */}
-          <div className="bg-white border border-[#E8E4DA] rounded-2xl p-5 shadow-xs flex-1 flex flex-col justify-between space-y-3 min-h-[190px]">
-            <div className="space-y-2">
+          {/* 3. EVALUATION SCORE ALERT (When ready, candidate sees result immediately on mobile) */}
+          {latestEval && (
+            <div className="bg-[#FAF9F5] border border-[#7D9F68]/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xs space-y-2 animate-fadeIn shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Award className="w-4 h-4 text-[#7D9F68]" />
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2D4A3E]">
+                    Evaluation Feedback
+                  </span>
+                </div>
+                <span className="text-xs sm:text-sm font-mono font-bold text-[#2D4A3E] bg-[#E8F3E5] px-2.5 py-0.5 rounded-full border border-[#7D9F68]/30">
+                  Score: {Number(latestEval.overall_score ?? latestEval.score_total ?? latestEval.total_score ?? latestEval.score ?? 0).toFixed(1)} / 10
+                </span>
+              </div>
+
+              {latestEval.feedback && (
+                <p className="text-xs text-[#334155] leading-relaxed line-clamp-2 sm:line-clamp-none">
+                  {latestEval.feedback}
+                </p>
+              )}
+
+              <button
+                onClick={handleNextQuestion}
+                className="w-full py-2 rounded-xl bg-[#2D4A3E] hover:bg-[#395e4f] text-white font-mono text-xs font-bold flex items-center justify-center space-x-2 shadow-xs transition-all"
+              >
+                <span>Proceed to Next Question</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* 4. CANDIDATE LIVE SPOKEN ANSWER & TRANSCRIPT BAR */}
+          <div className="bg-white border border-[#E8E4DA] rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-xs flex-1 flex flex-col justify-between space-y-2.5 sm:space-y-3 min-h-[160px] sm:min-h-[190px]">
+            <div className="space-y-1.5 sm:space-y-2">
               <div className="flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center space-x-2 text-[#555850]">
-                  <span className="font-semibold uppercase tracking-wider">Candidate Response</span>
+                <div className="flex items-center space-x-1.5 sm:space-x-2 text-[#555850]">
+                  <span className="font-semibold uppercase tracking-wider text-[11px] sm:text-xs">Your Response</span>
                   {isMicActive ? (
-                    <span className="flex items-center space-x-1.5 text-[#2D4A3E] font-medium">
+                    <span className="flex items-center space-x-1 text-[#2D4A3E] font-medium text-[11px] sm:text-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#34C759] animate-ping" />
-                      <span>Live Speech Recognition</span>
+                      <span>Listening...</span>
                     </span>
                   ) : (
-                    <span className="text-[#5A5D64] italic">Microphone Paused</span>
+                    <span className="text-[#5A5D64] italic text-[11px] sm:text-xs">Mic Paused</span>
                   )}
                 </div>
 
@@ -698,7 +737,7 @@ export default function SessionRoomPage() {
                   aria-label={manualInput ? "Switch to voice recognition mode" : "Switch to manual text input mode"}
                   className="text-[11px] text-[#555850] hover:text-[#1a1b1e] underline underline-offset-2 transition-colors"
                 >
-                  {manualInput ? "Switch to Voice Mode" : "Switch to Text Input"}
+                  {manualInput ? "Voice Mode" : "Text Input"}
                 </button>
               </div>
 
@@ -708,24 +747,24 @@ export default function SessionRoomPage() {
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
                   placeholder="Type your structured technical response here..."
-                  className="w-full h-24 bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-3 text-sm text-[#1a1b1e] focus:outline-none focus:border-[#2D4A3E] resize-none font-sans"
+                  className="w-full h-20 sm:h-24 bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-2.5 sm:p-3 text-xs sm:text-sm text-[#1a1b1e] focus:outline-none focus:border-[#2D4A3E] resize-none font-sans"
                 />
               ) : (
-                <div className="min-h-[75px] max-h-36 overflow-y-auto bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-3 text-sm text-[#1a1b1e] font-sans leading-relaxed">
+                <div className="min-h-[60px] sm:min-h-[75px] max-h-28 sm:max-h-36 overflow-y-auto bg-[#FAF9F5] border border-[#E2DED4] rounded-xl p-2.5 sm:p-3 text-xs sm:text-sm text-[#1a1b1e] font-sans leading-relaxed">
                   {transcript ? (
                     <span className="font-medium text-[#1a1b1e]">{transcript}</span>
                   ) : (
                     <span className="text-[#5A5D64] italic">
                       {isMicActive
-                        ? "Listening to your voice... Speak clearly and articulate your reasoning."
-                        : "Click 'Start Speaking' to dictate your answer or switch to text input above."}
+                        ? "Listening to your voice... Speak clearly and articulate your answer."
+                        : "Click 'Start Speaking' below to dictate your response, or switch to Text Input."}
                     </span>
                   )}
                 </div>
               )}
 
               {micNotice && (
-                <div className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 flex items-start space-x-2">
+                <div className="text-[11px] sm:text-xs text-amber-800 bg-amber-50 p-2 sm:p-2.5 rounded-xl border border-amber-200 flex items-start space-x-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
                   <span>{micNotice}</span>
                 </div>
@@ -733,12 +772,12 @@ export default function SessionRoomPage() {
             </div>
 
             {/* Action Bar */}
-            <div className="flex items-center justify-between pt-2 border-t border-[#E8E4DA]">
-              <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-between pt-2 border-t border-[#E8E4DA] gap-2">
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
                 <button
                   onClick={handleToggleMic}
                   aria-label={isMicActive ? "Pause microphone" : "Start speaking response"}
-                  className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold transition-all flex items-center space-x-2 ${
+                  className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-mono font-semibold transition-all flex items-center space-x-1.5 sm:space-x-2 ${
                     isMicActive
                       ? "bg-red-50 text-red-600 border border-red-200 shadow-xs"
                       : "bg-[#2D4A3E] text-white hover:bg-[#395e4f] shadow-xs"
@@ -749,9 +788,9 @@ export default function SessionRoomPage() {
                 </button>
 
                 {isMicActive && (
-                  <div className="flex items-center space-x-1 px-2.5 py-1.5 bg-[#FAF9F5] rounded-lg border border-[#E8E4DA]">
-                    <div className="w-1 h-3 rounded-full bg-[#34C759] animate-pulse" />
-                    <div className="w-1 h-5 rounded-full bg-[#34C759] animate-pulse" />
+                  <div className="hidden xs:flex items-center space-x-1 px-2 py-1.5 bg-[#FAF9F5] rounded-lg border border-[#E8E4DA]">
+                    <div className="w-1 h-2.5 rounded-full bg-[#34C759] animate-pulse" />
+                    <div className="w-1 h-4 rounded-full bg-[#34C759] animate-pulse" />
                     <div className="w-1 h-2 rounded-full bg-[#34C759] animate-pulse" />
                   </div>
                 )}
@@ -761,16 +800,17 @@ export default function SessionRoomPage() {
                 onClick={handleSubmitAnswer}
                 disabled={isEvaluating || !transcript.trim()}
                 aria-label="Submit spoken or written viva answer"
-                className="px-6 py-2.5 rounded-xl bg-[#20211E] hover:bg-[#343631] disabled:opacity-40 text-white font-mono font-bold text-xs flex items-center space-x-2 shadow-sm transition-all"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-[#20211E] hover:bg-[#343631] disabled:opacity-40 text-white font-mono font-bold text-xs flex items-center space-x-1.5 sm:space-x-2 shadow-sm transition-all shrink-0"
               >
                 {isEvaluating ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Scoring Answer...</span>
+                    <span className="hidden xs:inline">Scoring...</span>
                   </>
                 ) : (
                   <>
-                    <span>Submit Answer</span>
+                    <span>Submit</span>
+                    <span className="hidden xs:inline">Answer</span>
                     <Send className="w-3.5 h-3.5" />
                   </>
                 )}
