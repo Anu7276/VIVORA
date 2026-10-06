@@ -119,7 +119,16 @@ class Orchestrator:
             mode=mode
         )
 
-    async def generate_final_report(self, mode: str, evaluations: List[Dict[str, Any]]) -> Dict[str, Any]:
-        return await self.report.generate_report(mode=mode, evaluations=evaluations)
+    async def generate_final_report(
+        self,
+        mode: str,
+        evaluations: List[Dict[str, Any]],
+        total_planned_questions: Optional[int] = None
+    ) -> Dict[str, Any]:
+        return await self.report.generate_report(
+            mode=mode,
+            evaluations=evaluations,
+            total_planned_questions=total_planned_questions
+        )
 
 orchestrator = Orchestrator()

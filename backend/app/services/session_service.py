@@ -241,25 +241,44 @@ class SessionService:
         questions = db.query(Question).filter(Question.session_id == session_id).order_by(Question.order_no, Question.id).all()
         evaluations = []
         for q in questions:
-            for ans in q.answers:
-                if ans.evaluation:
-                    ev = ans.evaluation
-                    evaluations.append({
-                        "question_id": q.id,
-                        "order_no": q.order_no,
-                        "question_text": q.question_text,
-                        "topic": q.topic or "General",
-                        "reference_answer": q.reference_answer or "",
-                        "scored": getattr(ev, "scored", True),
-                        "correctness_score": ev.correctness_score,
-                        "depth_score": ev.depth_score,
-                        "clarity_score": ev.clarity_score,
-                        "overall_score": ev.overall_score,
-                        "feedback": ev.feedback or "",
-                        "missing_concepts": ev.missing_concepts or "",
-                        "model_answer": ev.model_answer or "",
-                        "_is_mock": (ev.provider == "mock")
-                    })
+            if not q.answers and q.parent_question_id is None:
+                evaluations.append({
+                    "question_id": q.id,
+                    "order_no": q.order_no,
+                    "question_text": q.question_text,
+                    "topic": q.topic or "General",
+                    "reference_answer": q.reference_answer or "",
+                    "scored": True,
+                    "correctness_score": 0.0,
+                    "depth_score": 0.0,
+                    "clarity_score": 0.0,
+                    "overall_score": 0.0,
+                    "feedback": "Question was skipped or unanswered.",
+                    "missing_concepts": "No response provided.",
+                    "model_answer": q.reference_answer or "",
+                    "_is_mock": False,
+                    "is_skipped": True,
+                })
+            else:
+                for ans in q.answers:
+                    if ans.evaluation:
+                        ev = ans.evaluation
+                        evaluations.append({
+                            "question_id": q.id,
+                            "order_no": q.order_no,
+                            "question_text": q.question_text,
+                            "topic": q.topic or "General",
+                            "reference_answer": q.reference_answer or "",
+                            "scored": getattr(ev, "scored", True),
+                            "correctness_score": ev.correctness_score,
+                            "depth_score": ev.depth_score,
+                            "clarity_score": ev.clarity_score,
+                            "overall_score": ev.overall_score,
+                            "feedback": ev.feedback or "",
+                            "missing_concepts": ev.missing_concepts or "",
+                            "model_answer": ev.model_answer or "",
+                            "_is_mock": (ev.provider == "mock")
+                        })
         return evaluations
 
     @staticmethod

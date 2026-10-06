@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.agents.base import BaseAgent
 from app.llm.prompts import REPORT_PROMPT
 
@@ -22,12 +22,19 @@ class ReportAgent(BaseAgent):
     def __init__(self):
         super().__init__("ReportAgent")
 
-    async def generate_report(self, mode: str, evaluations: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def generate_report(
+        self,
+        mode: str,
+        evaluations: List[Dict[str, Any]],
+        total_planned_questions: Optional[int] = None
+    ) -> Dict[str, Any]:
         total_evals = len(evaluations)
-        if total_evals == 0:
+        total_planned = total_planned_questions or total_evals
+
+        if total_planned == 0:
             return {
                 "overall_score": 0.0,
-                "status": "complete",
+                "status": "incomplete",
                 "strengths": [],
                 "improvements": ["No answered questions to score"],
                 "revision_plan": ["Complete a full practice viva session"],
@@ -36,22 +43,30 @@ class ReportAgent(BaseAgent):
                 "mock_scored_count": 0,
             }
 
-        # Filter scored answers
+        # Filter legitimately answered answers (excluding skipped / empty answers)
+        answered_evals = [
+            e for e in evaluations
+            if e.get("scored", True) is not False 
+            and e.get("overall_score") is not None
+            and not e.get("is_skipped", False)
+            and e.get("feedback") != "Question was skipped or unanswered."
+            and e.get("feedback") != "No answer provided."
+        ]
+        answered_count = len(answered_evals)
+
+        # Scored answers include answered questions (skipped count as 0.0)
         scored_evals = [
             e for e in evaluations
             if e.get("scored", True) is not False and e.get("overall_score") is not None
         ]
-        scored_count = len(scored_evals)
+        score_sum = sum(float(e["overall_score"]) for e in scored_evals)
 
-        # Exact arithmetic mean of scored answers computed IN CODE
-        if scored_count > 0:
-            avg_score = round(sum(float(e["overall_score"]) for e in scored_evals) / scored_count, 1)
-        else:
-            avg_score = 0.0
+        # Overall score = sum of scores / total planned questions (skipped/unanswered count as 0)
+        avg_score = round(score_sum / max(total_planned, 1), 1)
 
-        # Check partial status: fewer than 50% of answers scored
-        is_partial = scored_count < (total_evals / 2.0)
-        report_status = "partial" if is_partial else "complete"
+        # Status: If fewer than 50% of planned questions were answered, mark "incomplete"
+        is_incomplete = answered_count < (total_planned / 2.0)
+        report_status = "incomplete" if is_incomplete else "complete"
 
         # Topic scores computed in code
         topic_map: Dict[str, List[float]] = {}
@@ -74,10 +89,10 @@ class ReportAgent(BaseAgent):
         mock_labels = [f"Q{e.get('order_no', idx + 1)}" for idx, e in enumerate(evaluations) if e.get("_is_mock", False)]
         mock_suffix = f" for {', '.join(mock_labels)}" if mock_labels else ""
 
-        if is_partial:
+        if is_incomplete:
             scoring_note = (
-                f"⚠️ Partial report: Only {scored_count} of {total_evals} answers could be scored by AI. "
-                "Scores may not reflect overall subject mastery."
+                f"⚠️ Incomplete session: Only {answered_count} of {total_planned} planned questions were answered. "
+                "Unanswered questions count as 0 in the overall score."
             )
             if mock_scored_count > 0:
                 scoring_note += f" Rule-based fallback used{mock_suffix} (provisional scores)."

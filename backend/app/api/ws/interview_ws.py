@@ -133,7 +133,11 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
         if existing_report or session.status == "completed":
             if not existing_report:
                 db_evals = session_service.get_session_evaluations(db, session_id)
-                report_data = await orchestrator.generate_final_report(mode=mode, evaluations=db_evals)
+                report_data = await orchestrator.generate_final_report(
+                    mode=mode,
+                    evaluations=db_evals,
+                    total_planned_questions=len(questions)
+                )
                 existing_report = session_service.complete_session_report(db, session_id, report_data)
 
             await websocket.send_json({
@@ -192,7 +196,8 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                 db_evals = session_service.get_session_evaluations(db, session_id)
                 report_data = await orchestrator.generate_final_report(
                     mode=mode,
-                    evaluations=db_evals
+                    evaluations=db_evals,
+                    total_planned_questions=len(questions)
                 )
                 report_record = session_service.complete_session_report(
                     db=db,

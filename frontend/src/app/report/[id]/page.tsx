@@ -189,10 +189,10 @@ export default function ReportPage() {
                 <School className="w-3.5 h-3.5" />
                 <span>{report.mode || "Viva"} Assessment</span>
               </span>
-              {report.status === "partial" && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
-                  <AlertTriangle className="w-3 h-3" />
-                  <span>Partial Session</span>
+              {(report.status === "incomplete" || report.status === "partial") && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Incomplete Session — Fewer than 50% of questions answered</span>
                 </span>
               )}
             </div>
