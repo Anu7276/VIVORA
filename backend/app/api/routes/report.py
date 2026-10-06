@@ -46,18 +46,44 @@ async def get_session_report(
     session_id: str,
     token: Optional[str] = Query(None, description="Per-session secret token"),
     x_session_token: Optional[str] = Header(None, alias="X-Session-Token"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
     db: DBSession = Depends(get_db)
 ):
     """Retrieves full analytical performance scorecard for a session."""
-    session = db.query(Session).filter(Session.id == session_id).first()
+    from sqlalchemy.orm import selectinload
+    session = (
+        db.query(Session)
+        .options(
+            selectinload(Session.questions)
+            .selectinload(Question.answers)
+            .selectinload(Answer.evaluation)
+        )
+        .filter(Session.id == session_id)
+        .first()
+    )
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Verify per-session secret token (prefer X-Session-Token header)
-    auth_token = x_session_token or token
-    _verify_session_token(session, auth_token)
+    # Verify access: either authenticated session owner via JWT OR valid session_token (F-FUNC-03)
+    is_owner = False
+    if authorization and authorization.startswith("Bearer "):
+        bearer = authorization.split("Bearer ")[1].strip()
+        from app.core.auth import verify_access_token
+        payload = verify_access_token(bearer)
+        if payload and payload.get("sub") and session.user_id:
+            if payload.get("sub") == session.user_id:
+                is_owner = True
 
-    report = db.query(Report).filter(Report.session_id == session_id).first()
+    if not is_owner:
+        auth_token = x_session_token or token
+        _verify_session_token(session, auth_token)
+
+    report = (
+        db.query(Report)
+        .options(selectinload(Report.topic_scores))
+        .filter(Report.session_id == session_id)
+        .first()
+    )
 
     # If report was not generated yet, calculate from answers
     if not report:

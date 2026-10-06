@@ -196,8 +196,20 @@ class SessionService:
             raise HTTPException(status_code=500, detail="Failed to initialize session.")
 
     @staticmethod
-    def get_session(db: DBSession, session_id: str) -> Optional[Session]:
-        return db.query(Session).filter(Session.id == session_id).first()
+    def get_session(db: DBSession, session_id: str, eager: bool = False) -> Optional[Session]:
+        if not eager:
+            return db.query(Session).filter(Session.id == session_id).first()
+        from sqlalchemy.orm import selectinload
+        return (
+            db.query(Session)
+            .options(
+                selectinload(Session.questions)
+                .selectinload(Question.answers)
+                .selectinload(Answer.evaluation)
+            )
+            .filter(Session.id == session_id)
+            .first()
+        )
 
     @staticmethod
     def record_answer_and_eval(

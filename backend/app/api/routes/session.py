@@ -142,7 +142,7 @@ async def get_session_details(
       - reference_answer is omitted for questions the student has not yet answered.
         Revealing it before the student answers enables cheating.
     """
-    session = session_service.get_session(db, session_id)
+    session = session_service.get_session(db, session_id, eager=True)
 
     # 404 for both "not found" and "belongs to another user" — no resource enumeration
     if not session or session.user_id != current_user.id:
