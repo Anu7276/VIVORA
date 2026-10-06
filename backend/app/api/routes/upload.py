@@ -167,7 +167,9 @@ async def upload_file_material(
             detail=f"File exceeds maximum allowed size of {_MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB.",
         )
 
-    doc_title = title or filename
+    clean_default_title = re.sub(r"\.[a-zA-Z0-9]+$", "", filename)
+    clean_default_title = re.sub(r"[_\-]+", " ", clean_default_title).strip()
+    doc_title = (title.strip() if title else "") or clean_default_title or "Uploaded Document"
 
     # 3. Parse content (run in threadpool for non-blocking execution)
     if filename.lower().endswith(".pdf") or content_type == "application/pdf":

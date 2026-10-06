@@ -170,19 +170,33 @@ class QuestionAgent(BaseAgent):
 
         return self._get_college_fallback_questions(topic, count)
 
+    def _clean_display_topic(self, raw_topic: str) -> str:
+        if not raw_topic:
+            return "this subject"
+        clean = re.sub(r"\.[a-zA-Z0-9]+$", "", raw_topic)
+        clean = re.sub(r"[_\-]+", " ", clean)
+        cleaned_words = [
+            w for w in clean.split()
+            if w.lower() not in {"assignment", "assignments", "answer", "answers", "solution", "solutions", "notes", "manual", "doc", "pdf", "file", "unit", "chapter"}
+        ]
+        if cleaned_words:
+            return " ".join(cleaned_words)
+        return clean.strip() or "this subject"
+
     def _get_college_fallback_questions(self, topic: str, count: int = 10) -> List[Dict[str, Any]]:
         """Provides a structured set of top 10 viva questions with follow-ups for college subjects."""
+        display_topic = self._clean_display_topic(topic)
         templates = [
             (
-                f"What is the fundamental working principle and primary objective of {topic}?",
+                f"What is the fundamental working principle and primary objective of {display_topic}?",
                 "Fundamentals",
                 "easy",
-                f"{topic} provides the foundational mechanism and design framework to solve core domain constraints efficiently.",
+                f"{display_topic} provides the foundational mechanism and design framework to solve core domain constraints efficiently.",
                 f"Can you state the primary mathematical or theoretical law supporting this?",
                 "The core theoretical law and governing equations."
             ),
             (
-                f"How is {topic} initialized and what are the essential setup parameters?",
+                f"How is {display_topic} initialized and what are the essential setup parameters?",
                 "Architecture",
                 "easy",
                 f"Initialization requires configuring state variables, memory buffers, and initial boundary parameters.",
@@ -190,7 +204,7 @@ class QuestionAgent(BaseAgent):
                 "The system fails to converge or throws invalid state exceptions."
             ),
             (
-                f"Explain the step-by-step procedure or algorithm executed in {topic}.",
+                f"Explain the step-by-step procedure or algorithm executed in {display_topic}.",
                 "Process & Algorithm",
                 "medium",
                 f"The procedure begins with input ingestion, executes transformation phases in sequence, and outputs verified state.",
@@ -198,7 +212,7 @@ class QuestionAgent(BaseAgent):
                 "Polynomial time or optimal O(n log n) with bounded working memory."
             ),
             (
-                f"What are the critical components or sub-modules involved in {topic} and how do they interact?",
+                f"What are the critical components or sub-modules involved in {display_topic} and how do they interact?",
                 "Components",
                 "medium",
                 f"Core components interact through defined interfaces, passing synchronized data structures and control flags.",
@@ -206,15 +220,15 @@ class QuestionAgent(BaseAgent):
                 "Using semaphores, mutex locks, or event-driven message channels."
             ),
             (
-                f"What is the primary difference between {topic} and its leading alternative approach?",
+                f"What is the primary difference between {display_topic} and its leading alternative approach?",
                 "Comparative Analysis",
                 "medium",
-                f"{topic} prioritizes efficiency and lower latency, whereas alternate methods prioritize simplicity or lower hardware cost.",
-                f"Under what specific scenario would you choose the alternative over {topic}?",
+                f"{display_topic} prioritizes efficiency and lower latency, whereas alternate methods prioritize simplicity or lower hardware cost.",
+                f"Under what specific scenario would you choose the alternative over {display_topic}?",
                 "When resource constraints or throughput requirements dictate a simpler design."
             ),
             (
-                f"How do you calibrate or measure accuracy, error, and performance in {topic}?",
+                f"How do you calibrate or measure accuracy, error, and performance in {display_topic}?",
                 "Measurement & Calibration",
                 "medium",
                 f"Performance is measured via throughput, error variance, signal-to-noise ratio, or formal benchmark metrics.",
@@ -222,7 +236,7 @@ class QuestionAgent(BaseAgent):
                 "Quantization noise, sensor drift, precision loss, or unhandled race conditions."
             ),
             (
-                f"How does {topic} handle edge cases, unexpected inputs, or abnormal exceptions?",
+                f"How does {display_topic} handle edge cases, unexpected inputs, or abnormal exceptions?",
                 "Exception Handling",
                 "hard",
                 f"Robust validation checks, exception guards, and rollback mechanisms ensure fault tolerance and graceful degradation.",
@@ -230,7 +244,7 @@ class QuestionAgent(BaseAgent):
                 "The failure isolation boundaries trap the fault and trigger self-healing failovers."
             ),
             (
-                f"What are the major trade-offs between performance, scalability, and complexity in {topic}?",
+                f"What are the major trade-offs between performance, scalability, and complexity in {display_topic}?",
                 "Trade-off Analysis",
                 "hard",
                 f"Increasing throughput typically increases memory footprint and algorithmic complexity.",
@@ -238,7 +252,7 @@ class QuestionAgent(BaseAgent):
                 "Using tracing instrumentation, flame graphs, and latency percentiles."
             ),
             (
-                f"Describe a real-world industrial or engineering application where {topic} is deployed.",
+                f"Describe a real-world industrial or engineering application where {display_topic} is deployed.",
                 "Applications",
                 "hard",
                 f"Widely utilized in high-throughput enterprise systems, embedded controllers, and distributed cloud services.",
@@ -246,7 +260,7 @@ class QuestionAgent(BaseAgent):
                 "Implementing distributed load balancing, monitoring metrics, and hardened security."
             ),
             (
-                f"What are the latest modern advancements or future research directions related to {topic}?",
+                f"What are the latest modern advancements or future research directions related to {display_topic}?",
                 "Advanced Topics",
                 "hard",
                 f"Recent trends incorporate hardware acceleration, AI-driven parameter tuning, and formal verification methods.",

@@ -751,9 +751,10 @@ export default function VIVORAEditorialHomePage() {
       const docType = selectedMode === "interview" 
         ? "resume" 
         : (selectedMode === "school" ? "questions" : "syllabus");
+      const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[_\-]+/g, " ");
       const docTitle = selectedMode === "interview" 
         ? `${jobRole || "Candidate"} Resume` 
-        : (file.name.replace(/\.[^/.]+$/, ""));
+        : rawName;
 
       const data = await uploadFileMaterial(file, docTitle, docType);
       setUploadedDocumentId(data.document_id);
@@ -761,7 +762,7 @@ export default function VIVORAEditorialHomePage() {
         setContentText(data.extracted_text);
       }
       if (selectedMode !== "interview") {
-        setTitle(file.name.replace(/\.[^/.]+$/, ""));
+        setTitle(docTitle);
       }
       setPdfParsing(false);
     } catch (err: any) {
