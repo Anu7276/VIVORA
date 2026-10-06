@@ -114,6 +114,12 @@ class QuestionAgent(BaseAgent):
                 if fu_ans.upper() in ("N/A", "NONE", "NULL"):
                     fu_ans = ""
 
+                if mode == "college":
+                    if not fu_q or len(fu_q) < 5:
+                        fu_q = f"Can you elaborate on how this applies to core constraints in {q.get('topic', default_topic)}?"
+                    if not fu_ans or len(fu_ans) < 5:
+                        fu_ans = f"Comprehensive principles and theoretical formulations regarding {q.get('topic', default_topic)}."
+
                 result.append({
                     "order_no": idx + 1,
                     "question_text": q_text,

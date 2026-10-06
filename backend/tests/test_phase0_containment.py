@@ -183,7 +183,7 @@ class TestStartupProviderWarning:
         When QUESTION_GEN_PROVIDER=gemini but GEMINI_API_KEY is absent,
         the router init must emit a WARNING naming the affected task.
         """
-        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.setenv("GEMINI_API_KEY", "")
         monkeypatch.setenv("QUESTION_GEN_PROVIDER", "gemini")
         monkeypatch.setenv("GROQ_API_KEY", "fake-groq")
 
