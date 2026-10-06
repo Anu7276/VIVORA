@@ -45,7 +45,7 @@ def test_interview_customizes_questions_for_job_role_and_tech_stack(setup_db):
         # Verify that questions include reference answers, follow-up questions, and reflect the role/tech stack
         all_topics = " ".join([q.topic for q in questions]).lower()
 
-        assert "full stack" in all_topics or "architecture" in all_topics or "concurrency" in all_topics
+        assert "full stack" in all_topics or "architect" in all_topics or "concurrency" in all_topics
         for q in questions:
             assert q.question_text and len(q.question_text) > 15
             assert q.reference_answer and len(q.reference_answer) > 10

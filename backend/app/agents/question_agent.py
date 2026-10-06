@@ -114,7 +114,7 @@ class QuestionAgent(BaseAgent):
                 if fu_ans.upper() in ("N/A", "NONE", "NULL"):
                     fu_ans = ""
 
-                if mode == "college":
+                if mode in ("college", "interview"):
                     if not fu_q or len(fu_q) < 5:
                         fu_q = f"Can you elaborate on how this applies to core constraints in {q.get('topic', default_topic)}?"
                     if not fu_ans or len(fu_ans) < 5:
@@ -133,6 +133,22 @@ class QuestionAgent(BaseAgent):
 
             if mode == "college" and count and len(result) < count:
                 fallback_pool = self._get_college_fallback_questions(topic, count)
+                existing_texts = {r["question_text"].lower() for r in result}
+                for fb in fallback_pool:
+                    if len(result) >= count:
+                        break
+                    if fb["question_text"].lower() not in existing_texts:
+                        fb_copy = dict(fb)
+                        fb_copy["order_no"] = len(result) + 1
+                        result.append(fb_copy)
+
+            if mode == "interview" and count and len(result) < count:
+                fallback_pool = self._get_interview_fallback_questions(
+                    job_role=job_role or topic or "Software Engineer",
+                    tech_stack=tech_stack or "Full Stack",
+                    experience_level=experience_level or "Senior",
+                    count=count
+                )
                 existing_texts = {r["question_text"].lower() for r in result}
                 for fb in fallback_pool:
                     if len(result) >= count:

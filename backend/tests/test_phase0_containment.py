@@ -183,22 +183,40 @@ class TestStartupProviderWarning:
         When QUESTION_GEN_PROVIDER=gemini but GEMINI_API_KEY is absent,
         the router init must emit a WARNING naming the affected task.
         """
-        monkeypatch.setenv("GEMINI_API_KEY", "")
-        monkeypatch.setenv("QUESTION_GEN_PROVIDER", "gemini")
-        monkeypatch.setenv("GROQ_API_KEY", "fake-groq")
+        import types
+        import logging
+        from app.llm.router import LLMRouter, logger
 
-        import sys
-        for mod in list(sys.modules.keys()):
-            if mod.startswith("app"):
-                del sys.modules[mod]
+        mock_cfg = types.SimpleNamespace(
+            GEMINI_API_KEY=None,
+            GROQ_API_KEY="fake-groq",
+            OPENAI_API_KEY=None,
+            QUESTION_GEN_PROVIDER="gemini",
+            LIVE_PROVIDER="groq",
+            EVALUATION_PROVIDER="groq",
+            REPORT_PROVIDER="gemini"
+        )
 
-        with caplog.at_level(logging.WARNING, logger="vivora"):
-            import app.llm.router  # noqa – triggers LLMRouter() singleton creation
+        records = []
+        class ListHandler(logging.Handler):
+            def emit(self, record):
+                records.append(record)
 
-        lowered = caplog.text.lower()
-        assert "question_generation" in lowered or "gemini" in lowered, (
+        handler = ListHandler(level=logging.WARNING)
+        logger.addHandler(handler)
+        logger.disabled = False
+        orig_level = logger.level
+        logger.setLevel(logging.WARNING)
+        try:
+            LLMRouter(cfg=mock_cfg)
+        finally:
+            logger.removeHandler(handler)
+            logger.setLevel(orig_level)
+
+        all_text = " ".join([r.getMessage() for r in records]).lower()
+        assert "question_generation" in all_text or "gemini" in all_text, (
             "No WARNING about missing GEMINI_API_KEY for question_generation task. "
-            f"Captured log:\n{caplog.text}"
+            f"Captured log:\n{all_text}"
         )
 
 

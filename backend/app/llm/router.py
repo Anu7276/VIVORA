@@ -631,14 +631,15 @@ class LLMRouter:
             # emit degraded_mode WebSocket event
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cfg=None) -> None:
+        cfg = cfg or settings
         self._pool: Dict[str, LLMProvider] = {}
-        if settings.GEMINI_API_KEY:
-            self._pool["gemini"] = GeminiProvider(settings.GEMINI_API_KEY)
-        if settings.GROQ_API_KEY:
-            self._pool["groq"] = GroqProvider(settings.GROQ_API_KEY)
-        if settings.OPENAI_API_KEY:
-            self._pool["openai"] = OpenAIProvider(settings.OPENAI_API_KEY)
+        if cfg.GEMINI_API_KEY:
+            self._pool["gemini"] = GeminiProvider(cfg.GEMINI_API_KEY)
+        if cfg.GROQ_API_KEY:
+            self._pool["groq"] = GroqProvider(cfg.GROQ_API_KEY)
+        if cfg.OPENAI_API_KEY:
+            self._pool["openai"] = OpenAIProvider(cfg.OPENAI_API_KEY)
         # Mock fallback provider is always registered for offline/testing/graceful degradation
         self._pool["mock"] = SmartRuleFallbackProvider()
 
@@ -647,27 +648,28 @@ class LLMRouter:
         self.last_call_meta: Optional[CallMeta] = None
 
         available = list(self._pool.keys())
+        logger.disabled = False
         logger.info(f"LLMRouter initialised. Available providers: {available}")
         logger.info(
-            f"Task routing — question_generation:{settings.QUESTION_GEN_PROVIDER} | "
-            f"live_turn:{settings.LIVE_PROVIDER} | "
-            f"evaluation:{settings.EVALUATION_PROVIDER} | "
-            f"report:{settings.REPORT_PROVIDER}"
+            f"Task routing — question_generation:{cfg.QUESTION_GEN_PROVIDER} | "
+            f"live_turn:{cfg.LIVE_PROVIDER} | "
+            f"evaluation:{cfg.EVALUATION_PROVIDER} | "
+            f"report:{cfg.REPORT_PROVIDER}"
         )
 
         # Emit a clear WARNING for each task whose preferred provider has no key.
         # This surfaces misconfigured deployments at startup rather than at runtime.
         key_map = {
-            "gemini": settings.GEMINI_API_KEY,
-            "groq": settings.GROQ_API_KEY,
-            "openai": settings.OPENAI_API_KEY,
+            "gemini": cfg.GEMINI_API_KEY,
+            "groq": cfg.GROQ_API_KEY,
+            "openai": cfg.OPENAI_API_KEY,
             "mock": "__always_available__",
         }
         for task_name, provider_name in [
-            ("question_generation", settings.QUESTION_GEN_PROVIDER),
-            ("live_turn", settings.LIVE_PROVIDER),
-            ("evaluation", settings.EVALUATION_PROVIDER),
-            ("report", settings.REPORT_PROVIDER),
+            ("question_generation", cfg.QUESTION_GEN_PROVIDER),
+            ("live_turn", cfg.LIVE_PROVIDER),
+            ("evaluation", cfg.EVALUATION_PROVIDER),
+            ("report", cfg.REPORT_PROVIDER),
         ]:
             pname = (provider_name or "").lower()
             if pname not in key_map:
