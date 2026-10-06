@@ -148,7 +148,7 @@ function HeroLaptopVideoSimulator({ onLaunch }: { onLaunch: () => void }) {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.02] to-white/[0.06] z-20" />
 
             {/* Window Titlebar with Video Simulation Pill */}
-            <div className="h-10 sm:h-11 bg-[#FAF9F5] border-b border-[#EBE7DD] px-3 sm:px-4 flex items-center justify-between text-xs text-[#8c9099] relative z-10">
+            <div className="h-10 sm:h-11 bg-[#FAF9F5] border-b border-[#EBE7DD] px-3 sm:px-4 flex items-center justify-between text-xs text-[#5A5D64] relative z-10">
               <div className="flex items-center space-x-1.5 sm:space-x-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56] border border-[#E0443E]/50 shadow-2xs inline-block" />
                 <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E] border border-[#DEA123]/50 shadow-2xs inline-block" />
@@ -167,7 +167,7 @@ function HeroLaptopVideoSimulator({ onLaunch }: { onLaunch: () => void }) {
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
                   <span>REC</span>
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-mono text-[#8c9099] hidden sm:inline">
+                <span className="text-[10px] sm:text-[11px] font-mono text-[#5A5D64] hidden sm:inline">
                   00:{seconds.toString().padStart(2, "0")} / 00:18
                 </span>
               </div>
@@ -182,7 +182,7 @@ function HeroLaptopVideoSimulator({ onLaunch }: { onLaunch: () => void }) {
                   
                   {/* Active Document Card */}
                   <div className="bg-white border border-[#DDD9CF] p-3 rounded-xl space-y-1 shadow-2xs">
-                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-mono text-[#8c9099]">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-mono text-[#5A5D64]">
                       <span>INGESTED MATERIAL</span>
                       <span className="text-[#7D9F68]">RAG Isolated</span>
                     </div>
@@ -247,7 +247,7 @@ function HeroLaptopVideoSimulator({ onLaunch }: { onLaunch: () => void }) {
                       Q3
                     </div>
                     <div className="space-y-1 flex-1">
-                      <div className="text-[10px] sm:text-[11px] font-mono text-[#8c9099] uppercase tracking-wider flex items-center justify-between">
+                      <div className="text-[10px] sm:text-[11px] font-mono text-[#5A5D64] uppercase tracking-wider flex items-center justify-between">
                         <span>AI Examiner Prompt</span>
                         {phase === "EXAMINER" && (
                           <span className="text-[10px] text-[#7D9F68] font-mono animate-pulse">● Speaking...</span>
@@ -843,7 +843,7 @@ export default function VIVORAEditorialHomePage() {
                       clearAuthToken();
                       setUser(null);
                     }}
-                    className="text-[11px] text-[#8c9099] hover:text-[#1a1b1e] transition-colors ml-1"
+                    className="text-[11px] text-[#5A5D64] hover:text-[#1a1b1e] transition-colors ml-1"
                   >
                     Logout
                   </button>
@@ -893,7 +893,7 @@ export default function VIVORAEditorialHomePage() {
                         setUser(null);
                         setMobileMenuOpen(false);
                       }}
-                      className="text-[#8c9099] hover:text-[#1a1b1e]"
+                      className="text-[#5A5D64] hover:text-[#1a1b1e]"
                     >
                       Logout
                     </button>
@@ -1024,7 +1024,7 @@ export default function VIVORAEditorialHomePage() {
             {/* 01 - Learn */}
             <div className="glass-card rounded-3xl p-7 space-y-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300">
               <div className="space-y-4">
-                <span className="font-mono text-xs text-[#8c9099] font-semibold">01 — LEARN</span>
+                <span className="font-mono text-xs text-[#5A5D64] font-semibold">01 — LEARN</span>
                 <h3 className="text-2xl font-serif font-normal text-[#20211E] leading-snug">
                   Turn your material into understanding.
                 </h3>
@@ -1066,7 +1066,7 @@ export default function VIVORAEditorialHomePage() {
             {/* 03 - Improve */}
             <div className="glass-card rounded-3xl p-7 space-y-6 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300">
               <div className="space-y-4">
-                <span className="font-mono text-xs text-[#8c9099] font-semibold">03 — IMPROVE</span>
+                <span className="font-mono text-xs text-[#5A5D64] font-semibold">03 — IMPROVE</span>
                 <h3 className="text-2xl font-serif font-normal text-[#20211E] leading-snug">
                   Know exactly what to improve.
                 </h3>
@@ -1291,7 +1291,7 @@ export default function VIVORAEditorialHomePage() {
           {/* Glassmorphic Metric Cards Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#5A5D64]">
                 <span>CONCEPT MASTERY</span>
                 <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
               </div>
@@ -1303,7 +1303,7 @@ export default function VIVORAEditorialHomePage() {
             </div>
 
             <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#5A5D64]">
                 <span>VIVA READINESS</span>
                 <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
               </div>
@@ -1315,7 +1315,7 @@ export default function VIVORAEditorialHomePage() {
             </div>
 
             <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#5A5D64]">
                 <span>SPEAKING CLARITY</span>
                 <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
               </div>
@@ -1327,7 +1327,7 @@ export default function VIVORAEditorialHomePage() {
             </div>
 
             <div className="glass-card p-5 rounded-2xl shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 space-y-3">
-              <div className="flex items-center justify-between text-[11px] font-mono text-[#8c9099]">
+              <div className="flex items-center justify-between text-[11px] font-mono text-[#5A5D64]">
                 <span>PRACTICE STREAK</span>
                 <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
               </div>
@@ -1781,7 +1781,7 @@ export default function VIVORAEditorialHomePage() {
         </div>
 
         {/* Bottom Copyright & Guarantee Bar */}
-        <div className="max-w-6xl mx-auto pt-8 mt-12 border-t border-[#EBE7DD] flex flex-col sm:flex-row items-center justify-between text-xs text-[#8c9099] gap-4">
+        <div className="max-w-6xl mx-auto pt-8 mt-12 border-t border-[#EBE7DD] flex flex-col sm:flex-row items-center justify-between text-xs text-[#5A5D64] gap-4">
           <div className="flex items-center space-x-2">
             <span>© 2026 VIVORA AI Technologies. All rights reserved.</span>
           </div>
@@ -1804,7 +1804,7 @@ export default function VIVORAEditorialHomePage() {
                 <span className="w-5 h-5 rounded-full bg-[#2d4a3e] text-white flex items-center justify-center text-[10px]">✦</span>
                 <h3 className="font-serif font-bold text-[#1a1b1e] text-lg">Launch VIVORA Studio</h3>
               </div>
-              <button onClick={() => setShowSetupModal(false)} className="text-[#8c9099] hover:text-[#1a1b1e]">
+              <button onClick={() => setShowSetupModal(false)} className="text-[#5A5D64] hover:text-[#1a1b1e]">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1890,7 +1890,7 @@ export default function VIVORAEditorialHomePage() {
             {selectedMode === "interview" ? (
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-mono text-[#8c9099] uppercase">Target Job Role Applied For *</label>
+                  <label className="text-xs font-mono text-[#5A5D64] uppercase">Target Job Role Applied For *</label>
                   <input
                     type="text"
                     value={jobRole}
@@ -1901,7 +1901,7 @@ export default function VIVORAEditorialHomePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-mono text-[#8c9099] uppercase">Experience Level</label>
+                  <label className="text-xs font-mono text-[#5A5D64] uppercase">Experience Level</label>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {["Entry-Level / Fresher", "Mid-Level (2-5 yrs)", "Senior / Lead (5+ yrs)"].map((lvl) => (
                       <button
@@ -1938,7 +1938,7 @@ export default function VIVORAEditorialHomePage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-mono text-[#8c9099] uppercase">Focus Areas (Optional)</label>
+                  <label className="text-xs font-mono text-[#5A5D64] uppercase">Focus Areas (Optional)</label>
                   <div className="flex flex-wrap gap-1.5">
                     {["System Design", "DSA", "React / Frontend", "SQL & DBs", "Behavioural", "ML / AI"].map((tag) => (
                       <button
@@ -1967,7 +1967,7 @@ export default function VIVORAEditorialHomePage() {
             ) : (
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-mono text-[#8c9099] uppercase">
+                  <label className="text-xs font-mono text-[#5A5D64] uppercase">
                     {selectedMode === "school" ? "Chapter / Subject Name" : "Subject & Syllabus / Lab Topic"}
                   </label>
                   <input
@@ -2003,7 +2003,7 @@ export default function VIVORAEditorialHomePage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-mono text-[#8c9099] uppercase">
+                  <label className="text-xs font-mono text-[#5A5D64] uppercase">
                     {selectedMode === "school" ? "Key Topics (Optional)" : "Key Concepts / Topics (Optional)"}
                   </label>
                   <div className="flex flex-wrap gap-1.5">

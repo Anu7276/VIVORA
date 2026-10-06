@@ -82,12 +82,6 @@ export default function SessionRoomPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
-  // Whiteboard Canvas State
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [activeTool, setActiveTool] = useState<"select" | "rect" | "diamond" | "circle" | "arrow" | "line" | "draw" | "text">("draw");
-  const [canvasColor, setCanvasColor] = useState("#0f766e");
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [canvasZoom, setCanvasZoom] = useState(100);
 
   const wsRef = useRef<WebSocket | null>(null);
   const voiceClientRef = useRef<BrowserVoiceClient | null>(null);
@@ -191,68 +185,6 @@ export default function SessionRoomPage() {
       }
     }
   }, [hasCameraPermission, isCameraActive]);
-
-  // Whiteboard Canvas Interaction
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Set high DPI canvas resolution
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
-
-
-  }, []);
-
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    setIsDrawing(true);
-    ctx.strokeStyle = canvasColor;
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
-  const handleCanvasMouseUp = () => {
-    setIsDrawing(false);
-  };
-
-  const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.clearRect(0, 0, rect.width, rect.height);
-  };
 
   // Connect WebSocket and Voice Client
   useEffect(() => {
@@ -499,7 +431,7 @@ export default function SessionRoomPage() {
             <span className="text-xs font-semibold text-[#1a1b1e] uppercase tracking-wide">
               {session?.mode ? `${session.mode} Studio` : "Technical Viva"}
             </span>
-            <span className="text-xs text-[#8c9099]">•</span>
+            <span className="text-xs text-[#5A5D64]">•</span>
             <span className="text-xs text-[#555850] font-medium max-w-[220px] md:max-w-xs truncate">
               {currentQuestion?.topic || (session as any)?.title || "Oral Technical Examination"}
             </span>
@@ -508,7 +440,7 @@ export default function SessionRoomPage() {
 
         {/* Center: Question Progress Stepper */}
         <div className="hidden lg:flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#FAF9F5] border border-[#E8E4DA]">
-          <span className="text-[11px] font-mono font-semibold uppercase text-[#7D9F68] tracking-wider mr-1">
+          <span className="text-[11px] font-mono font-semibold uppercase text-[#4C6E38] tracking-wider mr-1">
             Question
           </span>
           {Array.from({ length: totalQuestions }).map((_, idx) => (
@@ -525,7 +457,7 @@ export default function SessionRoomPage() {
               {idx < questionIndex ? "✓" : idx + 1}
             </div>
           ))}
-          <span className="text-[11px] font-mono text-[#8c9099] ml-1">
+          <span className="text-[11px] font-mono text-[#5A5D64] ml-1">
             of {totalQuestions}
           </span>
         </div>
@@ -544,6 +476,7 @@ export default function SessionRoomPage() {
 
           <button
             onClick={() => setShowEndModal(true)}
+            aria-label="End examination session"
             className="px-3.5 py-1.5 rounded-full text-xs font-semibold font-mono text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors flex items-center space-x-1.5"
           >
             <span>End Session</span>
@@ -709,25 +642,27 @@ export default function SessionRoomPage() {
           <div className="bg-white border border-[#E8E4DA] rounded-2xl p-5 shadow-xs space-y-3 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-[#7D9F68]" />
+                <span className="w-2 h-2 rounded-full bg-[#4C6E38]" />
                 <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#2D4A3E]">
                   Question {questionIndex + 1} of {totalQuestions}
                 </span>
-                <span className="text-xs text-[#8c9099]">•</span>
+                <span className="text-xs text-[#5A5D64]">•</span>
                 <span className="text-xs font-mono text-[#555850]">Oral Evaluation</span>
               </div>
 
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleReplayQuestion}
+                  aria-label="Replay current question audio"
                   className="flex items-center space-x-1 px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-xs font-mono text-[#555850] transition-colors"
                 >
-                  <Volume2 className="w-3 h-3 text-[#7D9F68]" />
+                  <Volume2 className="w-3 h-3 text-[#4C6E38]" />
                   <span>Replay Audio</span>
                 </button>
 
                 <button
                   onClick={() => setShowDoubtModal(true)}
+                  aria-label="Ask doubt about current question"
                   className="flex items-center space-x-1 px-3 py-1 rounded-full bg-[#FAF9F5] hover:bg-[#EBE7DD] border border-[#DDD9CF] text-xs font-mono text-[#4f46e5] transition-colors"
                 >
                   <HelpCircle className="w-3 h-3 text-[#4f46e5]" />
@@ -754,12 +689,13 @@ export default function SessionRoomPage() {
                       <span>Live Speech Recognition</span>
                     </span>
                   ) : (
-                    <span className="text-[#8c9099] italic">Microphone Paused</span>
+                    <span className="text-[#5A5D64] italic">Microphone Paused</span>
                   )}
                 </div>
 
                 <button
                   onClick={() => setManualInput(!manualInput)}
+                  aria-label={manualInput ? "Switch to voice recognition mode" : "Switch to manual text input mode"}
                   className="text-[11px] text-[#555850] hover:text-[#1a1b1e] underline underline-offset-2 transition-colors"
                 >
                   {manualInput ? "Switch to Voice Mode" : "Switch to Text Input"}
@@ -779,7 +715,7 @@ export default function SessionRoomPage() {
                   {transcript ? (
                     <span className="font-medium text-[#1a1b1e]">{transcript}</span>
                   ) : (
-                    <span className="text-[#8c9099] italic">
+                    <span className="text-[#5A5D64] italic">
                       {isMicActive
                         ? "Listening to your voice... Speak clearly and articulate your reasoning."
                         : "Click 'Start Speaking' to dictate your answer or switch to text input above."}
@@ -801,6 +737,7 @@ export default function SessionRoomPage() {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleToggleMic}
+                  aria-label={isMicActive ? "Pause microphone" : "Start speaking response"}
                   className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold transition-all flex items-center space-x-2 ${
                     isMicActive
                       ? "bg-red-50 text-red-600 border border-red-200 shadow-xs"
@@ -823,6 +760,7 @@ export default function SessionRoomPage() {
               <button
                 onClick={handleSubmitAnswer}
                 disabled={isEvaluating || !transcript.trim()}
+                aria-label="Submit spoken or written viva answer"
                 className="px-6 py-2.5 rounded-xl bg-[#20211E] hover:bg-[#343631] disabled:opacity-40 text-white font-mono font-bold text-xs flex items-center space-x-2 shadow-sm transition-all"
               >
                 {isEvaluating ? (
@@ -977,7 +915,7 @@ export default function SessionRoomPage() {
           </div>
 
           {/* Bottom Security & Engine Info */}
-          <div className="pt-3 border-t border-[#E8E4DA] text-[11px] font-mono text-[#8c9099] space-y-1">
+          <div className="pt-3 border-t border-[#E8E4DA] text-[11px] font-mono text-[#5A5D64] space-y-1">
             <div className="flex items-center justify-between">
               <span>Privacy Guard</span>
               <span className="text-[#2D4A3E] font-semibold">Zero Audio Stored</span>
