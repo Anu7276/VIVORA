@@ -503,7 +503,7 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                             db.commit()
                             await send_current_turn()
 
-                elif msg_type == "repeat_question":
+                elif msg_type in ("repeat_question", "replay_question"):
                     _ = RepeatQuestionMessage(**data)
                     if session.awaiting_followup and session.active_followup_id:
                         active_q = db.query(Question).filter(Question.id == session.active_followup_id).first()
@@ -529,7 +529,7 @@ async def interview_websocket_endpoint(websocket: WebSocket, session_id: str):
                             "speech": q_speech
                         })
 
-                elif msg_type == "skip_question":
+                elif msg_type in ("skip_question", "next_question"):
                     _ = SkipQuestionMessage(**data)
                     session.awaiting_followup = False
                     session.active_followup_id = None

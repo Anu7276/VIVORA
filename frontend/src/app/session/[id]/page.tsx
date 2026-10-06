@@ -410,7 +410,7 @@ export default function SessionRoomPage() {
 
   const handleReplayQuestion = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "replay_question" }));
+      wsRef.current.send(JSON.stringify({ type: "repeat_question" }));
     }
   };
 
@@ -429,7 +429,7 @@ export default function SessionRoomPage() {
 
   const handleNextQuestion = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "next_question" }));
+      wsRef.current.send(JSON.stringify({ type: "skip_question" }));
     }
   };
 
