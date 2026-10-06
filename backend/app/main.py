@@ -57,11 +57,9 @@ def validate_provider_configuration():
                 f"Valid providers are: {', '.join(sorted(valid_llm_providers))}."
             )
     import os
-    if settings.ENV.lower() == "production" and not getattr(settings, "JWT_SECRET_KEY", None):
-        if not os.environ.get("PYTEST_CURRENT_TEST"):
-            raise ValueError("Startup validation failed: JWT_SECRET_KEY must be configured when running in production environment.")
-        else:
-            logger.warning("JWT_SECRET_KEY is not configured for production in test mode.")
+    from app.core.auth import validate_jwt_secret
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        validate_jwt_secret(getattr(settings, "JWT_SECRET_KEY", None), settings.ENV)
 
 # Run startup validation
 validate_provider_configuration()

@@ -49,7 +49,62 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ---------------------------------------------------------------------------
 # JWT
 # ---------------------------------------------------------------------------
-_SECRET_KEY: str = getattr(settings, "JWT_SECRET_KEY", None) or "vivora-insecure-dev-secret-key-change-in-production"
+_INSECURE_DEFAULT_KEYS = {
+    "vivora-insecure-dev-secret-key-change-in-production",
+    "vivora-production-secure-jwt-secret-key-32chars",
+    "secret",
+    "changeme",
+}
+
+
+def validate_jwt_secret(secret: Optional[str], env: str = "development", is_test: bool = False) -> str:
+    """
+    Validates JWT secret key.
+    In non-development environments, enforces >= 32 characters and prohibits known insecure default keys.
+    In development, allows fallback with an explicit warning.
+    """
+    is_dev = (env or "").lower() == "development"
+    if not secret:
+        if not is_dev:
+            if is_test:
+                logger.warning("JWT_SECRET_KEY not set in production test mode; using test secret.")
+                return "test-secret-key-for-pytest-production-mode-32chars"
+            raise ValueError(
+                "Startup validation failed: JWT_SECRET_KEY must be configured with a secure key (at least 32 characters) in production/staging environments."
+            )
+        logger.warning(
+            "INSECURE JWT SECRET: No JWT_SECRET_KEY set in development. "
+            "Falling back to default dev secret. DO NOT USE IN PRODUCTION."
+        )
+        return "vivora-insecure-dev-secret-key-change-in-production"
+
+    if secret in _INSECURE_DEFAULT_KEYS:
+        if not is_dev:
+            raise ValueError(
+                "Startup validation failed: JWT_SECRET_KEY is set to a known default insecure key. "
+                "A secure random secret of at least 32 characters is required."
+            )
+        logger.warning("INSECURE JWT SECRET: Running with known default secret key in development.")
+        return secret
+
+    if len(secret) < 32:
+        if not is_dev:
+            raise ValueError(
+                f"Startup validation failed: JWT_SECRET_KEY is too short ({len(secret)} chars). "
+                "It must be at least 32 characters in production."
+            )
+        logger.warning("INSECURE JWT SECRET: JWT_SECRET_KEY is shorter than 32 characters.")
+
+    return secret
+
+
+import os
+
+_SECRET_KEY: str = validate_jwt_secret(
+    getattr(settings, "JWT_SECRET_KEY", None),
+    getattr(settings, "ENV", "development"),
+    is_test=bool(os.environ.get("PYTEST_CURRENT_TEST")),
+)
 _ALGORITHM = "HS256"
 _ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 60 minutes
 
