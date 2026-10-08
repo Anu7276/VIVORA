@@ -684,16 +684,36 @@ export default function VIVORAEditorialHomePage() {
   }, []);
 
   const cleanDocumentSubject = (raw: string): string => {
-    if (!raw) return "Computer Science";
+    if (!raw) return "General Science";
     const clean = raw.replace(/\.[a-zA-Z0-9]+$/, "").replace(/[_\-]+/g, " ");
     const words = clean.split(/\s+/).filter(
       (w) =>
-        !/^(exam|examination|notes|note|assignments|assignment|syllabus|manual|handout|module|chapter|unit|test|cheatsheet|guide|doc|pdf|file)$/i.test(
+        !/^(exam|examination|notes|note|assignments|assignment|syllabus|manual|handout|module|chapter|unit|test|cheatsheet|guide|doc|pdf|file|qa|q&a|qna|part|sec|section|\d+|\d+[\-_]\d+)$/i.test(
           w
         )
     );
     const result = words.join(" ").trim();
-    return result.length >= 2 ? result : (clean.trim() || "Computer Science");
+    const acronyms: Record<string, string> = {
+      os: "Operating Systems",
+      dbms: "Database Management Systems",
+      cn: "Computer Networks",
+      dsa: "Data Structures & Algorithms",
+      oop: "Object-Oriented Programming",
+      oops: "Object-Oriented Programming",
+      se: "Software Engineering",
+      ai: "Artificial Intelligence",
+      ml: "Machine Learning",
+      toc: "Theory of Computation",
+      coa: "Computer Organization & Architecture",
+      java: "Java",
+      python: "Python",
+      cpp: "C++",
+      c: "C Programming",
+    };
+    if (acronyms[result.toLowerCase()]) {
+      return acronyms[result.toLowerCase()];
+    }
+    return result.length >= 2 ? result : (clean.trim() || "General Science");
   };
 
   const handleStartSession = async (

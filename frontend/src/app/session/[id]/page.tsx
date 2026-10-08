@@ -44,12 +44,24 @@ import {
   Camera
 } from "lucide-react";
 
+function sanitizeDisplayTopic(rawTopic?: string): string {
+  if (!rawTopic) return "Oral Technical Examination";
+  let topic = rawTopic.trim();
+  topic = topic.replace(/\bOS(?:\s*\d+)*(?:\s*QA)?\b/gi, "Operating Systems");
+  topic = topic.replace(/([A-Za-z0-9+#]+)\s+(?:Exam\s+Notes|Notes|Exam|Syllabus|Manual|QA|Q&A)\b/gi, "$1");
+  topic = topic.replace(/\.pdf\b/gi, "");
+  topic = topic.replace(/\b(?:1\s*4|1\-4)\b/g, "");
+  topic = topic.replace(/\s+/g, " ").trim();
+  return topic || "Oral Technical Examination";
+}
+
 function sanitizeDisplayQuestion(rawText?: string): string {
   if (!rawText) return "Welcome to your Viva! Could you introduce your technical approach and core fundamentals?";
   let text = rawText.trim();
   
-  // Strip filenames with extensions or generic suffixes (e.g. Java Exam Notes -> Java)
-  text = text.replace(/([A-Za-z0-9+#]+)\s+(?:Exam\s+Notes|Notes|Exam|Syllabus|Manual)\b/gi, "$1");
+  // Strip filenames with extensions or generic suffixes (e.g. Java Exam Notes -> Java, OS 1 4 QA -> Operating Systems)
+  text = text.replace(/\bOS(?:\s*\d+)*(?:\s*QA)?\b/gi, "Operating Systems");
+  text = text.replace(/([A-Za-z0-9+#]+)\s+(?:Exam\s+Notes|Notes|Exam|Syllabus|Manual|QA|Q&A)\b/gi, "$1");
   text = text.replace(/\.pdf\b/gi, "");
 
   // Transform legacy mock questions if returned
@@ -67,6 +79,15 @@ function sanitizeDisplayQuestion(rawText?: string): string {
   }
   if (/fundamental working principle and primary objective of (?:os|operating)/i.test(text)) {
     return "What is the difference between a Process and a Thread, and what resources are shared between threads?";
+  }
+  if (/basic definition and (?:purpose|fundamental meaning) of (?:os|operating systems)/i.test(text)) {
+    return "What is an Operating System, and why is a computer unable to function without one?";
+  }
+  if (/can you give one real-life example or application of (?:os|operating systems)/i.test(text)) {
+    return "What is the difference between System Software (like Windows or Linux) and Application Software?";
+  }
+  if (/main parts or key steps involved in (?:os|operating systems)/i.test(text)) {
+    return "What are the main functions of an Operating System, such as managing memory, files, and running programs?";
   }
   return text;
 }
@@ -474,7 +495,7 @@ export default function SessionRoomPage() {
             </span>
             <span className="text-xs text-[#5A5D64]">•</span>
             <span className="text-xs text-[#555850] font-medium max-w-[200px] lg:max-w-xs truncate">
-              {currentQuestion?.topic || (session as any)?.title || "Oral Technical Examination"}
+              {sanitizeDisplayTopic(currentQuestion?.topic || (session as any)?.title)}
             </span>
           </div>
         </div>

@@ -36,6 +36,8 @@ class QuestionAgent(BaseAgent):
         if count is None:
             count = 10 if mode == "college" else (5 if mode == "school" else 6)
 
+        topic = self._clean_display_topic(topic)
+
         if question_source == "fixed" and uploaded_questions:
             result = []
             for idx, q in enumerate(uploaded_questions):
@@ -161,11 +163,15 @@ class QuestionAgent(BaseAgent):
             if result:
                 return result
         except Exception as e:
+            if mode == "school":
+                return self._get_school_fallback_questions(topic, count, combined_context)
             if mode in ("college", "interview"):
                 # If LLM complete fails, use smart concept-aware fallback rather than failing session start
                 return self._get_college_fallback_questions(topic, count, combined_context) if mode == "college" else self._get_interview_fallback_questions(job_role or topic or "Software Engineer", tech_stack or "Full Stack", experience_level or "Senior", count)
 
-        # If generation returned empty questions for college/interview, use fallback questions
+        # If generation returned empty questions for school/college/interview, use fallback questions
+        if mode == "school":
+            return self._get_school_fallback_questions(topic, count, combined_context)
         if mode == "college":
             return self._get_college_fallback_questions(topic, count, combined_context)
 
@@ -173,20 +179,52 @@ class QuestionAgent(BaseAgent):
 
     def _clean_display_topic(self, raw_topic: str) -> str:
         if not raw_topic:
-            return "Computer Science"
+            return "General Science"
         clean = re.sub(r"\.[a-zA-Z0-9]+$", "", raw_topic)
         clean = re.sub(r"[_\-]+", " ", clean)
-        cleaned_words = [
-            w for w in clean.split()
-            if w.lower() not in {
-                "assignment", "assignments", "answer", "answers", "solution", "solutions",
-                "notes", "note", "exam", "exams", "test", "tests", "manual", "doc", "pdf",
-                "file", "unit", "chapter", "syllabus", "guide", "textbook", "viva", "voce", "lab"
-            }
-        ]
-        if cleaned_words:
-            return " ".join(cleaned_words)
-        return clean.strip() or "Computer Science"
+        stop_tokens = {
+            "assignment", "assignments", "answer", "answers", "solution", "solutions",
+            "notes", "note", "exam", "exams", "test", "tests", "manual", "doc", "pdf",
+            "file", "unit", "chapter", "syllabus", "guide", "textbook", "viva", "voce", "lab",
+            "qa", "q&a", "qna", "part", "sec", "section"
+        }
+        words = []
+        for w in clean.split():
+            wl = w.lower()
+            if wl in stop_tokens or re.match(r"^\d+$", wl) or re.match(r"^\d+[\-\_]\d+$", wl):
+                continue
+            words.append(w)
+        cleaned = " ".join(words).strip()
+        acronym_map = {
+            "os": "Operating Systems",
+            "dbms": "Database Management Systems",
+            "cn": "Computer Networks",
+            "dsa": "Data Structures & Algorithms",
+            "oop": "Object-Oriented Programming",
+            "oops": "Object-Oriented Programming",
+            "se": "Software Engineering",
+            "ai": "Artificial Intelligence",
+            "ml": "Machine Learning",
+            "toc": "Theory of Computation",
+            "coa": "Computer Organization & Architecture"
+        }
+        if cleaned.lower() in acronym_map:
+            return acronym_map[cleaned.lower()]
+        return cleaned if len(cleaned) >= 2 else (clean.strip() or "General Science")
+
+    def _get_school_fallback_questions(self, topic: str, count: int = 5, context_text: str = "") -> List[Dict[str, Any]]:
+        """Provides a structured set of school viva questions tailored to the chapter or extracted context."""
+        display_topic = self._clean_display_topic(topic)
+        from app.llm.router import SmartRuleFallbackProvider
+        provider = SmartRuleFallbackProvider()
+        questions = provider._build_school_questions(display_topic, context_text)
+        result = []
+        for idx, q in enumerate(questions[:count]):
+            q_copy = dict(q)
+            q_copy["order_no"] = idx + 1
+            q_copy["origin"] = "generated"
+            result.append(q_copy)
+        return result
 
     def _get_college_fallback_questions(self, topic: str, count: int = 10, context_text: str = "") -> List[Dict[str, Any]]:
         """Provides a structured set of top viva questions tailored to the subject or extracted context."""

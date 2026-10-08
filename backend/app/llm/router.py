@@ -420,34 +420,17 @@ class SmartRuleFallbackProvider(LLMProvider):
             
             if is_school:
                 topic_m = re.search(r'Topic / Chapter:\s*"([^"]+)"', prompt)
-                t_val = topic_m.group(1) if topic_m else "General Science"
+                raw_topic = topic_m.group(1) if topic_m else "General Science"
+                clean_topic = self._clean_topic_name(raw_topic)
+
+                ctx_match = re.search(r'\"\"\"(.*?)\"\"\"', prompt, re.DOTALL)
+                ctx = ctx_match.group(1).strip() if ctx_match else ""
+                if not ctx:
+                    c_match = re.search(r'(?:Reference Context|Lab Context|Notes Context|Questions Context|Chapter Content):\s*(.+)', prompt, re.DOTALL)
+                    ctx = c_match.group(1).strip() if c_match else ""
+
                 return {
-                    "questions": [
-                        {
-                            "question_text": f"What is the basic definition and purpose of {t_val}?",
-                            "topic": f"{t_val} - Definition",
-                            "difficulty": "easy",
-                            "reference_answer": f"{t_val} explains key processes and fundamental principles in this chapter.",
-                            "followup_question": "",
-                            "followup_answer": ""
-                        },
-                        {
-                            "question_text": f"Can you give one real-life example or application of {t_val}?",
-                            "topic": f"{t_val} - Examples",
-                            "difficulty": "easy",
-                            "reference_answer": "Real-life examples demonstrate the practical observation of this principle.",
-                            "followup_question": "",
-                            "followup_answer": ""
-                        },
-                        {
-                            "question_text": f"What are the main parts or key steps involved in {t_val}?",
-                            "topic": f"{t_val} - Steps",
-                            "difficulty": "medium",
-                            "reference_answer": "It consists of sequential components functioning together.",
-                            "followup_question": "",
-                            "followup_answer": ""
-                        }
-                    ]
+                    "questions": self._build_school_questions(clean_topic, ctx)
                 }
 
             if is_interview:
@@ -551,20 +534,165 @@ class SmartRuleFallbackProvider(LLMProvider):
 
     def _clean_topic_name(self, raw: str) -> str:
         if not raw:
-            return "Computer Science"
+            return "General Science"
         clean = re.sub(r"\.[a-zA-Z0-9]+$", "", raw)
         clean = re.sub(r"[_\-]+", " ", clean)
-        words = [
-            w for w in clean.split()
-            if w.lower() not in {
-                "assignment", "assignments", "answer", "answers", "solution", "solutions",
-                "notes", "note", "exam", "exams", "test", "tests", "manual", "doc", "pdf",
-                "file", "unit", "chapter", "lab", "viva", "voce", "questions", "question",
-                "syllabus", "guide", "textbook"
+        stop_tokens = {
+            "assignment", "assignments", "answer", "answers", "solution", "solutions",
+            "notes", "note", "exam", "exams", "test", "tests", "manual", "doc", "pdf",
+            "file", "unit", "chapter", "lab", "viva", "voce", "questions", "question",
+            "syllabus", "guide", "textbook", "qa", "q&a", "qna", "part", "sec", "section"
+        }
+        words = []
+        for w in clean.split():
+            wl = w.lower()
+            if wl in stop_tokens or re.match(r"^\d+$", wl) or re.match(r"^\d+[\-\_]\d+$", wl):
+                continue
+            words.append(w)
+        cleaned = " ".join(words).strip()
+        acronym_map = {
+            "os": "Operating Systems",
+            "dbms": "Database Management Systems",
+            "cn": "Computer Networks",
+            "dsa": "Data Structures & Algorithms",
+            "oop": "Object-Oriented Programming",
+            "oops": "Object-Oriented Programming",
+            "se": "Software Engineering",
+            "ai": "Artificial Intelligence",
+            "ml": "Machine Learning",
+            "toc": "Theory of Computation",
+            "coa": "Computer Organization & Architecture"
+        }
+        if cleaned.lower() in acronym_map:
+            return acronym_map[cleaned.lower()]
+        return cleaned if len(cleaned) >= 2 else (clean.strip() or "General Science")
+
+    def _build_school_questions(self, topic: str, context: str) -> List[Dict[str, Any]]:
+        t_low = (topic or "").lower()
+        c_low = (context or "").lower()[:1500]
+
+        # ── Domain: OS / Operating Systems ──
+        if "operating" in t_low or "os" in t_low.split() or "operating" in c_low or "process" in c_low:
+            return [
+                {
+                    "question_text": "What is an Operating System, and why is a computer unable to function without one?",
+                    "topic": "Operating Systems - Introduction",
+                    "difficulty": "easy",
+                    "reference_answer": "An Operating System is system software that manages computer hardware and software resources and provides common services for computer programs.",
+                    "followup_question": "Can you name two examples of popular operating systems used today?",
+                    "followup_answer": "Microsoft Windows and Linux (or macOS / Android)."
+                },
+                {
+                    "question_text": "What is the difference between System Software and Application Software?",
+                    "topic": "OS - Software Classification",
+                    "difficulty": "easy",
+                    "reference_answer": "System software (like the OS) manages the hardware and runs the computer, while application software (like MS Word or a Web Browser) performs specific user tasks.",
+                    "followup_question": "Which software starts first when you turn on a computer?",
+                    "followup_answer": "System software / the Operating System loads first through the bootstrap process."
+                },
+                {
+                    "question_text": "What are the main functions of an Operating System?",
+                    "topic": "OS - Key Functions",
+                    "difficulty": "medium",
+                    "reference_answer": "The main functions include Process Management (running programs), Memory Management (RAM), File System Management, and Device Management (I/O hardware).",
+                    "followup_question": "What happens when you run out of RAM memory?",
+                    "followup_answer": "The OS uses virtual memory on disk storage or closes background tasks to prevent crashes."
+                },
+                {
+                    "question_text": "What is the difference between a Graphical User Interface (GUI) and a Command Line Interface (CLI)?",
+                    "topic": "OS - User Interfaces",
+                    "difficulty": "easy",
+                    "reference_answer": "A GUI allows users to interact using visual icons, buttons, and a mouse, while a CLI requires typing text commands.",
+                    "followup_question": "Which interface is generally easier for everyday beginners to use?",
+                    "followup_answer": "A GUI is much easier because it is visual and intuitive."
+                },
+                {
+                    "question_text": "What is a File System, and why do computers organize data into folders and files?",
+                    "topic": "OS - File Management",
+                    "difficulty": "medium",
+                    "reference_answer": "A file system controls how data is stored and retrieved on a storage drive, organizing it into a hierarchy of directories and files for easy access.",
+                    "followup_question": "What happens to your files when you turn off the computer?",
+                    "followup_answer": "Files saved on non-volatile secondary storage (SSD/HDD) remain safely stored."
+                }
+            ]
+
+        # ── Domain: Java / Programming ──
+        if "java" in t_low or "programming" in t_low or "python" in t_low or "coding" in t_low:
+            return [
+                {
+                    "question_text": "What is a computer program, and why do programmers use programming languages?",
+                    "topic": "Computer Science - Programming Basics",
+                    "difficulty": "easy",
+                    "reference_answer": "A computer program is a set of instructions given to a computer to perform a specific task. Programming languages allow humans to write instructions that computers can understand.",
+                    "followup_question": "Can computers directly understand English?",
+                    "followup_answer": "No, computers only understand binary machine code (0s and 1s), so programs must be compiled or interpreted."
+                },
+                {
+                    "question_text": "What is a Variable and a Data Type in programming?",
+                    "topic": "Programming - Variables & Data Types",
+                    "difficulty": "easy",
+                    "reference_answer": "A variable is a named storage location in memory that holds a value. A data type specifies the kind of data it can hold, such as integers, decimals, or text strings.",
+                    "followup_question": "What data type would you use to store a person's name versus their age?",
+                    "followup_answer": "A String for the name, and an Integer for the age."
+                },
+                {
+                    "question_text": "What is an 'if-else' conditional statement, and can you give a real-life example?",
+                    "topic": "Programming - Decision Making",
+                    "difficulty": "easy",
+                    "reference_answer": "An if-else statement allows a program to make decisions: if a condition is true, one block of code runs; otherwise, an alternative block runs.",
+                    "followup_question": "Give an example of a condition used in everyday life.",
+                    "followup_answer": "If it is raining, take an umbrella; else, wear sunglasses."
+                },
+                {
+                    "question_text": "What is a Loop in programming, and why is it useful?",
+                    "topic": "Programming - Loops & Iteration",
+                    "difficulty": "medium",
+                    "reference_answer": "A loop repeats a block of instructions multiple times until a condition is met, preventing repetitive manual code.",
+                    "followup_question": "What could happen if a loop never reaches its stop condition?",
+                    "followup_answer": "It becomes an infinite loop, causing the program to freeze or crash."
+                },
+                {
+                    "question_text": "What is an Algorithm in computer science?",
+                    "topic": "Computer Science - Algorithms",
+                    "difficulty": "medium",
+                    "reference_answer": "An algorithm is a step-by-step procedure or set of rules to solve a specific problem or complete a task.",
+                    "followup_question": "Can you give a simple real-life algorithm?",
+                    "followup_answer": "A recipe for baking a cake or steps to brush your teeth."
+                }
+            ]
+
+        # ── Domain: Science / General ──
+        concepts = self._extract_concepts_from_text(context)
+        c1 = concepts[0] if len(concepts) > 0 else (topic or "this chapter")
+        c2 = concepts[1] if len(concepts) > 1 else "key scientific principles"
+        c3 = concepts[2] if len(concepts) > 2 else "practical observations"
+
+        return [
+            {
+                "question_text": f"What is the basic definition and fundamental meaning of {c1}?",
+                "topic": f"{topic} - Definition",
+                "difficulty": "easy",
+                "reference_answer": f"{c1} is a fundamental concept that explains key observed phenomena and laws in this chapter.",
+                "followup_question": f"Can you give one real-life example where {c1} can be observed?",
+                "followup_answer": f"Everyday observations demonstrate the direct application of {c1}."
+            },
+            {
+                "question_text": f"Can you explain how {c2} works and why it is important?",
+                "topic": f"{topic} - Mechanism",
+                "difficulty": "medium",
+                "reference_answer": f"{c2} functions through established principles to create predictable outcomes in this subject.",
+                "followup_question": "What factors can change or influence this process?",
+                "followup_answer": "Environmental conditions, initial values, and external forces can influence it."
+            },
+            {
+                "question_text": f"What are the main differences or key relationships between {c1} and {c3}?",
+                "topic": f"{topic} - Comparison",
+                "difficulty": "medium",
+                "reference_answer": f"They represent complementary aspects of the topic, operating under distinct rules and physical conditions.",
+                "followup_question": "How are these concepts applied in modern technology or nature?",
+                "followup_answer": "They form the foundation for practical tools, experiments, and natural processes."
             }
         ]
-        cleaned = " ".join(words).strip()
-        return cleaned if len(cleaned) >= 2 else (clean.strip() or "Computer Science")
 
     def _extract_concepts_from_text(self, text: str) -> List[str]:
         if not text:
