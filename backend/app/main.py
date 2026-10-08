@@ -170,28 +170,29 @@ app.include_router(session.router, prefix=f"{settings.API_V1_STR}/session", tags
 app.include_router(report.router, prefix=f"{settings.API_V1_STR}/report", tags=["Report & Analytics"])
 app.include_router(interview_ws.router, tags=["Realtime Voice WebSocket"])
 
-@app.get("/")
-def root():
-    return {
-        "status": "online",
-        "service": settings.PROJECT_NAME,
-        "version": "1.2.0-concept-aware",
-        "docs": "/docs" if _is_dev else "disabled in production",
-        "health": "/health",
-        "llm_routing": {
-            "question_generation": settings.QUESTION_GEN_PROVIDER,
-            "live_turn": settings.LIVE_PROVIDER,
-            "evaluation": settings.EVALUATION_PROVIDER,
-            "report": settings.REPORT_PROVIDER,
-        },
-        "stt_provider": settings.STT_PROVIDER,
-        "tts_provider": settings.TTS_PROVIDER,
-    }
+if _is_dev:
+    @app.get("/")
+    def root():
+        return {
+            "status": "online",
+            "service": settings.PROJECT_NAME,
+            "version": "1.2.0-concept-aware",
+            "docs": "/docs",
+            "health": "/health",
+            "llm_routing": {
+                "question_generation": settings.QUESTION_GEN_PROVIDER,
+                "live_turn": settings.LIVE_PROVIDER,
+                "evaluation": settings.EVALUATION_PROVIDER,
+                "report": settings.REPORT_PROVIDER,
+            },
+            "stt_provider": settings.STT_PROVIDER,
+            "tts_provider": settings.TTS_PROVIDER,
+        }
 
 @app.get("/health")
 @app.get(f"{settings.API_V1_STR}/health")
 def health():
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "1.2.0-concept-aware"}
 
 
 @app.get("/health/ready")
