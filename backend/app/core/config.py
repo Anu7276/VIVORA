@@ -43,6 +43,21 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context: Any) -> None:
         import os
+        import secrets
+        if not self.JWT_SECRET_KEY or (
+            self.ENV != "development"
+            and (
+                len(self.JWT_SECRET_KEY) < 32
+                or self.JWT_SECRET_KEY in {
+                    "vivora-insecure-dev-secret-key-change-in-production",
+                    "vivora-production-secure-jwt-secret-key-32chars",
+                    "secret",
+                    "changeme",
+                }
+            )
+        ):
+            self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
+
         if not self.GEMINI_API_KEY:
             self.GEMINI_API_KEY = (
                 os.environ.get("GEMINI_API_KEY")
