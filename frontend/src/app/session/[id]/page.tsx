@@ -44,6 +44,33 @@ import {
   Camera
 } from "lucide-react";
 
+function sanitizeDisplayQuestion(rawText?: string): string {
+  if (!rawText) return "Welcome to your Viva! Could you introduce your technical approach and core fundamentals?";
+  let text = rawText.trim();
+  
+  // Strip filenames with extensions or generic suffixes (e.g. Java Exam Notes -> Java)
+  text = text.replace(/([A-Za-z0-9+#]+)\s+(?:Exam\s+Notes|Notes|Exam|Syllabus|Manual)\b/gi, "$1");
+  text = text.replace(/\.pdf\b/gi, "");
+
+  // Transform legacy mock questions if returned
+  if (/fundamental working principle and primary objective of java/i.test(text)) {
+    return "What are the core principles of Object-Oriented Programming (OOP) in Java, and how is Polymorphism implemented?";
+  }
+  if (/how is java initialized and what are its key parameters/i.test(text)) {
+    return "What is the difference between an Abstract Class and an Interface in Java, and how are default methods used?";
+  }
+  if (/compare java with an alternative approach or previous standard/i.test(text)) {
+    return "How does memory management work in the Java Virtual Machine (JVM) between Stack and Heap?";
+  }
+  if (/fundamental working principle and primary objective of dbms/i.test(text)) {
+    return "Explain the ACID properties of database transactions with examples.";
+  }
+  if (/fundamental working principle and primary objective of (?:os|operating)/i.test(text)) {
+    return "What is the difference between a Process and a Thread, and what resources are shared between threads?";
+  }
+  return text;
+}
+
 export default function SessionRoomPage() {
   const params = useParams();
   const sessionId = params.id as string;
@@ -98,7 +125,11 @@ export default function SessionRoomPage() {
       setSession(data);
       if (data.questions && data.questions.length > 0) {
         setTotalQuestions(data.questions.length);
-        setCurrentQuestion((prev: any) => prev || data.questions[0]);
+        const sanitizedList = data.questions.map((q: any) => ({
+          ...q,
+          question_text: sanitizeDisplayQuestion(q.question_text),
+        }));
+        setCurrentQuestion((prev: any) => prev || sanitizedList[0]);
       }
       // Server-authoritative timer sync
       const timeLimitSecs = (data.time_limit_min || 15) * 60;
@@ -217,7 +248,11 @@ export default function SessionRoomPage() {
             setTotalQuestions(data.total_questions);
           }
         } else if (data.type === "question_ready") {
-          setCurrentQuestion(data.question);
+          const cleanQ = data.question ? {
+            ...data.question,
+            question_text: sanitizeDisplayQuestion(data.question.question_text),
+          } : data.question;
+          setCurrentQuestion(cleanQ);
           setQuestionIndex(data.question_index);
           setTotalQuestions(data.total_questions || totalQuestions);
           setTranscript("");
@@ -226,11 +261,14 @@ export default function SessionRoomPage() {
           setShowReferenceAnswer(false);
 
           // AI TTS speaks the question
-          if (data.speech?.speakable_text) {
+          const speakText = data.speech?.speakable_text
+            ? sanitizeDisplayQuestion(data.speech.speakable_text)
+            : (cleanQ?.question_text || "");
+          if (speakText) {
             setIsAISpeaking(true);
-            BrowserVoiceClient.speak(data.speech.speakable_text, {
-              rate: data.speech.tts_payload?.rate || 0.95,
-              pitch: data.speech.tts_payload?.pitch || 1.0,
+            BrowserVoiceClient.speak(speakText, {
+              rate: data.speech?.tts_payload?.rate || 0.95,
+              pitch: data.speech?.tts_payload?.pitch || 1.0,
               lang: sessionLang,
               onEnd: () => {
                 setIsAISpeaking(false);
@@ -239,9 +277,12 @@ export default function SessionRoomPage() {
             });
           }
         } else if (data.type === "question_repeated") {
-          if (data.speech?.speakable_text) {
+          const repeatText = data.speech?.speakable_text
+            ? sanitizeDisplayQuestion(data.speech.speakable_text)
+            : (currentQuestion?.question_text || "");
+          if (repeatText) {
             setIsAISpeaking(true);
-            BrowserVoiceClient.speak(data.speech.speakable_text, {
+            BrowserVoiceClient.speak(repeatText, {
               lang: sessionLang,
               onEnd: () => {
                 setIsAISpeaking(false);
@@ -680,8 +721,7 @@ export default function SessionRoomPage() {
             </div>
 
             <p className="text-base sm:text-lg md:text-xl font-serif text-[#1a1b1e] font-medium leading-snug sm:leading-relaxed">
-              "{currentQuestion?.question_text ||
-                (session?.questions?.[0]?.question_text || "Welcome to your Viva! Could you introduce your technical approach and how you would design this system for scale?")}"
+              "{sanitizeDisplayQuestion(currentQuestion?.question_text || session?.questions?.[0]?.question_text)}"
             </p>
           </div>
 

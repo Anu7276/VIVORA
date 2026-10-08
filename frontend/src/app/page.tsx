@@ -683,6 +683,19 @@ export default function VIVORAEditorialHomePage() {
     }
   }, []);
 
+  const cleanDocumentSubject = (raw: string): string => {
+    if (!raw) return "Computer Science";
+    const clean = raw.replace(/\.[a-zA-Z0-9]+$/, "").replace(/[_\-]+/g, " ");
+    const words = clean.split(/\s+/).filter(
+      (w) =>
+        !/^(exam|examination|notes|note|assignments|assignment|syllabus|manual|handout|module|chapter|unit|test|cheatsheet|guide|doc|pdf|file)$/i.test(
+          w
+        )
+    );
+    const result = words.join(" ").trim();
+    return result.length >= 2 ? result : (clean.trim() || "Computer Science");
+  };
+
   const handleStartSession = async (
     customTitle?: string,
     customContent?: string,
@@ -703,9 +716,11 @@ export default function VIVORAEditorialHomePage() {
       if (activeMode === "interview") {
         sessionTitle = `${jobRole || "Professional"} Interview`;
       } else if (activeMode === "college") {
-        sessionTitle = customTitle || title || (selectedFile ? selectedFile.name.replace(/\.[^/.]+$/, "") : "") || promptText || "College Viva Voce";
+        const rawSubject = customTitle || title || (selectedFile ? selectedFile.name : "") || promptText || "College Viva Voce";
+        sessionTitle = cleanDocumentSubject(rawSubject);
       } else {
-        sessionTitle = customTitle || title || (selectedFile ? selectedFile.name.replace(/\.[^/.]+$/, "") : "") || promptText || "School Viva Practice";
+        const rawSubject = customTitle || title || (selectedFile ? selectedFile.name : "") || promptText || "School Viva Practice";
+        sessionTitle = cleanDocumentSubject(rawSubject);
       }
 
       let finalContent = customContent || contentText || promptText;
@@ -752,9 +767,10 @@ export default function VIVORAEditorialHomePage() {
         ? "resume" 
         : (selectedMode === "school" ? "questions" : "syllabus");
       const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[_\-]+/g, " ");
+      const cleanedSubject = cleanDocumentSubject(rawName);
       const docTitle = selectedMode === "interview" 
         ? `${jobRole || "Candidate"} Resume` 
-        : rawName;
+        : cleanedSubject;
 
       const data = await uploadFileMaterial(file, docTitle, docType);
       setUploadedDocumentId(data.document_id);
