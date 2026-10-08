@@ -21,7 +21,9 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     url = config.get_main_option("sqlalchemy.url")
-    return url if url else settings.DATABASE_URL
+    if not url or "driver://user:pass" in url:
+        return settings.DATABASE_URL
+    return url
 
 def run_migrations_offline() -> None:
     url = get_url()
